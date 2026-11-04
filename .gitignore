@@ -2,3 +2,5 @@ target/
 pkg/
 pkg-node/
 clips/
+.venv/
+__pycache__/

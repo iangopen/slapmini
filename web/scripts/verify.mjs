@@ -4,7 +4,7 @@
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -18,6 +18,8 @@ const server = spawn("npx vite --port 5173 --strictPort", {
   cwd: webDir,
   shell: true,
   stdio: ["ignore", "pipe", "pipe"],
+  // POSIX: own process group, so the whole tree (shell + vite) can be killed at the end.
+  detached: process.platform !== "win32",
 });
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error("vite did not start")), 30000);
@@ -31,8 +33,22 @@ const f = (v, d = 3) => (v >= 0 ? " " : "") + v.toFixed(d);
 let failed = false;
 const check = (cond, msg) => { console.log(`${cond ? "PASS" : "FAIL"}: ${msg}`); if (!cond) failed = true; };
 
-const browser = await chromium.launch();
+// Use Playwright's own browser when it is installed; otherwise fall back to a preinstalled Chromium
+// (PW_CHROMIUM, or /opt/pw-browsers/chromium in the Linux cloud container).
+async function launch() {
+  try {
+    return await chromium.launch();
+  } catch (e) {
+    const alt = process.env.PW_CHROMIUM || "/opt/pw-browsers/chromium";
+    if (!existsSync(alt)) throw e;
+    console.log(`(playwright browser missing; using ${alt})`);
+    return chromium.launch({ executablePath: alt });
+  }
+}
+
+let browser;
 try {
+  browser = await launch();
   const page = await browser.newPage({ viewport: { width: 1400, height: 760 } });
   page.on("pageerror", (e) => { console.log("PAGE ERROR", e.message); failed = true; });
   await page.goto(URL_);
@@ -173,11 +189,45 @@ try {
   await page.waitForTimeout(200);
   console.log(`\n[ghost] loaded ${sc.steps + 1} samples; scrub label: ${await page.textContent("#ghost-t")}`);
   await page.screenshot({ path: path.join(out, "6-ghost.png") });
+
+  // ---- 7. real measured track (measure/) in game view: nets top/bottom, +x up, +y left ----
+  const realCsv = path.resolve(webDir, "..", "measure", "results", "justpuckphysicshittingitatfixedpoint.traj.csv");
+  if (existsSync(realCsv)) {
+    await page.click("#ghost-clear");
+    await page.check("#game-view");
+    await page.waitForTimeout(100);
+    await page.setInputFiles("#ghost-file", realCsv);
+    await page.waitForSelector("#ghost-scrub:not([disabled])");
+    await page.waitForTimeout(200);
+    const rows = readFileSync(realCsv, "utf8").trim().split("\n").slice(1).map((l) => l.split(",").map(Number));
+    const P = await ev(() => window.lab.lab.p);
+    const xs = rows.map((r) => r[1]);
+    const ys = rows.map((r) => r[2]);
+    const inX = rows.filter((r) => Math.abs(r[1]) <= P.rink_length / 2).length;
+    const inBox = rows.filter((r) => Math.abs(r[1]) <= P.rink_length / 2 && Math.abs(r[2]) <= P.rink_width / 2).length;
+    console.log(`\n[real ghost] ${rows.length} samples from ${path.basename(realCsv)}`);
+    console.log(`  x range ${Math.min(...xs).toFixed(2)} .. ${Math.max(...xs).toFixed(2)} m (sim rink half length ${P.rink_length / 2})`);
+    console.log(`  y range ${Math.min(...ys).toFixed(2)} .. ${Math.max(...ys).toFixed(2)} m (sim rink half width ${P.rink_width / 2})`);
+    console.log(`  inside sim rink length: ${inX}/${rows.length}; inside sim rink box: ${inBox}/${rows.length}`);
+    const v = await ev(() => window.lab.view);
+    const top = await w2c(P.net_x, 0);
+    const bot = await w2c(-P.net_x, 0);
+    const left = await w2c(0, 5);
+    console.log(`  game view: rot=${v.rot}; net +x at client y=${top[1].toFixed(0)}, net -x at y=${bot[1].toFixed(0)}, +y at client x=${left[0].toFixed(0)} (center x ${(await w2c(0, 0))[0].toFixed(0)})`);
+    check(v.rot && top[1] < bot[1] && left[0] < (await w2c(0, 0))[0], "game view puts +x (net 0) at the top and +y to the left");
+    check(inX === rows.length, "every measured sample lies within the rink length (scale = params rink_length / board px)");
+    await page.screenshot({ path: path.join(out, "7-real-ghost-game-view.png") });
+    await page.uncheck("#game-view");
+  } else {
+    console.log(`\n[real ghost] skipped: ${realCsv} not found (run python -m measure track first)`);
+  }
 } finally {
-  await browser.close();
+  await browser?.close();
   // Kill the whole vite process tree (on Windows the shell wrapper would otherwise orphan it).
   if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { stdio: "ignore" });
-  else server.kill();
+  else {
+    try { process.kill(-server.pid, "SIGTERM"); } catch { server.kill(); }
+  }
 }
 console.log(failed ? "\nVERIFY FAILED" : "\nVERIFY OK");
 process.exit(failed ? 1 : 0);

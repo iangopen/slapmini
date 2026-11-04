@@ -51,9 +51,47 @@ Downloaded lab recordings (`.scenario.json` + `.csv`) work directly with `calib 
 Setup: Rust via rustup plus `rustup target add wasm32-unknown-unknown`, and wasm-pack (`npm install -g wasm-pack` or `cargo install wasm-pack`).
 On Windows without the Windows SDK, use the GNU toolchain: `rustup override set stable-x86_64-pc-windows-gnu` in the repo.
 
+## Measuring real clips (measure/)
+
+A Python tool that turns top-down screen recordings of the real game into trajectory CSVs in calib's format.
+It uses OpenCV's bundled ffmpeg, so no system ffmpeg is needed. Clips live in `clips/` (gitignored; fetch them from the
+`clip-data` branch with `git fetch origin clip-data`, `git checkout FETCH_HEAD -- clips/`, `git reset -q clips/`).
+Outputs go to `measure/results/` (small CSV/JSON/PNG, committed). The median background frame is cached as `clips/NAME.bg.png`.
+
+PowerShell (Windows):
+
+```powershell
+py -3 -m venv .venv
+.venv\Scripts\python -m pip install -r measure\requirements.txt
+.venv\Scripts\python -m measure map   clips\justpuckphysicshittingitatfixedpoint.mkv
+.venv\Scripts\python -m measure track clips\justpuckphysicshittingitatfixedpoint.mkv
+.venv\Scripts\python -m measure qa    clips\justpuckphysicshittingitatfixedpoint.mkv
+.venv\Scripts\python -m unittest discover -s measure\tests -t .
+```
+
+bash (macOS / Linux):
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r measure/requirements.txt
+.venv/bin/python -m measure map   clips/justpuckphysicshittingitatfixedpoint.mkv
+.venv/bin/python -m measure track clips/justpuckphysicshittingitatfixedpoint.mkv
+.venv/bin/python -m measure qa    clips/justpuckphysicshittingitatfixedpoint.mkv
+.venv/bin/python -m unittest discover -s measure/tests -t .
+```
+
+- `map` finds the inner board outline, center line and center dot in a median frame, writes `NAME.map.json` + `NAME.map.png`,
+  and re-matches a board-corner landmark once per second. It exits non-zero if the camera drifts more than 2 px.
+- `track` needs a passing map. For a clip whose camera moved, `--stable-frames-only` keeps only frames whose own landmark
+  drift is at most 2 px. Writes `NAME.traj.csv` (`t,x,y,z`, z always 0) and `NAME.track.json` (per-row frame, pixel position,
+  confidence, interpolated flag, segment id; summary; `scale_source`).
+- `qa` writes `qa/NAME.overview.png` (whole path on the background) and `qa/NAME.sheet.png` (sampled frames with zoom insets).
+- Several clips can be passed at once. `python -m measure synth out.mkv` renders the synthetic test video.
+
 ## File formats
 
 - **params.json**: `{"params": {name: {"value", "provenance", "unit", "note"}}}`. Provenance is `placeholder`, `fitted` or `measured`.
 - **Scenario** (`*.scenario.json`): `{name, description, steps, initial_state: State, inputs: [{step, player, input}]}`.
   Each input is held from its `step` until that player's next event.
 - **Trajectory CSV**: header `t,x,y,z` plus an optional `stick_angle` (player 0) column. Puck position in meters, rink-centered.
+  Measured tracks use t = frame / fps from the clip's first frame. Rows can be irregular: dropped frames are simply missing.

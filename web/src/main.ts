@@ -18,13 +18,17 @@ const lab = new Lab(Sim, ORIGINAL, 2);
 // ---------- canvas / view ----------
 const canvas = $<HTMLCanvasElement>("rink");
 const ctx = canvas.getContext("2d")!;
-let view: View = fitView(1, 1, lab.p);
+// Game view: rotated like the real game's camera (nets top and bottom, +x up, +y left).
+const gameView = $<HTMLInputElement>("game-view");
+gameView.checked = new URLSearchParams(location.search).get("view") === "game";
+let view: View = fitView(1, 1, lab.p, gameView.checked);
 function resize(): void {
   const r = canvas.getBoundingClientRect();
   canvas.width = Math.max(1, Math.round(r.width));
   canvas.height = Math.max(1, Math.round(r.height));
-  view = fitView(canvas.width, canvas.height, lab.p);
+  view = fitView(canvas.width, canvas.height, lab.p, gameView.checked);
 }
+gameView.addEventListener("change", resize);
 new ResizeObserver(resize).observe(canvas);
 resize();
 
@@ -64,11 +68,12 @@ function readHumanInput(): void {
   const pl = lab.state.players[0];
   if (!pl) return;
   const [wx, wy] = mouseWorld();
-  const mx = (held.has("right") ? 1 : 0) - (held.has("left") ? 1 : 0);
-  const my = (held.has("up") ? 1 : 0) - (held.has("down") ? 1 : 0);
+  // WASD is screen-relative: right/up on screen, mapped into world axes for the current view.
+  const sr = (held.has("right") ? 1 : 0) - (held.has("left") ? 1 : 0);
+  const su = (held.has("up") ? 1 : 0) - (held.has("down") ? 1 : 0);
   lab.inputs[0] = {
-    move_x: mx,
-    move_y: my,
+    move_x: view.rot ? su : sr,
+    move_y: view.rot ? -sr : su,
     stick_target_angle: Math.atan2(wy - pl.y, wx - pl.x),
     dash: held.has("dash"),
     lift: held.has("lift"),
@@ -228,6 +233,9 @@ declare global {
 window.lab = {
   lab,
   BINDINGS,
+  get view() {
+    return view;
+  },
   toCsv,
   /** Canvas-relative world → page client coordinates. */
   worldToClient(x: number, y: number): [number, number] {

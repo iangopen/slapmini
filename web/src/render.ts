@@ -2,15 +2,24 @@
 
 import type { P, Sample, State } from "./types";
 
-export interface View { s: number; cx: number; cy: number }
+/**
+ * s = pixels per meter, (cx, cy) = screen position of center ice.
+ * rot = false: x right, y up (lab default). rot = true: "game view", the real game's camera: +x up
+ * (toward the net at the top), +y left, i.e. the default view rotated 90 deg counterclockwise. Both keep
+ * x then y counterclockwise on screen, which is the measure/ coordinate convention.
+ */
+export interface View { s: number; cx: number; cy: number; rot: boolean }
 
-export function fitView(canvasW: number, canvasH: number, p: P, marginPx = 24): View {
-  const s = Math.min((canvasW - 2 * marginPx) / p.rink_length, (canvasH - 2 * marginPx) / p.rink_width);
-  return { s, cx: canvasW / 2, cy: canvasH / 2 };
+export function fitView(canvasW: number, canvasH: number, p: P, rot = false, marginPx = 24): View {
+  const [along, across] = rot ? [canvasH, canvasW] : [canvasW, canvasH];
+  const s = Math.min((along - 2 * marginPx) / p.rink_length, (across - 2 * marginPx) / p.rink_width);
+  return { s, cx: canvasW / 2, cy: canvasH / 2, rot };
 }
 
-export const toScreen = (v: View, x: number, y: number): [number, number] => [v.cx + x * v.s, v.cy - y * v.s];
-export const toWorld = (v: View, sx: number, sy: number): [number, number] => [(sx - v.cx) / v.s, -(sy - v.cy) / v.s];
+export const toScreen = (v: View, x: number, y: number): [number, number] =>
+  v.rot ? [v.cx - y * v.s, v.cy - x * v.s] : [v.cx + x * v.s, v.cy - y * v.s];
+export const toWorld = (v: View, sx: number, sy: number): [number, number] =>
+  v.rot ? [(v.cy - sy) / v.s, (v.cx - sx) / v.s] : [(sx - v.cx) / v.s, -(sy - v.cy) / v.s];
 
 /** Minimum on-screen puck radius in pixels (display only; physics radius is unchanged). */
 const PUCK_MIN_PX = 6;
@@ -25,9 +34,12 @@ export function puckColor(z: number): string {
 }
 
 function rinkPath(ctx: CanvasRenderingContext2D, v: View, p: P): void {
-  const [x0, y0] = toScreen(v, -p.rink_length / 2, p.rink_width / 2);
-  const w = p.rink_length * v.s;
-  const h = p.rink_width * v.s;
+  const [ax, ay] = toScreen(v, -p.rink_length / 2, p.rink_width / 2);
+  const [bx, by] = toScreen(v, p.rink_length / 2, -p.rink_width / 2);
+  const x0 = Math.min(ax, bx);
+  const y0 = Math.min(ay, by);
+  const w = Math.abs(bx - ax);
+  const h = Math.abs(by - ay);
   const r = Math.min(p.rink_corner_radius * v.s, w / 2, h / 2);
   ctx.beginPath();
   ctx.roundRect(x0, y0, w, h, r);
@@ -123,10 +135,18 @@ export function draw(ctx: CanvasRenderingContext2D, v: View, p: P, st: State, o:
     ctx.strokeStyle = "rgba(140, 60, 200, 0.5)";
     ctx.lineWidth = Math.max(2, p.puck_radius * v.s);
     ctx.lineJoin = "round";
+    // Break the path where samples are missing for a while, or where the puck would have to move
+    // faster than 3x the largest speed cap (a measured track's teleports / practice-tool resets).
+    const dts = o.ghost.slice(1).map((g, i) => g.t - o.ghost![i].t).sort((a, b) => a - b);
+    const gapT = 3 * (dts[Math.floor(dts.length / 2)] || 0);
+    const vMax = 3 * Math.max(p.max_puck_speed_ice_dash, p.max_puck_speed_ice_normal, p.max_puck_speed_air);
     ctx.beginPath();
     o.ghost.forEach((g, i) => {
       const [a, b] = toScreen(v, g.x, g.y);
-      if (i === 0) ctx.moveTo(a, b);
+      const q = o.ghost![i - 1];
+      const dt = q ? g.t - q.t : 0;
+      const jump = q ? Math.hypot(g.x - q.x, g.y - q.y, g.z - q.z) > vMax * Math.max(dt, 1e-9) : false;
+      if (i === 0 || dt > gapT || jump) ctx.moveTo(a, b);
       else ctx.lineTo(a, b);
     });
     ctx.stroke();

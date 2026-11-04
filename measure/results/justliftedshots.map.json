@@ -1,0 +1,264 @@
+{
+  "clip": "justliftedshots",
+  "frame_size": [
+    1920,
+    1080
+  ],
+  "fps": 60.0,
+  "frame_count": 1663,
+  "origin_px": [
+    975.994,
+    506.316
+  ],
+  "x_axis_px": [
+    0.0,
+    -1.0
+  ],
+  "board_px": {
+    "left": 685.5,
+    "right": 1266.5,
+    "top": 49.5,
+    "bottom": 963.5
+  },
+  "corner_radius_px": 132.265,
+  "m_per_px": 0.06564551422319474,
+  "scale_source": "params.json rink_length = 60 m (PLACEHOLDER, unmeasured) / measured inner board length 914.00 px",
+  "extra": {
+    "origin_source": "center dot (gap in the center line) at the center-line row",
+    "center_line_v_px": 506.316,
+    "board_center_px": [
+      976.0,
+      506.5
+    ],
+    "center_dot_minus_board_center_px": [
+      -0.006,
+      -0.184
+    ],
+    "board_length_m": 60.0,
+    "board_width_m": 38.14,
+    "corner_radius_m": 8.6826,
+    "length_width_ratio": {
+      "measured": 1.5731,
+      "params": 2.3077
+    },
+    "drift": {
+      "landmark": "top-left inner board corner (81x81 px patch at the 45-degree point of the arc)",
+      "landmark_px": [
+        724.24,
+        88.24
+      ],
+      "interval_s": 1.0,
+      "samples": 28,
+      "not_found": 0,
+      "max_px": 0.707,
+      "limit_px": 2.0,
+      "ok": true,
+      "per_second": [
+        {
+          "frame": 0,
+          "t": 0.0,
+          "du": -0.107,
+          "dv": 0.682,
+          "score": 0.985
+        },
+        {
+          "frame": 60,
+          "t": 1.0,
+          "du": -0.105,
+          "dv": 0.688,
+          "score": 0.985
+        },
+        {
+          "frame": 120,
+          "t": 2.0,
+          "du": 0.348,
+          "dv": 0.401,
+          "score": 0.98
+        },
+        {
+          "frame": 180,
+          "t": 3.0,
+          "du": 0.348,
+          "dv": 0.401,
+          "score": 0.98
+        },
+        {
+          "frame": 240,
+          "t": 4.0,
+          "du": 0.348,
+          "dv": 0.401,
+          "score": 0.98
+        },
+        {
+          "frame": 300,
+          "t": 5.0,
+          "du": 0.35,
+          "dv": 0.396,
+          "score": 0.981
+        },
+        {
+          "frame": 360,
+          "t": 6.0,
+          "du": 0.35,
+          "dv": 0.396,
+          "score": 0.981
+        },
+        {
+          "frame": 420,
+          "t": 7.0,
+          "du": 0.35,
+          "dv": 0.396,
+          "score": 0.981
+        },
+        {
+          "frame": 480,
+          "t": 8.0,
+          "du": 0.35,
+          "dv": 0.396,
+          "score": 0.981
+        },
+        {
+          "frame": 540,
+          "t": 9.0,
+          "du": 0.35,
+          "dv": 0.396,
+          "score": 0.981
+        },
+        {
+          "frame": 600,
+          "t": 10.0,
+          "du": -0.105,
+          "dv": 0.693,
+          "score": 0.985
+        },
+        {
+          "frame": 660,
+          "t": 11.0,
+          "du": -0.123,
+          "dv": -0.15,
+          "score": 0.99
+        },
+        {
+          "frame": 720,
+          "t": 12.0,
+          "du": -0.123,
+          "dv": -0.15,
+          "score": 0.99
+        },
+        {
+          "frame": 780,
+          "t": 13.0,
+          "du": -0.128,
+          "dv": -0.15,
+          "score": 0.99
+        },
+        {
+          "frame": 840,
+          "t": 14.0,
+          "du": -0.128,
+          "dv": -0.15,
+          "score": 0.99
+        },
+        {
+          "frame": 900,
+          "t": 15.0,
+          "du": -0.128,
+          "dv": -0.15,
+          "score": 0.99
+        },
+        {
+          "frame": 960,
+          "t": 16.0,
+          "du": -0.104,
+          "dv": 0.699,
+          "score": 0.985
+        },
+        {
+          "frame": 1020,
+          "t": 17.0,
+          "du": -0.092,
+          "dv": -0.09,
+          "score": 0.992
+        },
+        {
+          "frame": 1080,
+          "t": 18.0,
+          "du": -0.094,
+          "dv": -0.095,
+          "score": 0.978
+        },
+        {
+          "frame": 1140,
+          "t": 19.0,
+          "du": -0.092,
+          "dv": -0.09,
+          "score": 0.992
+        },
+        {
+          "frame": 1200,
+          "t": 20.0,
+          "du": -0.092,
+          "dv": -0.09,
+          "score": 0.992
+        },
+        {
+          "frame": 1260,
+          "t": 21.0,
+          "du": -0.092,
+          "dv": -0.09,
+          "score": 0.992
+        },
+        {
+          "frame": 1320,
+          "t": 22.0,
+          "du": -0.003,
+          "dv": -0.028,
+          "score": 0.996
+        },
+        {
+          "frame": 1380,
+          "t": 23.0,
+          "du": -0.003,
+          "dv": -0.028,
+          "score": 0.996
+        },
+        {
+          "frame": 1440,
+          "t": 24.0,
+          "du": -0.003,
+          "dv": -0.028,
+          "score": 0.996
+        },
+        {
+          "frame": 1500,
+          "t": 25.0,
+          "du": 0.0,
+          "dv": -0.023,
+          "score": 0.996
+        },
+        {
+          "frame": 1560,
+          "t": 26.0,
+          "du": -0.0,
+          "dv": -0.023,
+          "score": 0.996
+        },
+        {
+          "frame": 1620,
+          "t": 27.0,
+          "du": -0.0,
+          "dv": -0.023,
+          "score": 0.996
+        }
+      ]
+    },
+    "background_png": "justliftedshots.bg.png"
+  },
+  "y_axis_px": [
+    -1.0,
+    -0.0
+  ],
+  "board_length_px": 914.0,
+  "board_width_px": 581.0,
+  "convention": "meters; origin = center dot; +x along the long axis toward the net at the top of the screen; +y = screen left (x then y counterclockwise on screen); z not observable (always 0)"
+}

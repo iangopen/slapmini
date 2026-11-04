@@ -4,7 +4,7 @@ A compressed, top-down 2.5D browser version of Slapshot: Rebound (WASD to move, 
 built to train RL bots. The physics must eventually match the real game. Ian is recording practice-mode clips for calibration.
 
 ## Architecture
-- Cargo workspace with `sim`, `calib` and `sim-wasm`, plus `web/` (the feel lab: Vite + TypeScript, no framework). Commands are in README.md.
+- Cargo workspace with `sim`, `calib` and `sim-wasm`, plus `web/` (the feel lab: Vite + TypeScript, no framework) and `measure/` (Python: real clips → trajectory CSVs). Commands are in README.md.
 - **sim** (pure, deterministic): `step(&mut State, &[PlayerInput], &Params)`. No I/O, no clock, no RNG. Trig goes through `libm`, so native and wasm give identical bits.
   Deps: serde, serde_json, libm. `params.json` is embedded with `include_str!` as `Params::default()`.
   - `State { tick, puck: Puck{x,y,z,vx,vy,vz,in_net}, players: Vec<Player>, score }`. The player count is not hardcoded (`State::new_default(p, n)`, tested with 6).
@@ -29,10 +29,33 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
   - Rendering: rink from params (blue lines, faceoff spots and the speed scale are DISPLAY ONLY params).
     The puck goes blue → red as z goes from 0 to 2 m, and its shadow grows and offsets with z. The puck is drawn at a 6 px minimum radius (display only).
     The stick is drawn at its actual angle, with a faint dashed line at the target angle.
+    "Game view" checkbox (or `?view=game`) rotates the display like the real camera: +x up (net 0 at the top), +y left. WASD stays screen-relative.
+    The ghost path breaks at time gaps and at jumps faster than 3× the largest speed cap (teleports in measured tracks).
   - Record: snapshots `initial_state` and logs an input event whenever a player's input changes. Samples t,x,y,z,stick_angle each step in the calib CSV format.
     Replay: `reset(scenario)` and then feeds the events. Keyboard and mouse are ignored during replay.
   - Practice tools change the state only in play mode; they are disabled while recording or replaying, so recordings stay pure input streams.
   - Ghost: loads a CSV, draws its path faded, and the scrub slider moves a marker along it.
+
+- **measure/** (Python 3, numpy/scipy/opencv-python-headless, venv in `.venv/`, gitignored): `python -m measure {map,track,qa,synth}`.
+  Outputs in `measure/results/` (committed: map/track JSON, traj CSV, QA PNGs). Cached median frames go to `clips/NAME.bg.png`.
+  - `map`: median of 61 frames → inner board outline (the ice region enclosed by the light-grey boards and their yellow inner strip),
+    straight-side extents, corner radius (from the area deficit), center line (saturation peak), center dot (the dark-ring brightness dip pair
+    on the center line). Drift: an 81×81 patch at the top-left board corner is template-matched once per second; above 2 px the map fails.
+  - `track`: green HSV blobs inside the rink outline (+8 px), minus the net roofs (a large textured patch near each end, found from the median
+    frame). Blobs that are green in the median frame are tagged static and may only extend an existing track at its prediction.
+    Greedy linking with a gate of `2 × max speed cap / fps / m_per_px` (≈23 px/frame). Across gaps the allowance grows only with the
+    track's own speed, so teleports start a new segment. Only segments that travel (≥12 px extent, ≥5 moving frames) count as the puck.
+    Duplicated capture frames are dropped, gaps of ≤6 frames inside a segment are interpolated, and every frame's landmark drift is checked.
+  - Tests: `python -m unittest discover -s measure/tests -t .` (11 tests, synthetic video + geometry, no real clips needed).
+
+## Coordinate convention (all measure/ outputs; matches the sim)
+- Meters. Origin = the center dot (center ice). +x along the rink's long axis, toward the net at the TOP of the game screen.
+  +y such that x then y turns counterclockwise as seen on screen, i.e. +y = screen LEFT. This is the sim's frame
+  (+x = net 0, team 0 attacks +x); the lab's default view is this rotated 90° clockwise, and its game view shows it as the game does.
+- Pixel mapping: x = m_per_px · (v0 − v), y = m_per_px · (u0 − u), with (u0, v0) the center dot and v pointing down.
+- **Scale is UNMEASURED**: m_per_px = params.json `rink_length` (60 m, a placeholder) / measured inner board length in pixels.
+  Every output records this as `scale_source`. Lengths along x are right by construction; nothing about the real size is known.
+- t = frame_index / fps from the clip's first frame. z is always 0 (a top-down view cannot see height).
 
 ## Verified (2026-11-03, Windows, rustc 1.99.1 GNU toolchain)
 - `cargo build --release` and `cargo test --workspace` pass (14 tests).
@@ -53,6 +76,34 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
   Before the fix, 88 net shots at 45 m/s tunneled through the back wall near the net corners (the per-segment penetration push near a corner pushed the puck out the far side). With swept net collision: 0 failures. The test also passed in a one-off run at 90 and 120 m/s.
 - `cargo test --workspace` passes (16 tests). The native and wasm crosscheck hashes are unchanged (`c93c94a203a58d2d`), because that run never touches a net. `npm run build` passes.
 
+## Verified (2026-11-04, measure/ session, Linux cloud container)
+- Clips on `clip-data` (sizes checked): justpuckphysicshittingitatfixedpoint (3970 frames), justhittingwallphysicsfixedpoint (3778),
+  justliftedshots (1663), all 1920×1080 at 60 fps. staticrotatingstick skipped (moving camera, stick unreadable).
+- Map: inner board ≈913–914 × 581–582 px, corner radius ≈133 px, center dot within 0.5 px of the board center.
+  **Measured length/width = 1.569–1.573 against params 60/26 = 2.308**, so the real rink is relatively much wider (or shorter)
+  than params.json. With the placeholder length, the width comes out at ≈38.2 m and the corner radius at ≈8.7 m.
+- Camera drift: puck clip max 0.76 px, lifted clip max 0.71 px (pass). **justhittingwallphysicsfixedpoint FAILS (camera moves up to
+  ~16 px for whole stretches)**. It was tracked with `--stable-frames-only`: 1391 of 3776 frames dropped.
+- Track: puck clip 99.7% of frames (11 segments), lifted 99.8% (4 segments), wall clip 99.7% of camera-stable frames (63.0% of all).
+  No speed outliers above 45 m/s (at the placeholder scale) and no back-and-forth spikes. QA sheets in `measure/results/qa/` checked by eye.
+- The recording repeats a frame now and then (11 in the puck clip, 8 in the wall clip). Step lengths in steady glides vary with a
+  median of 4–6% and a p90 of 37–51% (capture timing jitter, the game renders at ~180 fps). Fit with that noise in mind.
+- Ghost check (Playwright, game view): the puck clip's track lies inside the sim rink's length everywhere (x −0.73..29.96 m) and goes
+  to the top-left corner as in the video. In y it reaches 18.95 m against a 13 m half-width (the rink-shape mismatch above).
+  Screenshot: `measure/results/qa/ghost-game-view.png`.
+- `cargo test --workspace` (16 tests incl. both tunneling tests; they read all three speed caps from params.json), `npm run build`,
+  `npm run verify` (VERIFY OK) and the measure tests all pass.
+
+## Tracker limits (measure/)
+- z is not observable. A lifted puck is drawn displaced on screen, so its x/y are wrong while airborne. The game also draws a
+  ground shadow (blue dot) and a landing ring that are not used yet.
+- The scale comes from a placeholder rink length, and speed caps are placeholders, so the gate and the "speed outlier" threshold are guesses.
+- A puck under a net roof, under the player or merged with another green blob is missed (a gap) or biased. The puck overlapping the
+  board graphics near the boards can bias the centroid by a pixel or two.
+- One CSV holds many shots. Practice-tool teleports split segments (`segments` in track.json), but the CSV itself is continuous.
+  Split per segment before fitting. Confidence is a heuristic (blob area vs typical, saturation).
+- The camera must not move. Per-frame drift is checked, but frames from a moved camera are only dropped, never re-registered.
+
 ## Placeholder / unmeasured – EVERYTHING physical
 - **Every value in params.json is unmeasured** (provenance `placeholder`): timestep, substeps, gravity, rink size and corner radius, net position and size, puck radius and mass, all friction/drag/restitution values, player accel/speed/drag/turn, stick length/mass/angular limits/z-range, all three puck speed caps, dash and lift numbers. Rink and net dimensions are invented.
 - **Dash logic is a placeholder**: on the press edge it adds a velocity impulse along the move input (or facing) and opens a `dash_duration` window in which hits count as dash shots, then a cooldown applies.
@@ -68,8 +119,10 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
 - Model simplifications that are still open: boards are infinitely tall, the net has no top bar, there is no puck spin, and no stick-on-stick or stick-on-player collision. Facing simply follows velocity. Goals only increment the score (no reset).
 
 ## Open
-- Real calibration data (practice-mode clips → scenario + CSV). As of 2026-11-04 the `clip-data` branch is not on origin (only `main` exists), so the clip measurement tool (`measure/`) has not been started. `clips/` is gitignored so clips never land on main.
-- Menu, scripted bots and training (later sessions). Measurement pipeline for real clips → ghost CSVs.
+- Real calibration data: measured tracks exist (`measure/results/*.traj.csv`), but no scenarios or fits yet. Next: split per segment,
+  build scenarios, fit friction/restitution, and resolve the rink shape (real length/width) before trusting any meter value.
+  Clips live on the `clip-data` branch; `clips/` is gitignored so clips never land on main.
+- Menu, scripted bots and training (later sessions).
 - Opponent player is idle in the lab. Panel edits mark a row as changed but keep the provenance tag (they are experiments, not fits).
 - Practice-tool actions are not recordable (they are state edits). Set up the drill first, then record.
 
@@ -77,7 +130,9 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
 - On Ian's Windows machine the MSVC toolchain can't link (no Windows SDK), so the repo has a local `rustup override set stable-x86_64-pc-windows-gnu`. That override lives in rustup settings, not the repo.
   The minimal GNU toolchain has no `dlltool`, so wasm-pack came from npm (`npm i -g wasm-pack`).
 - Run cargo from PowerShell. In Git Bash, GNU `/usr/bin/link` shadows MSVC `link.exe`.
-- Playwright Chromium is installed with `npx playwright install chromium` (in web/). verify.mjs kills the Vite process tree with `taskkill /T` on Windows.
+- Playwright Chromium is installed with `npx playwright install chromium` (in web/). verify.mjs kills the Vite process tree with `taskkill /T` on Windows
+  and the process group on POSIX. If Playwright's own browser is missing it falls back to `PW_CHROMIUM` or `/opt/pw-browsers/chromium` (cloud container).
+- measure/ runs from a venv at the repo root: `.venv\Scripts\python` on Windows, `.venv/bin/python` on macOS/Linux.
 
 ## Fidelity log
 (Each later session records per-scenario error versus the real game here.)

@@ -1,0 +1,7 @@
+# Install PyTorch FIRST with the command for your machine (see README "Training"), then:
+#   python -m pip install -r train/requirements.txt
+numpy>=1.26
+onnx>=1.16
+onnxruntime>=1.18
+onnxscript>=0.1
+matplotlib>=3.8

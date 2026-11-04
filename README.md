@@ -135,3 +135,79 @@ cargo build --release -p calib
   Each input is held from its `step` until that player's next event.
 - **Trajectory CSV**: header `t,x,y,z` plus an optional `stick_angle` (player 0) column. Puck position in meters, rink-centered.
   Measured tracks use t = frame / fps from the clip's first frame. Rows can be irregular: dropped frames are simply missing.
+
+## Bots and training (bots/, sim-ffi/, train/)
+
+- `bots` – observation vector, action format, canonical frame (each player sees itself attacking +x) and three
+  scripted bots (chaser, defender, cautious, plus idle). Pure Rust, deterministic.
+- `sim-ffi` – batched 1v1 environments behind a plain C ABI (`cdylib`), stepped in parallel with rayon. Reward weights are
+  JSON configuration. Loaded from Python with `ctypes` (no PyO3, no maturin, no Visual Studio tools).
+- `train/` – `slapenv.py` (ctypes + numpy vector env), `ppo.py` (single-file PPO with self-play), `export_onnx.py`.
+
+Formats, reward terms and the style hooks are documented in CLAUDE.md ("Bots and training").
+
+### Rust side (same in PowerShell and bash)
+
+```sh
+cargo build --release -p sim-ffi                          # -> target/release/sim_ffi.dll (Windows) / libsim_ffi.so / libsim_ffi.dylib
+cargo test --workspace                                    # includes the bots and sim-ffi tests
+cargo run --release -p sim-ffi --example bench            # env throughput (1/8/64 envs) + determinism check
+cargo run --release -p bots --example tournament 40 60    # scripted bots round robin: 40 matches x 60 s per pairing
+cargo run --release -p bots --example shotlab             # scripted shot accuracy (re-measure after physics changes)
+```
+
+### Python setup: check the GPU, install the matching PyTorch
+
+Training runs on CPU or an NVIDIA GPU; the device is picked automatically (CUDA if PyTorch sees one).
+
+1. Check the GPU and the driver's CUDA version: `nvidia-smi` (the top right says e.g. `CUDA Version: 12.8`; that is the newest
+   CUDA runtime the driver supports). No `nvidia-smi` / no NVIDIA GPU: use the CPU build.
+2. Pick the PyTorch command for that CUDA version (or CPU) at https://pytorch.org/get-started/locally/ (Stable, your OS, Pip,
+   Python, CUDA x.y) and run it with the venv's python. Any CUDA build not newer than the driver's version works.
+3. Install the rest and confirm PyTorch sees the GPU.
+
+PowerShell (Windows):
+
+```powershell
+py -3 -m venv .venv
+nvidia-smi
+.venv\Scripts\python -m pip install torch --index-url https://download.pytorch.org/whl/cu128   # use the line pytorch.org gives you; .../whl/cpu for CPU only
+.venv\Scripts\python -m pip install -r train\requirements.txt
+.venv\Scripts\python -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'cpu')"
+cargo build --release -p sim-ffi
+.venv\Scripts\python -m unittest discover -s train\tests -t .
+```
+
+bash (Linux / macOS):
+
+```bash
+python3 -m venv .venv
+nvidia-smi
+.venv/bin/python -m pip install torch --index-url https://download.pytorch.org/whl/cu128     # or the line pytorch.org gives you; .../whl/cpu for CPU only
+.venv/bin/python -m pip install -r train/requirements.txt
+.venv/bin/python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
+cargo build --release -p sim-ffi
+.venv/bin/python -m unittest discover -s train/tests -t .
+```
+
+### Train, evaluate, export
+
+PowerShell (replace `.venv\Scripts\python` with `.venv/bin/python` and `\` with `/` in bash):
+
+```powershell
+# train against the chaser for 30 minutes (runs/NAME holds latest.pt, metrics.csv, learning_curve.png)
+.venv\Scripts\python -m train.ppo train --run runs\chaser --minutes 30 --opponents chaser --plot
+# self-play: frozen snapshots from a pool (one added every 50 updates) mixed with the scripted bots
+.venv\Scripts\python -m train.ppo train --run runs\selfplay --minutes 120 --opponents "chaser:0.2,defender:0.1,cautious:0.1,pool:0.6" --plot
+# resume (refuses if params.json's physics changed since the checkpoint; --allow-physics-change overrides)
+.venv\Scripts\python -m train.ppo train --run runs\selfplay --minutes 240 --opponents "chaser:0.2,defender:0.1,cautious:0.1,pool:0.6" --resume runs\selfplay\latest.pt
+# evaluate against a scripted bot (or a checkpoint path as --opponent); baselines: --policy random / untrained
+.venv\Scripts\python -m train.ppo eval --ckpt runs\chaser\latest.pt --opponent chaser --episodes 400
+.venv\Scripts\python -m train.ppo eval --policy random --opponent chaser --episodes 400
+.venv\Scripts\python -m train.ppo plot --run runs\chaser
+# export for the browser (deterministic policy; checks onnxruntime against PyTorch)
+.venv\Scripts\python -m train.export_onnx --ckpt runs\chaser\latest.pt --out web\public\bots\chaser.onnx
+```
+
+`runs/` is gitignored. Useful knobs: `--envs` (default 64), `--threads` (env worker threads, 0 = all cores), `--device`
+(`auto`/`cpu`/`cuda`), `--reward weights.json`, `--episode-seconds`. On a GPU, more envs (256–1024) keep it busy.

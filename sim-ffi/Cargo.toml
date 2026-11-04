@@ -1,0 +1,16 @@
+[package]
+name = "sim-ffi"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Batched slapmini environments behind a plain C ABI (cdylib) for training"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+sim = { path = "../sim" }
+bots = { path = "../bots" }
+serde.workspace = true
+serde_json.workspace = true
+rayon = "1"

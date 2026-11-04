@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["sim", "calib", "sim-wasm"]
+members = ["sim", "calib", "sim-wasm", "bots", "sim-ffi"]
 
 [workspace.package]
 edition = "2021"

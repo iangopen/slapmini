@@ -1,0 +1,123 @@
+use crate::params::Params;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Puck {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+    pub vx: f64,
+    pub vy: f64,
+    pub vz: f64,
+    /// Which net (0 = +x, 1 = -x) the puck is currently inside, if any. Used for goal edge detection.
+    #[serde(default)]
+    pub in_net: Option<u8>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct Player {
+    pub team: u8,
+    pub x: f64,
+    pub y: f64,
+    pub vx: f64,
+    pub vy: f64,
+    /// Body facing, radians, world frame.
+    pub facing: f64,
+    /// Stick angle, radians, world frame (around the player center).
+    pub stick_angle: f64,
+    /// Stick angular velocity, rad/s.
+    pub stick_omega: f64,
+    /// Seconds left in the dash window (stick hits count as dash shots while > 0).
+    #[serde(default)]
+    pub dash_timer: f64,
+    #[serde(default)]
+    pub dash_cooldown: f64,
+    /// Dash input from the previous step, for press-edge detection.
+    #[serde(default)]
+    pub dash_prev: bool,
+}
+
+/// One player's input for one step.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct PlayerInput {
+    /// -1..1 (WASD). Vectors longer than 1 are normalized.
+    pub move_x: f64,
+    pub move_y: f64,
+    /// Radians, world frame (angle from player to mouse).
+    pub stick_target_angle: f64,
+    #[serde(default)]
+    pub dash: bool,
+    #[serde(default)]
+    pub lift: bool,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct State {
+    pub tick: u64,
+    pub puck: Puck,
+    pub players: Vec<Player>,
+    /// Goals per team (index = team).
+    #[serde(default)]
+    pub score: Vec<u32>,
+}
+
+impl State {
+    /// Puck at center ice at rest; players split between two teams on their own halves.
+    /// Works for any player count (1v1 now, 3v3 later).
+    pub fn new_default(params: &Params, n_players: usize) -> Self {
+        let mut players = Vec::with_capacity(n_players);
+        for i in 0..n_players {
+            let team = (i % 2) as u8;
+            let slot = (i / 2) as f64;
+            let side = if team == 0 { -1.0 } else { 1.0 };
+            let per_team = n_players.div_ceil(2) as f64;
+            let y = (slot - (per_team - 1.0) / 2.0) * 4.0;
+            let facing = if team == 0 { 0.0 } else { core::f64::consts::PI };
+            players.push(Player {
+                team,
+                x: side * params.rink_length * 0.25,
+                y,
+                facing,
+                stick_angle: facing,
+                ..Default::default()
+            });
+        }
+        State { tick: 0, puck: Puck::default(), players, score: vec![0, 0] }
+    }
+
+    pub fn time(&self, params: &Params) -> f64 {
+        self.tick as f64 * params.timestep
+    }
+
+    /// Exact byte encoding of the state (f64 bit patterns), for determinism checks.
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut b = Vec::with_capacity(64 + self.players.len() * 96);
+        b.extend_from_slice(&self.tick.to_le_bytes());
+        let p = &self.puck;
+        for v in [p.x, p.y, p.z, p.vx, p.vy, p.vz] {
+            b.extend_from_slice(&v.to_bits().to_le_bytes());
+        }
+        b.push(p.in_net.map_or(255, |n| n));
+        for pl in &self.players {
+            b.push(pl.team);
+            for v in [pl.x, pl.y, pl.vx, pl.vy, pl.facing, pl.stick_angle, pl.stick_omega, pl.dash_timer, pl.dash_cooldown] {
+                b.extend_from_slice(&v.to_bits().to_le_bytes());
+            }
+            b.push(pl.dash_prev as u8);
+        }
+        for s in &self.score {
+            b.extend_from_slice(&s.to_le_bytes());
+        }
+        b
+    }
+
+    /// FNV-1a 64 over `to_bytes`.
+    pub fn hash(&self) -> u64 {
+        let mut h: u64 = 0xcbf29ce484222325;
+        for byte in self.to_bytes() {
+            h ^= byte as u64;
+            h = h.wrapping_mul(0x100000001b3);
+        }
+        h
+    }
+}

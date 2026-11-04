@@ -1,0 +1,11 @@
+[package]
+name = "sim"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Deterministic 2.5D top-down hockey sim core (pure: no I/O, no clock, no RNG)"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+libm.workspace = true

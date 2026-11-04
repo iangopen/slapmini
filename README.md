@@ -1,7 +1,15 @@
 # slapmini
 
 A compressed, top-down 2D (2.5D: the puck has height) hockey sim in Rust, modeled on Slapshot: Rebound,
-for training RL bots. **Every physics constant in `params.json` is an unmeasured placeholder.**
+for training RL bots. `params.json` holds the rink shape measured from real clips (provenance `measured-shape`) and four puck
+params fitted to them (`fitted`); everything else is still an unmeasured placeholder (`params.placeholder.json` keeps the
+pre-fit values for tests).
+
+![Real shots (dashed) vs the sim replaying them with the fitted params (solid), on the sim's own rink](measure/results/fits/readme_fit.png)
+
+*Five real practice-mode shots (dashed, measured from screen recordings by `measure/`) and the sim replaying each one from
+its measured start with the fitted puck params (solid). Right: speed against distance for the corner ride, fitted vs
+placeholder physics. Meters are at a placeholder scale until a clip with the in-game speed readout pins it down.*
 
 Crates:
 
@@ -99,6 +107,10 @@ cargo build --release -p calib
 .venv/bin/python -m measure holdout              # clip-held-out fits -> params.fitted.json (+ calib/data/real/holdout.json)
 .venv/bin/python -m measure dragmodel            # drag-law comparison -> calib/data/real/dragmodel.json
 .venv/bin/python -m measure compare puck_08 --params params.json --params params.fitted.json   # overlay -> qa/compare_puck_08.png
+.venv/bin/python -m measure merge                # params.fitted.json -> params.json (the 4 fitted puck params)
+.venv/bin/python -m measure sizes    $C          # puck + player radius from the frames -> params.json (measured-shape)
+.venv/bin/python -m measure residuals            # per-segment residuals old vs new default vs held-out
+.venv/bin/python -m measure figures              # fit figures on the sim's own rink -> measure/results/fits/
 ```
 
 - `map` finds the inner board outline, center line and center dot in a median frame, fits ellipses to the center and faceoff

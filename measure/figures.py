@@ -251,4 +251,14 @@ def run_figures(params_path: Path = PARAMS_PATH) -> list[Path]:
                        "Corner ride: left-board bounce, corner, slide along the top board (fitted vs placeholder)", FITS / "corner_puck_08.png"),
         readme_figure(["puck_08", "wall_07", "puck_06", "wall_09", "puck_02"], FITS / "readme_fit.png"),
     ]
+    from .residuals import run_residuals  # noqa: F401  (worst segments by the new default)
+    from .holdout import evaluate
+    from .residuals import sc
+
+    segs = [s_ for s_ in json.loads((OUT / "manifest.json").read_text())["segments"] if not s_["possibly_airborne"]]
+    ev = evaluate(params_path, segs)
+    worst = sorted(ev, key=lambda i: -sc(ev[i]))[:3]
+    for i in worst:
+        outs.append(segment_figure(i, [("fitted (default)", {}), ("placeholder", {k_: PL[k_] for k_ in ("board_restitution", "board_friction", "ice_linear_drag", "ice_friction_decel", "puck_radius")})],
+                                   f"Worst-fitting segments: {i} (score {sc(ev[i]):.2f}), fitted default vs placeholder physics", FITS / f"worst_{i}.png"))
     return outs

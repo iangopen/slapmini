@@ -141,6 +141,12 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
   frames ±1/180 s off. Friction 1.0 / restitution 0.7 from 1.4 / 0.49: time objective → 0.99867 / 0.70142, path objective → 0.99989 / 0.70022.
 
 ## Measured rink shape (params.json provenance `measured-shape`)
+- **puck_radius 0.2298 m** (half-max edge of the resting puck's bright face near the image center, ÷ (1 + k_top); 0.231 / 0.218 /
+  0.241 m per clip; the dark-green rim reaches ~0.32 m, the tracker blob ~0.245 m) and **player_radius 0.4557 m** (the pink disc,
+  circle fit to its half-max edge; 0.459 / 0.458 / 0.451 m; the blue rim reaches ~0.53 m; the disc may be drawn at the player's
+  height, so possibly a few % large): `python -m measure sizes`. Check: at bounces the sim's puck center reaches 0.230 m from the
+  board (0.235 m resampled at 60 Hz), the real tracks 0.254 m median (0.199–0.276). Tunneling with this puck: 22,092 net + 21,768
+  board shots, 0 failures.
 - rink_width 38.198 m, rink_corner_radius 8.724 m, net_width 5.921 m, net_depth 2.226 m, **net_x 22.817 m** (goal line),
   blue_line_x 8.050, faceoff_x 16.305, faceoff_y 10.426, faceoff_circle_radius 4.708 m (the last four display only): ratios to
   rink_length are measured, **meters assume the placeholder rink_length = 60 m** (still provenance `placeholder`).
@@ -149,23 +155,46 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
 - Tunneling re-run against this layout: 30,552 net shots + 24,552 board shots, 0 failures.
 - Any later absolute scale fix multiplies all of these together; the shape stays.
 
-## Fitted physics (params.fitted.json; params.json keeps the placeholders)
-- `params.fitted.json` = params.json + 4 values with provenance `fitted` (from `python -m measure holdout`):
-  **board_restitution 0.406, board_friction 0.046, ice_linear_drag 0.408 1/s, ice_friction_decel 0** (0 in both hold-out
-  directions, so fixed at exactly 0 rather than fitted to a small scale-dependent number). All four are scale-free.
-- Method: staged, path objective. A: ice_linear_drag (+ ice_friction_decel) on glide segments. B: board_restitution +
-  board_friction on wall-bounce segments with `--objective path-only` (rebound geometry), A fixed. Joint 4-parameter fitting was
-  also run: its restitution flips between directions (0.36 / 0.21) because the v² term in corner rides wants extra speed loss
-  the sim's per-contact board model can't give; the staged fit is consistent (0.40 / 0.37).
-- board_friction is weakly determined (0 in both directions, 0.046 pooled; only 3 bounce segments per clip).
-- Still placeholder: everything else — air_drag, ice_restitution, gravity, timestep, puck radius/mass, all player/stick/dash/lift
-  params, speed caps, net_restitution, player_restitution, rink_length (the scale).
-- Drag model: no quadratic term. Held-out (glides): linear k·v 18.02 / 1.36; + constant 18.02 / 1.36 (μ → 0); + quadratic
-  42.50 / 2.41 (overfits); constant only 69.13 / 25.55. The sim is unchanged.
+## Physics defaults (params.json, provenance `fitted`)
+- **params.json now carries the fitted puck params** (merged from params.fitted.json by `python -m measure merge`):
+  **board_restitution 0.343, board_friction 0, ice_linear_drag 0.4725 1/s, ice_friction_decel 0** — all scale-free.
+  `params.placeholder.json` keeps the pre-merge file (placeholder physics, old 0.15 m puck) for tests that need it
+  (`puck_slides_to_stop_on_ice`); `calib/data/params.synthetic.json` stays the pin for the synthetic fitter data.
+- Fit (`python -m measure holdout`, staged, path objective, held out by clip; base = placeholder physics): A = ice_linear_drag
+  (+ ice_friction_decel) on glides, B = board_restitution + board_friction on wall bounces with `--objective path-only`.
+  Per direction (wall→puck / puck→wall): restitution 0.339 / 0.362, drag 0.468 / 0.473, board friction 0 / 0, constant friction
+  0 / 0 (so fixed at exactly 0). Held-out score 307.0 → 3.06 and 51.5 → 0.46. The joint 4-parameter fit now agrees too
+  (e 0.31 / 0.29, k 0.484 / 0.485).
+- **What changed the fit in session 6**: the segments' initial speed. A 10-row quadratic at t = 0 has ~8% speed noise under the
+  capture jitter (and starts moved to a noisy speed peak selected high values); 30 rows (before any bounce) has ~1.6%
+  (400 synthetic glides with the real capture faults: quad10 sd 8.2%, quad20 2.8%, quad30 1.6%, a linear-drag model fit 0.4% but
+  circular). With clean starts the directions agree and restitution matches the direct bounce estimate (0.36).
+- Re-fitting with the measured puck radius (0.23 m instead of 0.15) gave values within the direction spread, so the radius
+  change alone didn't require a refit (`calib/data/real/holdout_radius_check.json`).
+- Drag model: no quadratic term (held-out, session 5: linear 18.02 / 1.36, + quadratic 42.50 / 2.41). The sim is unchanged.
+
+## Board friction model (session 6: not adopted)
+- Question: does the real puck lose extra speed sliding along / riding the boards that the per-contact model (restitution +
+  proportional tangential loss) can't give? Candidate: Coulomb-style loss, tangential speed −= μ_c (1 + e) |v_n| per contact
+  (total loss ∝ how much the board turns the puck). `python -m measure boardmodel` on 9 board-contact segments, held out by clip
+  (needs `docs/experiments/board_coulomb_friction.patch`, not in the sim).
+- With the corrected initial speeds (`calib/data/real/boardmodel.json`), held-out score wall→puck / puck→wall:
+  defaults 2.02 / 0.55; current model refit 1.94 / 0.59 (friction → 0); Coulomb 1.94 / 0.58 (μ_c 0.000 / 0.035);
+  both 1.94 / 0.58; Coulomb with e fixed 2.02 / 0.61. No candidate beats the defaults in both directions; μ_c fits ≈ 0.
+- Before the initial-speed fix Coulomb looked better (9.37 / 2.55 vs defaults 12.95 / 2.98) but only by lowering e to 0.28 —
+  the speed-vs-geometry confound; with e fixed the models tied. The "extra loss along the boards" (puck_08) was mostly the
+  noisy initial speed. **Evidence does not support a sim change**; the sim and params.rs are unchanged.
+
+## Figures (measure/results/fits/, `python -m measure figures`)
+- Drawn on the SIM's own rink from params.json (game orientation, +x up), no game footage / logos / HUD; dots every 0.25 s;
+  speed vs distance panels. `readme_fit.png` (README), `restitution_wall_07.png` (e = 0.2 / fitted / placeholder: the rebound
+  angle matches the fitted e, the post-bounce speed sits lower), `drag_puck_06.png`, `corner_puck_08.png`,
+  `worst_<seg>.png` (the three worst segments by the new default). ~0.6 MB together.
+- Tracked images (all *.png in git) after session 6: 11.52 MB (limit 30 MB).
 
 ## Segment manifest (calib/data/real/manifest.json)
 - 25 free-puck stretches, one scenario + CSV pair each (t from 0 at the stretch start, x/y = puck GROUND position in meters at the
-  ice-plane/placeholder scale, z = 0), initial_state from a quadratic fit to the first ≤ 10 samples before any bounce, no players.
+  ice-plane/placeholder scale, z = 0), initial_state from a quadratic fit to the first ≤ 30 samples before any bounce, no players.
   - puck clip: 10 (7 glide, 3 wall bounce); wall clip: 11 (8 glide, 3 wall bounce); lifted clip: 4 (1 glide, 3 wall bounce). Net hits: 0.
   - Start: after the hit's contact window; moved to the speed peak if the puck is still accelerating (> 3% within 15 rows); moved
     to 4 rows after a bounce that comes within 12 rows (shots straight into the board next to the player; the initial state
@@ -186,6 +215,14 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
   on a step's last substep (it failed once by chance). Now it uses the first step where a falling puck's vz turns ≥ 0 near the ice:
   first contact after 84 steps (0.700 s) vs 0.707 s predicted for free fall from 2.45 m.
 
+## Verified (2026-11-04, session 6: defaults + sizes, Linux cloud container)
+- **Absolute scale: NOT measured.** The goal-speed clip (clips/goalspeed.mkv) is not on clip-data (still commit 8e77faa with the
+  original four clips; no other branch has it), so the placeholder scale stays (rink_length 60 m). Nothing was rescaled.
+- `cargo test --workspace` (18 tests incl. both tunneling tests against puck_radius 0.23 m: 22,092 + 21,768 shots, 0 failures,
+  and `fitted_default_glide_is_linear_drag`), the measure tests (15), `npm run build`, `npm run verify` (VERIFY OK). Sim code
+  and params.rs unchanged (the Coulomb experiment was reverted); native and wasm hashes still match after 100k steps:
+  `93105bebdd8a0d19` (changed from `b3e351…` only because the default params changed).
+
 ## Tracker limits (measure/)
 - z is not observable. A lifted puck is drawn displaced on screen, so its x/y are wrong while airborne. The game also draws a
   ground shadow (blue dot) and a landing ring that are not used yet.
@@ -204,7 +241,10 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
   speed by ~15% is missed; segments start ~0.1–0.15 s after the hit.
 
 ## Placeholder / unmeasured – EVERYTHING physical
-- **Every value in params.json is unmeasured** (provenance `placeholder`): timestep, substeps, gravity, rink size and corner radius, net position and size, puck radius and mass, all friction/drag/restitution values, player accel/speed/drag/turn, stick length/mass/angular limits/z-range, all three puck speed caps, dash and lift numbers. Rink and net dimensions are invented.
+- **Still unmeasured** (provenance `placeholder`): timestep, substeps, gravity, rink_length (the absolute scale), puck mass, air drag,
+  ice restitution, net restitution, player restitution/accel/speed/drag/turn/height/mass, stick length/mass/angular limits/z-range,
+  all three puck speed caps, dash and lift numbers, speed_display_scale. Measured shape: rink, nets, markings, puck and player
+  radius (meters at the placeholder scale). Fitted: board_restitution, board_friction, ice_linear_drag, ice_friction_decel.
 - **Dash logic is a placeholder**: on the press edge it adds a velocity impulse along the move input (or facing) and opens a `dash_duration` window in which hits count as dash shots, then a cooldown applies.
 - **Lift logic is a placeholder**: holding lift at stick contact sets vz = `lift_vz_factor`·speed (capped), and dash + lift caps the hit at `chip_max_speed` (the "chip").
   The real mechanic (dash + lift + slight rotation → low-speed chip) is unknown.
@@ -218,10 +258,10 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
 - Model simplifications that are still open: boards are infinitely tall, the net has no top bar, there is no puck spin, and no stick-on-stick or stick-on-player collision. Facing simply follows velocity. Goals only increment the score (no reset).
 
 ## Open
-- Real calibration: 4 scale-free puck params fitted (params.fitted.json, clip-held-out). params.json still carries the placeholders
-  for them; switching the default is a decision for Ian. **The meter scale is the main open measurement.**
-- Model gaps the fits exposed (not fixed): (1) the real puck loses more speed riding a curved corner board / sliding along a board
-  than the sim's per-contact restitution + friction gives (puck_05/08: v² error ≈ 40 m²/s² after the fit); (2) decel/v is not
+- Real calibration: 4 scale-free puck params fitted and now the default. **The meter scale is the main open measurement**
+  (the goal-speed clip was not on clip-data in session 6).
+- Model gaps (not fixed): (1) the extra speed loss along the boards seen in session 5 was mostly noisy initial speeds; with clean
+  starts a Coulomb board friction doesn't help (see "Board friction model"); (2) decel/v is not
   constant: ≈ 0.50–0.55 1/s above ~8 m/s, 0.33–0.39 at 3–7 m/s, ≈ 0.55 near the stop (placeholder scale). Not a smoothing or
   jitter artifact (persists for windows 4–16 rows; synthetic linear drag through the same capture faults reads 0.42–0.46 in every
   band) and not quadratic (non-monotonic; a v² term overfits held-out). One linear k is a compromise (fast glides like puck_02
@@ -259,6 +299,34 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
 
 ## Fidelity log
 (Each later session records per-scenario error versus the real game here.)
+
+### 2026-11-04 – session 6: fitted params are the default; puck/player radius measured; scale still unmeasured
+- **Scale**: not measured — the goal-speed clip is not on clip-data. Meters stay at the PLACEHOLDER scale (rink_length 60 m,
+  0.0657 m/px); nothing rescaled; ice_friction_decel stays at 0 (fitted, scale-free) rather than a value in real m/s².
+- **New defaults** (params.json): board_restitution 0.7 → 0.343, board_friction 0.1 → 0, ice_linear_drag 0.05 → 0.4725 1/s,
+  ice_friction_decel 1.0 → 0 (all `fitted`); puck_radius 0.15 → 0.2298 m, player_radius 0.45 → 0.4557 m (`measured-shape`).
+- Residuals after the merge (`calib/data/real/residuals.txt`; old = params.placeholder.json, new = params.json, held-out = staged
+  fit on the other clip), medians:
+
+| clip | label | n | pos_rmse old → new (held-out), m | path_rmse | v2_rmse, m²/s² |
+|---|---|---|---|---|---|
+| puck | glide | 7 | 2.10 → 0.91 (0.87) | 0.08 → 0.47 (0.44) | 15.1 → 7.3 (7.2) |
+| puck | wall bounce | 3 | 19.01 → 0.82 (0.94) | 1.56 → 0.07 (0.07) | 268.4 → 13.9 (15.4) |
+| wall | glide | 8 | 1.06 → 0.43 (0.44) | 0.13 → 0.22 (0.22) | 8.0 → 4.7 (4.7) |
+| wall | wall bounce | 3 | 2.04 → 0.50 (0.61) | 1.32 → 0.31 (0.35) | 10.6 → 3.8 (3.7) |
+| lifted (excluded) | glide | 1 | 4.00 → 1.78 | 0.16 → 1.09 | 21.4 → 7.0 |
+| lifted (excluded) | wall bounce | 3 | 23.11 → 2.56 | 1.11 → 0.16 | 507.7 → 108.8 |
+
+  All 21 ground segments: pos_rmse median 2.10 → 0.50 m, v2_rmse 15.1 → 6.6 m²/s², mean score 175.2 → 1.63. Glide path_rmse
+  rises (0.08 → 0.47 m in the puck clip): with one linear drag the slow glides stop short of the real ones (the medium-speed
+  dip in decel/v — the real puck coasts further at 3–7 m/s).
+- Worst three by the new default (`measure/results/fits/worst_<seg>.png`, inspected): **puck_01** (score 16.0) — path exact, the
+  v² error is the ±1.5 m/s capture-jitter wobble at ~25 m/s (measurement noise); **puck_09** (2.2) and **puck_08** (2.0) — corner
+  rides now followed closely (path 0.07 / 0.18 m); before the bounce the real puck slows ~1 m/s faster at high speed (drag law).
+- **Still placeholder**: everything about players (accel, speed, drag, turn, mass, height, restitution), sticks (length, mass,
+  angular limits, z-range) and puck–stick impulses, the three puck speed caps, nets (restitution; nets are static segments
+  without a top bar), lift (lift_vz_factor, max vz, chip) and dash (speed, duration, cooldown), air drag, ice restitution,
+  gravity, puck mass, timestep/substeps, and the absolute scale.
 
 ### 2026-11-04 – first real fits (params.fitted.json) vs placeholder, ice-plane scale, 25 segments
 Meters at the PLACEHOLDER scale (rink_length 60 m). Positions are puck ground points (height-parallax corrected). Per-segment

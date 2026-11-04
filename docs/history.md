@@ -22,3 +22,10 @@
 - Ice-plane scale check (board outline is at ice level), puck ground reprojection (height parallax), measured rink markings and net_x.
 - Clip-held-out staged fits of board_restitution, board_friction, ice_linear_drag, ice_friction_decel → params.fitted.json.
 - Drag-law comparison: no quadratic term; an unexplained medium-speed dip in decel/v is real. Segmenter fixes found via overlays.
+
+## 2026-11-04 – Session 6: fitted defaults, puck/player size, figures
+- Goal-speed clip not on clip-data: the absolute scale stays a placeholder.
+- params.json carries the fitted puck params (params.placeholder.json keeps the old file); segment initial speeds now from a
+  30-row fit (the 10-row fit had ~8% noise), which made the clip-held-out fits agree.
+- puck_radius / player_radius measured from frames; a Coulomb board-friction model was tested and not adopted.
+- Fit figures on the sim's own rink in measure/results/fits/ (README figure included).

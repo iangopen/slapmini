@@ -48,6 +48,11 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
   - `calib eval` on the lab-recorded scenario and CSV gives pos RMSE 2e-16, so lab recordings and calib formats need no conversion and native Rust reproduces the wasm run.
   - Screenshots are written to `web/verify-out/` (gitignored). They were checked by eye: rink, puck at rest, mid-slide, high spawn (red puck, big offset shadow), landed, ghost.
 
+## Verified (2026-11-04, Linux cloud container)
+- Puck tunneling stress test (`sim/tests/tunneling.rs`): 30,180 net shots (all 6 segments, both sides, 11 points per segment, 35 angles, 3 start distances) and 23,376 board shots (88 targets on straights and corners), each at all three speed caps (30/35/45 m/s). It checks every step that the puck never crossed a net segment, never overlaps one, and never left the rink.
+  Before the fix, 88 net shots at 45 m/s tunneled through the back wall near the net corners (the per-segment penetration push near a corner pushed the puck out the far side). With swept net collision: 0 failures. The test also passed in a one-off run at 90 and 120 m/s.
+- `cargo test --workspace` passes (16 tests). The native and wasm crosscheck hashes are unchanged (`c93c94a203a58d2d`), because that run never touches a net. `npm run build` passes.
+
 ## Placeholder / unmeasured – EVERYTHING physical
 - **Every value in params.json is unmeasured** (provenance `placeholder`): timestep, substeps, gravity, rink size and corner radius, net position and size, puck radius and mass, all friction/drag/restitution values, player accel/speed/drag/turn, stick length/mass/angular limits/z-range, all three puck speed caps, dash and lift numbers. Rink and net dimensions are invented.
 - **Dash logic is a placeholder**: on the press edge it adds a velocity impulse along the move input (or facing) and opens a `dash_duration` window in which hits count as dash shots, then a cooldown applies.
@@ -63,7 +68,7 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
 - Model simplifications that are still open: boards are infinitely tall, the net has no top bar, there is no puck spin, and no stick-on-stick or stick-on-player collision. Facing simply follows velocity. Goals only increment the score (no reset).
 
 ## Open
-- Real calibration data (practice-mode clips → scenario + CSV).
+- Real calibration data (practice-mode clips → scenario + CSV). As of 2026-11-04 the `clip-data` branch is not on origin (only `main` exists), so the clip measurement tool (`measure/`) has not been started. `clips/` is gitignored so clips never land on main.
 - Menu, scripted bots and training (later sessions). Measurement pipeline for real clips → ghost CSVs.
 - Opponent player is idle in the lab. Panel edits mark a row as changed but keep the provenance tag (they are experiments, not fits).
 - Practice-tool actions are not recordable (they are state edits). Set up the drill first, then record.

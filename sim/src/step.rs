@@ -82,6 +82,97 @@ fn puck_static_bounce(puck: &mut Puck, nx: f64, ny: f64, pen: f64, restitution: 
     }
 }
 
+/// Earliest fraction t in [0, 1] at which a circle of radius `r` moving from p0 by (mx, my)
+/// first touches segment ab, with the contact normal (pointing from the segment to the circle).
+/// Only approaching contacts count; a circle that already overlaps at t = 0 returns None
+/// (the discrete overlap resolution handles it).
+fn sweep_segment(
+    ax: f64, ay: f64, bx: f64, by: f64, px: f64, py: f64, mx: f64, my: f64, r: f64,
+) -> Option<(f64, f64, f64)> {
+    let mut best: Option<(f64, f64, f64)> = None;
+    let mut consider = |t: f64, nx: f64, ny: f64| {
+        if (0.0..=1.0).contains(&t) && best.map_or(true, |b| t < b.0) {
+            best = Some((t, nx, ny));
+        }
+    };
+    // Flat sides of the capsule: lines offset by r along the segment normal.
+    let (ex, ey) = (bx - ax, by - ay);
+    let l = len(ex, ey);
+    if l > EPS {
+        let (ux, uy) = (ex / l, ey / l);
+        let (mut nx, mut ny) = (-uy, ux);
+        let mut d0 = (px - ax) * nx + (py - ay) * ny;
+        if d0 < 0.0 {
+            nx = -nx;
+            ny = -ny;
+            d0 = -d0;
+        }
+        let vn = mx * nx + my * ny;
+        if d0 >= r && vn < -EPS {
+            let t = (d0 - r) / -vn;
+            let s = (px + mx * t - ax) * ux + (py + my * t - ay) * uy;
+            if s >= 0.0 && s <= l {
+                consider(t, nx, ny);
+            }
+        }
+    }
+    // Rounded ends: circles of radius r at both endpoints.
+    for (cx, cy) in [(ax, ay), (bx, by)] {
+        let (fx, fy) = (px - cx, py - cy);
+        let a = mx * mx + my * my;
+        let b = fx * mx + fy * my;
+        let c = fx * fx + fy * fy - r * r;
+        if a > EPS && c >= 0.0 && b < 0.0 {
+            let disc = b * b - a * c;
+            if disc >= 0.0 {
+                let t = (-b - sqrt(disc)) / a;
+                let (hx, hy) = (fx + mx * t, fy + my * t);
+                let hl = len(hx, hy).max(EPS);
+                consider(t, hx / hl, hy / hl);
+            }
+        }
+    }
+    best
+}
+
+/// Move the puck from `start` to its current position without passing through a net wall:
+/// sweep the displacement against every net segment, stop at the first contact, bounce, and
+/// continue the rest of the displacement along the reflected direction (a few iterations).
+/// Bodies moving faster than one puck radius per substep would otherwise tunnel.
+fn sweep_puck_nets(puck: &mut Puck, start: (f64, f64), nets: &[(f64, f64, f64, f64); 6], p: &Params) {
+    let (mut px, mut py) = start;
+    let (mut mx, mut my) = (puck.x - px, puck.y - py);
+    for _ in 0..4 {
+        let mut hit: Option<(f64, f64, f64)> = None;
+        for &(ax, ay, bx, by) in nets {
+            if let Some(h) = sweep_segment(ax, ay, bx, by, px, py, mx, my, p.puck_radius) {
+                if hit.map_or(true, |b| h.0 < b.0) {
+                    hit = Some(h);
+                }
+            }
+        }
+        let Some((t, nx, ny)) = hit else {
+            puck.x = px + mx;
+            puck.y = py + my;
+            return;
+        };
+        px += mx * t + nx * 1e-9;
+        py += my * t + ny * 1e-9;
+        let rest = 1.0 - t;
+        // Velocity bounce (same rule as the discrete contact), remaining displacement reflected.
+        let vn = puck.vx * nx + puck.vy * ny;
+        if vn < 0.0 {
+            puck.vx -= (1.0 + p.net_restitution) * vn * nx;
+            puck.vy -= (1.0 + p.net_restitution) * vn * ny;
+        }
+        let dn = mx * nx + my * ny;
+        mx = (mx - (1.0 + p.net_restitution) * dn * nx) * rest;
+        my = (my - (1.0 + p.net_restitution) * dn * ny) * rest;
+    }
+    puck.x = px;
+    puck.y = py;
+}
+
 fn update_player_controls(pl: &mut Player, inp: &PlayerInput, p: &Params, dt: f64) {
     // Normalize move input to at most length 1.
     let (mut mx, mut my) = (clamp(inp.move_x, -1.0, 1.0), clamp(inp.move_y, -1.0, 1.0));
@@ -340,7 +431,9 @@ pub fn step(state: &mut State, inputs: &[PlayerInput], p: &Params) {
             }
         }
 
-        // Puck.
+        // Puck. Its whole substep displacement (integration plus stick/body pushes) is swept
+        // against the nets so a fast puck cannot pass through a wall.
+        let start = (state.puck.x, state.puck.y);
         integrate_puck(&mut state.puck, p, h);
         for (i, pl) in state.players.iter_mut().enumerate() {
             let inp = inputs.get(i).unwrap_or(&idle);
@@ -348,6 +441,7 @@ pub fn step(state: &mut State, inputs: &[PlayerInput], p: &Params) {
             stick_puck(pl, inp, &mut state.puck, p);
         }
         if state.puck.z < p.net_height {
+            sweep_puck_nets(&mut state.puck, start, &nets, p);
             for &(ax, ay, bx, by) in &nets {
                 let (qx, qy) = closest_on_segment(ax, ay, bx, by, state.puck.x, state.puck.y);
                 let (dx, dy) = (state.puck.x - qx, state.puck.y - qy);

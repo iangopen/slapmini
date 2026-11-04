@@ -6,7 +6,7 @@ import { actionFor, BINDINGS, KEY_HELP } from "./bindings";
 import { Lab, parseCsv, toCsv, type Recording } from "./lab";
 import { FixedStepLoop } from "./loop";
 import { buildParamPanel, download } from "./panel";
-import { draw, fitView, toScreen, toWorld, type View } from "./render";
+import { draw, drawMatchHud, fitView, formatClock, toScreen, toWorld, TEAM_NAMES, type View } from "./render";
 import type { ParamFile, Sample, Scenario } from "./types";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -55,6 +55,7 @@ function onKey(e: KeyboardEvent, down: boolean): void {
   if (act === "target") lab.setTarget(wx, wy);
   if (act === "reset") lab.resetPuck();
   if (act === "call") lab.callPuck();
+  if (act === "rematch") lab.rematch();
 }
 window.addEventListener("keydown", (e) => onKey(e, true));
 window.addEventListener("keyup", (e) => onKey(e, false));
@@ -81,14 +82,18 @@ function readHumanInput(): void {
 }
 
 // ---------- fixed-step loop ----------
-const loop = new FixedStepLoop(
-  () => {
-    if (lab.mode !== "replay") readHumanInput();
-    lab.step(lab.p.timestep);
-  },
-  () => lab.p.timestep,
-  5,
-);
+// `?speed=N` (or window.lab.setSpeed) runs the sim N times faster than real time (verification of whole matches).
+let speed = Math.max(1, Number(new URLSearchParams(location.search).get("speed")) || 1);
+const makeLoop = () =>
+  new FixedStepLoop(
+    () => {
+      if (lab.mode !== "replay") readHumanInput();
+      lab.step(lab.p.timestep);
+    },
+    () => lab.p.timestep,
+    5 * speed,
+  );
+let loop = makeLoop();
 
 // ---------- readout ----------
 let units: "mph" | "kph" = "mph";
@@ -118,7 +123,29 @@ function updateReadout(): void {
   const pr = lab.progress;
   $("mode").textContent = lab.mode + (lab.mode !== "play" ? ` ${pr.steps}${pr.total ? "/" + pr.total : ""}` : "");
   $("dropped").textContent = String(loop.dropped);
+  updateMatchInfo();
 }
+
+// ---------- match mode ----------
+const matchBox = $<HTMLInputElement>("match-mode");
+const matchRestart = $<HTMLButtonElement>("match-restart");
+const PHASE_LABEL: Record<string, string> = { countdown: "countdown", playing: "playing", goal_pause: "goal pause", finished: "finished" };
+matchBox.addEventListener("change", () => {
+  const ok = matchBox.checked ? lab.startMatch() : lab.endMatch();
+  if (!ok) matchBox.checked = lab.inMatch; // not while recording/replaying
+});
+matchRestart.addEventListener("click", () => lab.startMatch());
+function updateMatchInfo(): void {
+  const m = lab.state.match_state;
+  matchBox.checked = !!m;
+  matchBox.disabled = lab.mode !== "play";
+  matchRestart.disabled = !m || lab.mode !== "play";
+  $("match-info").textContent = m
+    ? `${TEAM_NAMES[0]} ${lab.state.score[0]} – ${lab.state.score[1]} ${TEAM_NAMES[1]} · ${formatClock(m.clock_ticks, lab.p.timestep)} · ${PHASE_LABEL[m.phase]}` +
+      (m.overtime ? " · OVERTIME" : "") + (m.winner !== null ? ` · ${TEAM_NAMES[m.winner]} wins (Enter = rematch)` : "")
+    : "free play (no rules)";
+}
+if (new URLSearchParams(location.search).get("mode") === "match") lab.startMatch();
 
 // ---------- record / replay ----------
 const recBtn = $<HTMLButtonElement>("rec");
@@ -212,15 +239,16 @@ let last = performance.now();
 function frame(now: number): void {
   const dt = (now - last) / 1000;
   last = now;
-  loop.advance(dt);
+  loop.advance(dt * speed);
   draw(ctx, view, lab.p, lab.state, {
     targets: lab.mode === "replay" ? [] : [lab.inputs[0]?.stick_target_angle],
-    spawn: lab.spawnHeld || lab.spawn.z > 0 || lab.spawn.x || lab.spawn.y ? lab.spawn : null,
-    target: lab.target,
+    spawn: !lab.inMatch && (lab.spawnHeld || lab.spawn.z > 0 || lab.spawn.x || lab.spawn.y) ? lab.spawn : null,
+    target: lab.inMatch ? null : lab.target,
     ghost,
     ghostIndex: +scrub.value,
     forehand: lab.toolsEnabled ? lab.forehandPoint() : null,
   });
+  drawMatchHud(ctx, lab.p, lab.state);
   updateReadout();
   requestAnimationFrame(frame);
 }
@@ -232,6 +260,12 @@ declare global {
 }
 window.lab = {
   lab,
+  /** Run the sim `n` times faster than real time (the per-frame step cap scales with it). */
+  setSpeed(n: number) {
+    speed = Math.max(1, n);
+    loop = makeLoop();
+  },
+  formatClock,
   BINDINGS,
   get view() {
     return view;

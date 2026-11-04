@@ -74,6 +74,12 @@ impl Sim {
         Ok(())
     }
 
+    /// Start a new match (rules on): players at their spawn points, 0-0, full clock, opening countdown.
+    /// The match state is part of `get_state` / `set_state` (`match_state`, null = free play).
+    pub fn start_match(&mut self, n_players: usize) {
+        self.state = State::new_match(&self.params, n_players);
+    }
+
     /// Determinism hash of the current state (hex).
     pub fn state_hash(&self) -> String {
         format!("{:016x}", self.state.hash())

@@ -7,7 +7,7 @@ Crates:
 
 - `sim` – deterministic physics core (pure: no I/O, clock or RNG; builds for wasm32).
 - `calib` – CLI + library: replay scenarios, score them against trajectory CSVs, and fit params.
-- `sim-wasm` – wasm-bindgen wrapper (`new`, `step`, `get_state`, `set_state`, `set_params`, `get_params`, `reset`, `state_hash`).
+- `sim-wasm` – wasm-bindgen wrapper (`new`, `step`, `get_state`, `set_state`, `set_params`, `get_params`, `reset`, `start_match`, `state_hash`).
 - `web/` – the feel lab: a browser client for playing the sim, tuning params live, practice drills, record/replay and ghost overlays.
 
 ## Commands (same in PowerShell and macOS/Linux shells)
@@ -44,10 +44,13 @@ npm run wasm      # build sim-wasm into web/wasm-pkg
 npm run dev       # http://localhost:5173
 npm run build     # wasm + typecheck + static site in web/dist (relative paths, host as plain files)
 npm run verify    # headless Playwright checks; screenshots in web/verify-out
+npm run verify-match   # three full matches in match mode (mercy, clock, overtime), sped-up loop; match-*.png
 ```
 
 Controls: WASD move; the mouse sets the stick target; Shift dash and Space lift (both unverified guesses).
 Practice tools (approximate): F spawn (hold to raise), G target, R reset puck, Q call puck to forehand.
+Match mode (checkbox, or `?mode=match`): 1v1 rules from the sim (5:00 clock, mercy lead 5, sudden-death overtime),
+scoreboard + OVERTIME banner + game-over overlay, Enter = rematch, practice tools off. `?speed=N` runs the loop N× real time.
 Downloaded lab recordings (`.scenario.json` + `.csv`) work directly with `calib eval` / `calib fit`.
 
 Setup: Rust via rustup plus `rustup target add wasm32-unknown-unknown`, and wasm-pack (`npm install -g wasm-pack` or `cargo install wasm-pack`).

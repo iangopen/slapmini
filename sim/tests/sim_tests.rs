@@ -47,13 +47,22 @@ const MEASURED_SHAPE: [&str; 9] = [
     "rink_width", "rink_corner_radius", "net_width", "net_depth", "net_x", "blue_line_x", "faceoff_x", "faceoff_y", "faceoff_circle_radius",
 ];
 
+/// Match rules Ian specified (provenance "rule"); the other match params are invented placeholders.
+const MATCH_RULES: [&str; 2] = ["match_length_s", "mercy_lead"];
+
 #[test]
 fn params_file_complete_and_provenance_known() {
     let f = ParamFile::from_json(DEFAULT_PARAMS_JSON).unwrap();
     f.to_params().unwrap();
     assert_eq!(f.params.len(), Params::NAMES.len());
     for (k, e) in &f.params {
-        let want = if MEASURED_SHAPE.contains(&k.as_str()) { "measured-shape" } else { "placeholder" };
+        let want = if MEASURED_SHAPE.contains(&k.as_str()) {
+            "measured-shape"
+        } else if MATCH_RULES.contains(&k.as_str()) {
+            "rule"
+        } else {
+            "placeholder"
+        };
         assert_eq!(e.provenance, want, "{k}: unexpected provenance (only the rink shape is measured so far)");
     }
 }

@@ -324,3 +324,56 @@ Scale-free estimates (`python -m measure estimate` → `calib/data/real/estimate
   (constant term ≈ 0; −0.36 m/s² at the placeholder scale), a v² term adds nothing. Pure linear drag fits better than pure constant
   deceleration in 18 of 19 stretches. Unexplained: decel/v dips to 0.34–0.39 1/s for 50–112 px/s (≈3.3–7.4 m/s placeholder) vs ≈0.52 elsewhere.
   k (1/s) is scale-free; any constant friction term needs the meter scale.
+
+## Match rules (s8 session, 2026-11-04)
+- **Rules (Ian)**: 1v1, no goalie, a 5:00 clock, the team with more goals wins, mercy rule 5, a tie at 5:00 is decided by the next goal.
+- **Mercy interpretation (Ian, please confirm)**: `mercy_lead` = 5 is read as a **5-goal lead**: the match ends as soon as
+  |score0 − score1| ≥ 5 (5-0, 6-1, …). It is not "first to 5 goals": 5-4 or 5-1 play on. `mercy_lead ≤ 0` disables it.
+- **Values** (appended at the end of params.json, params.fitted.json and the pinned calib/data/params.synthetic.json, because
+  `to_params` is strict; no physics value changed): `match_length_s` 300 and `mercy_lead` 5 have provenance **`rule`** (Ian's).
+  `countdown_s` 3, `goal_pause_s` 3, `player_spawn_x` 15 m are **`placeholder`** (invented; the spawn x matches
+  `new_default`'s rink_length/4). `rule` shows as a purple badge in the panel.
+- **Sim** (`sim/src/rules.rs`, opt-in): `State.match_state: Option<MatchState>` (serde `match_state`, default null).
+  `None` = free play, exactly the old behaviour (all old tests, calib, lab play mode; free-play `to_bytes`/hash unchanged:
+  crosscheck still `b3e351378683a6f4`). `State::new_match(p, n)` turns the rules on. `step`'s signature is unchanged; it calls
+  `rules::step_match` when a match state is present, which wraps `physics_step` (the old step body; `update_goals` now also
+  returns the scoring team).
+  - `MatchState { phase: countdown|playing|goal_pause|finished, phase_ticks, clock_ticks, overtime, winner, last_goal }`,
+    all in `to_bytes`/`hash` (appended after the score only when present).
+  - countdown / goal_pause / finished: **no physics at all** (players, sticks, puck frozen; inputs ignored; the clock stopped);
+    `tick` still advances. playing: physics + inputs, the clock counts down one step per step (not in overtime).
+  - Goal: score +1 → mercy check → (overtime: the scorer wins) → (a goal on the last regulation step: the leader wins; an
+    equalizer there sets overtime) → goal pause (puck left in the net) → reset → countdown → play.
+  - Reset: puck at center at rest (`in_net` cleared); players at ±`player_spawn_x` (team 0 at −x, attacking +x; team 1 at +x),
+    teammates spread in y like `new_default`, at rest, facing center, stick along the facing, dash timers/cooldowns cleared.
+  - Clock reaches 0: a leader wins; tied → `overtime = true`, play continues with the clock at 0 until the next goal.
+- **sim-wasm**: `start_match(n_players)`; `get_state`/`set_state`/`reset(scenario)` carry `match_state`.
+- **Feel lab**: "Match mode" checkbox (or `?mode=match`), "New match" button, Enter (bindings.ts `rematch`, + NumpadEnter) starts a
+  rematch after game over. Canvas HUD (`drawMatchHud` in render.ts, screen space so it works in game view): scoreboard
+  BLUE score | mm:ss | score ORANGE (clock counts down, rounded up like a game clock, yellow in overtime), countdown digits,
+  GOAL! banner, red OVERTIME / NEXT GOAL WINS banner, game-over overlay (winner, final score, "Press Enter for a rematch").
+  Practice tools (F/G/R/Q) are off in match mode; toggling the mode, New match and Enter work only in play mode (not while
+  recording/replaying). Record/replay works in matches (the scenario's initial_state carries `match_state`); `Recording.endHash`
+  = state hash after the last recorded/replayed step. `?speed=N` / `window.lab.setSpeed(N)` runs the loop N× real time.
+- **Team names/colours** BLUE (team 0) / ORANGE (team 1) follow the lab's existing player colours; the real game's HUD layout
+  was approximated (score boxes either side of a mm:ss clock), not measured.
+
+### Verified (s8, Linux cloud container)
+- `cargo test --workspace`: 25 tests incl. 8 new in `sim/tests/match_rules.rs` (new match starts in countdown with a full clock,
+  mercy as a 5-goal lead, clock end with a winner, tie → overtime → next goal wins, goal pause frozen then reset to spawn,
+  inputs ignored in countdown and goal pause, 100k-step match determinism, native match crosscheck hash).
+- Determinism: a scripted 100k-step match (goals, pauses, mercy end) gives byte-identical states (hash `f3e066e94d96a5fb`).
+  **Native and wasm match hashes match after 100k steps: `22f04837353ecb0b`** (`scripts/wasm_crosscheck.mjs` now runs both);
+  free play still `b3e351378683a6f4`. A lab-recorded match segment (goal pause → reset → countdown → play) replays byte-identically
+  in the lab and through native `calib replay` (same CSV sha256).
+- `npm run build`, `npm run verify` (VERIFY OK) and `npm run verify-match` (VERIFY MATCH OK: mercy 5-0, clock end 0-1, 1-1 at
+  00:00 → overtime → 1-2). Screenshots `web/verify-out/match-*.png` checked by eye.
+
+### Match rules still open
+- Goalie, player-player contact changes (checks, body contact rules), stick-on-stick / stick-on-player contact, head/body
+  hitboxes: not added (physics and contact model unchanged).
+- Mercy reading (lead vs. total) to be confirmed by Ian. Countdown and goal-pause lengths, spawn positions (and whether the real
+  game spawns at a faceoff, or lets players move during the countdown), and what the real clock shows in overtime (it stays at
+  00:00 here) are unverified.
+- Offside/icing or any other real-game rule, faceoff mechanics, team sizes above 1v1 (the code supports any count, untested in
+  matches beyond 2 players), a goal exactly at 0:00 (counted: goals on the last step score first), the opponent player still idle.

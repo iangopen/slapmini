@@ -237,3 +237,109 @@ export function draw(ctx: CanvasRenderingContext2D, v: View, p: P, st: State, o:
   ctx.strokeStyle = "#0b0f13";
   ctx.stroke();
 }
+
+// ---------- match HUD (screen space; drawn after the rink, independent of the view rotation) ----------
+
+export const TEAM_NAMES = ["BLUE", "ORANGE"];
+
+/** Regulation clock as mm:ss, counting down; rounded up like a game clock (4:59.2 shows 05:00). */
+export function formatClock(clockTicks: number, timestep: number): string {
+  const secs = Math.max(0, Math.ceil(clockTicks * timestep - 1e-9));
+  return `${String(Math.floor(secs / 60)).padStart(2, "0")}:${String(secs % 60).padStart(2, "0")}`;
+}
+
+function roundBox(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number, fill: string): void {
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, r);
+  ctx.fillStyle = fill;
+  ctx.fill();
+}
+
+/** Scoreboard (top center: BLUE score | clock | score ORANGE), OVERTIME banner, countdown, goal banner, game-over overlay. */
+export function drawMatchHud(ctx: CanvasRenderingContext2D, p: P, st: State): void {
+  const m = st.match_state;
+  if (!m) return;
+  const { width: W, height: H } = ctx.canvas;
+  const cx = W / 2;
+  const s0 = st.score[0] ?? 0;
+  const s1 = st.score[1] ?? 0;
+  ctx.save();
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "center";
+
+  // Scoreboard.
+  const top = 10;
+  const h = 40;
+  const sideW = 120;
+  const clockW = 110;
+  const scoreW = 46;
+  const x0 = cx - clockW / 2 - scoreW - sideW;
+  roundBox(ctx, x0, top, 2 * (sideW + scoreW) + clockW, h, 6, "rgba(12,16,22,0.88)");
+  roundBox(ctx, x0, top, sideW, h, 6, TEAM[0]);
+  roundBox(ctx, cx + clockW / 2 + scoreW, top, sideW, h, 6, TEAM[1]);
+  ctx.fillStyle = "#0b0f13";
+  ctx.font = "bold 16px system-ui, sans-serif";
+  ctx.fillText(TEAM_NAMES[0], x0 + sideW / 2, top + h / 2);
+  ctx.fillText(TEAM_NAMES[1], cx + clockW / 2 + scoreW + sideW / 2, top + h / 2);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 24px system-ui, sans-serif";
+  ctx.fillText(String(s0), cx - clockW / 2 - scoreW / 2, top + h / 2 + 1);
+  ctx.fillText(String(s1), cx + clockW / 2 + scoreW / 2, top + h / 2 + 1);
+  ctx.font = "bold 24px ui-monospace, Menlo, Consolas, monospace";
+  ctx.fillStyle = m.overtime ? "#ffcf5a" : "#ffffff";
+  ctx.fillText(formatClock(m.clock_ticks, p.timestep), cx, top + h / 2 + 1);
+
+  // OVERTIME banner under the scoreboard.
+  if (m.overtime && m.phase !== "finished") {
+    roundBox(ctx, cx - 90, top + h + 6, 180, 44, 5, "#c8323c");
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 18px system-ui, sans-serif";
+    ctx.fillText("OVERTIME", cx, top + h + 20);
+    ctx.font = "bold 12px system-ui, sans-serif";
+    ctx.fillStyle = "#ffe3a3";
+    ctx.fillText("NEXT GOAL WINS", cx, top + h + 38);
+  }
+
+  // Centre messages.
+  const big = (text: string, color: string, size = 64) => {
+    ctx.font = `900 ${size}px system-ui, sans-serif`;
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = "rgba(0,0,0,0.65)";
+    ctx.strokeText(text, cx, H / 2);
+    ctx.fillStyle = color;
+    ctx.fillText(text, cx, H / 2);
+  };
+  if (m.phase === "countdown") {
+    big(String(Math.max(1, Math.ceil(m.phase_ticks * p.timestep - 1e-9))), "#ffffff", 96);
+  } else if (m.phase === "goal_pause" && m.last_goal !== null) {
+    big("GOAL!", TEAM[m.last_goal], 80);
+    ctx.font = "bold 18px system-ui, sans-serif";
+    const sub = `${TEAM_NAMES[m.last_goal]} SCORES`;
+    const sw = ctx.measureText(sub).width + 24;
+    roundBox(ctx, cx - sw / 2, H / 2 + 42, sw, 28, 5, "rgba(12,16,22,0.88)");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(sub, cx, H / 2 + 57);
+  } else if (m.phase === "finished") {
+    ctx.fillStyle = "rgba(8,10,14,0.72)";
+    ctx.fillRect(0, 0, W, H);
+    const w = m.winner ?? 0;
+    roundBox(ctx, cx - 220, H / 2 - 120, 440, 240, 12, "rgba(22,28,35,0.96)");
+    ctx.fillStyle = "#8592a0";
+    ctx.font = "bold 14px system-ui, sans-serif";
+    ctx.fillText(m.overtime ? "GAME OVER · OVERTIME" : "GAME OVER", cx, H / 2 - 88);
+    ctx.font = "900 48px system-ui, sans-serif";
+    ctx.fillStyle = TEAM[w];
+    ctx.fillText(`${TEAM_NAMES[w]} WINS`, cx, H / 2 - 38);
+    ctx.font = "bold 40px system-ui, sans-serif";
+    ctx.fillStyle = TEAM[0];
+    ctx.fillText(String(s0), cx - 50, H / 2 + 22);
+    ctx.fillStyle = "#d8dee4";
+    ctx.fillText("–", cx, H / 2 + 22);
+    ctx.fillStyle = TEAM[1];
+    ctx.fillText(String(s1), cx + 50, H / 2 + 22);
+    ctx.font = "15px system-ui, sans-serif";
+    ctx.fillStyle = "#d8dee4";
+    ctx.fillText("Press Enter for a rematch", cx, H / 2 + 82);
+  }
+  ctx.restore();
+}

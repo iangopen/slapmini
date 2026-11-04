@@ -57,6 +57,8 @@ def main(argv: list[str] | None = None) -> int:
     pc.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     pdm = sub.add_parser("dragmodel", help="held-out drag-model comparison + smoothing and synthetic-jitter checks")
     pdm.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
+    sub.add_parser("figures", help="fit figures on the sim's own rink -> measure/results/fits/")
+    sub.add_parser("boardmodel", help="held-out comparison of board friction models (needs the release calib binary)")
     psz = sub.add_parser("sizes", help="puck and player radius from the frames -> params.json (measured-shape)")
     psz.add_argument("clips", nargs="+", type=Path)
     psz.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
@@ -73,6 +75,16 @@ def main(argv: list[str] | None = None) -> int:
 
         truth = render(a.out)
         print(f"wrote {a.out} ({len(truth['frames'])} frames)")
+        return 0
+    if a.cmd == "figures":
+        from .figures import run_figures
+
+        run_figures()
+        return 0
+    if a.cmd == "boardmodel":
+        from .boardmodel import run_boardmodel
+
+        run_boardmodel()
         return 0
     if a.cmd == "sizes":
         from .sizes import run_sizes

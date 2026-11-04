@@ -21,8 +21,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "track end (teleport/reset or lost); trimmed where the puck reached the board",
-      "v0_m_s": 24.243,
-      "v0_px_per_frame": 6.148
+      "v0_m_s": 26.851,
+      "v0_px_per_frame": 6.81
     },
     {
       "id": "puck_02",
@@ -42,8 +42,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "track end (teleport/reset or lost)",
-      "v0_m_s": 26.681,
-      "v0_px_per_frame": 6.767
+      "v0_m_s": 26.696,
+      "v0_px_per_frame": 6.77
     },
     {
       "id": "puck_03",
@@ -63,8 +63,8 @@
       "airborne_frac": 0.01,
       "start_reason": "after contact",
       "end_reason": "track end (teleport/reset or lost)",
-      "v0_m_s": 8.727,
-      "v0_px_per_frame": 2.213
+      "v0_m_s": 8.083,
+      "v0_px_per_frame": 2.05
     },
     {
       "id": "puck_04",
@@ -84,8 +84,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 7.005,
-      "v0_px_per_frame": 1.776
+      "v0_m_s": 6.557,
+      "v0_px_per_frame": 1.663
     },
     {
       "id": "puck_05",
@@ -108,8 +108,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 31.85,
-      "v0_px_per_frame": 8.078
+      "v0_m_s": 31.375,
+      "v0_px_per_frame": 7.957
     },
     {
       "id": "puck_06",
@@ -129,8 +129,8 @@
       "airborne_frac": 0.004,
       "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 8.004,
-      "v0_px_per_frame": 2.03
+      "v0_m_s": 7.34,
+      "v0_px_per_frame": 1.861
     },
     {
       "id": "puck_07",
@@ -150,8 +150,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 8.501,
-      "v0_px_per_frame": 2.156
+      "v0_m_s": 8.002,
+      "v0_px_per_frame": 2.029
     },
     {
       "id": "puck_08",
@@ -174,8 +174,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 27.782,
-      "v0_px_per_frame": 7.046
+      "v0_m_s": 27.572,
+      "v0_px_per_frame": 6.993
     },
     {
       "id": "puck_09",
@@ -197,8 +197,8 @@
       "airborne_frac": 0.006,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 22.995,
-      "v0_px_per_frame": 5.832
+      "v0_m_s": 22.932,
+      "v0_px_per_frame": 5.816
     },
     {
       "id": "puck_10",
@@ -218,8 +218,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 9.221,
-      "v0_px_per_frame": 2.339
+      "v0_m_s": 8.588,
+      "v0_px_per_frame": 2.178
     },
     {
       "id": "wall_01",
@@ -239,8 +239,8 @@
       "airborne_frac": 0.008,
       "start_reason": "after a bounce right after the hit (moved to the speed peak: puck still accelerating)",
       "end_reason": "track end (teleport/reset or lost)",
-      "v0_m_s": 7.326,
-      "v0_px_per_frame": 1.86
+      "v0_m_s": 7.371,
+      "v0_px_per_frame": 1.871
     },
     {
       "id": "wall_02",
@@ -260,8 +260,8 @@
       "airborne_frac": 0.074,
       "start_reason": "after a bounce right after the hit",
       "end_reason": "contact (slow-down)",
-      "v0_m_s": 9.185,
-      "v0_px_per_frame": 2.332
+      "v0_m_s": 9.325,
+      "v0_px_per_frame": 2.368
     },
     {
       "id": "wall_03",
@@ -281,8 +281,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 5.256,
-      "v0_px_per_frame": 1.334
+      "v0_m_s": 5.491,
+      "v0_px_per_frame": 1.394
     },
     {
       "id": "wall_04",
@@ -304,8 +304,8 @@
       "airborne_frac": 0.02,
       "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 6.989,
-      "v0_px_per_frame": 1.775
+      "v0_m_s": 6.637,
+      "v0_px_per_frame": 1.685
     },
     {
       "id": "wall_05",
@@ -325,8 +325,8 @@
       "airborne_frac": 0.019,
       "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 6.423,
-      "v0_px_per_frame": 1.631
+      "v0_m_s": 5.189,
+      "v0_px_per_frame": 1.317
     },
     {
       "id": "wall_06",
@@ -346,8 +346,8 @@
       "airborne_frac": 0.111,
       "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 4.811,
-      "v0_px_per_frame": 1.221
+      "v0_m_s": 4.494,
+      "v0_px_per_frame": 1.141
     },
     {
       "id": "wall_07",
@@ -369,8 +369,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 7.525,
-      "v0_px_per_frame": 1.91
+      "v0_m_s": 6.801,
+      "v0_px_per_frame": 1.727
     },
     {
       "id": "wall_08",
@@ -390,8 +390,8 @@
       "airborne_frac": 0.015,
       "start_reason": "after a bounce right after the hit",
       "end_reason": "stop",
-      "v0_m_s": 13.852,
-      "v0_px_per_frame": 3.517
+      "v0_m_s": 14.02,
+      "v0_px_per_frame": 3.56
     },
     {
       "id": "wall_09",
@@ -413,8 +413,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after a bounce right after the hit",
       "end_reason": "stop",
-      "v0_m_s": 21.991,
-      "v0_px_per_frame": 5.583
+      "v0_m_s": 21.541,
+      "v0_px_per_frame": 5.469
     },
     {
       "id": "wall_10",
@@ -434,8 +434,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after a bounce right after the hit",
       "end_reason": "stop",
-      "v0_m_s": 15.088,
-      "v0_px_per_frame": 3.831
+      "v0_m_s": 14.985,
+      "v0_px_per_frame": 3.805
     },
     {
       "id": "wall_11",
@@ -455,8 +455,8 @@
       "airborne_frac": 0.01,
       "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 5.628,
-      "v0_px_per_frame": 1.429
+      "v0_m_s": 6.485,
+      "v0_px_per_frame": 1.646
     },
     {
       "id": "lift_01",
@@ -476,8 +476,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 8.638,
-      "v0_px_per_frame": 2.193
+      "v0_m_s": 8.702,
+      "v0_px_per_frame": 2.209
     },
     {
       "id": "lift_02",
@@ -499,8 +499,8 @@
       "airborne_frac": 0.004,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 38.01,
-      "v0_px_per_frame": 9.65
+      "v0_m_s": 39.384,
+      "v0_px_per_frame": 9.999
     },
     {
       "id": "lift_03",
@@ -522,8 +522,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 33.352,
-      "v0_px_per_frame": 8.468
+      "v0_m_s": 35.13,
+      "v0_px_per_frame": 8.919
     },
     {
       "id": "lift_04",
@@ -545,8 +545,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 29.384,
-      "v0_px_per_frame": 7.46
+      "v0_m_s": 30.751,
+      "v0_px_per_frame": 7.807
     }
   ],
   "puck_area_model": {

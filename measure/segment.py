@@ -4,7 +4,7 @@ A stretch starts once the puck has left the stick (a few frames after the speed 
 where a moving track begins) and ends at the next teleport (practice-tool reset), stop, or contact
 (a speed increase anywhere, or a sudden slowdown away from boards and nets). The player is not
 tracked, so contacts are inferred from the puck alone. Each stretch becomes a scenario + trajectory
-pair in calib/data/real/, with initial_state from a quadratic fit to the first 10 samples and no players.
+pair in calib/data/real/, with initial_state from a quadratic fit to the first 30 samples (before any bounce) and no players.
 
 Labels: "net hit" if the stretch reaches a net (roof box grown toward the mouth), else "wall bounce"
 if it changes direction at the boards, else "glide". "airborne" flags stretches where the puck blob is
@@ -293,7 +293,10 @@ def run_segment(clips: list[Path], results: Path, out_dir: Path = OUT, params_pa
                 ff = f[i0 : i1 + 1]
                 x, y = m.px_to_m(u[i0 : i1 + 1], v[i0 : i1 + 1])
                 tt = (ff - ff[0]) / m.fps
-                nfit = min(10, len(tt))
+                # Initial state: quadratic over the first 30 rows (0.5 s), or up to 2 rows before the first bounce.
+                # With the capture jitter a 10-row quadratic has ~8% speed noise at t = 0 (and starts moved to a
+                # noisy speed peak select high values); 30 rows: ~1.6% (synthetic check, CLAUDE.md).
+                nfit = min(30, len(tt))
                 if s["bounces"]:
                     nfit = min(nfit, s["bounces"][0] - i0 - 2)
                 x0, y0, vx0, vy0 = quad_state(tt[:nfit], x[:nfit], y[:nfit], 0.0)

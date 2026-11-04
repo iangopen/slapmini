@@ -1,0 +1,571 @@
+{
+  "segments": {
+    "justhittingwallphysicsfixedpoint": [
+      "wall_04",
+      "wall_05",
+      "wall_07",
+      "wall_09",
+      "wall_10",
+      "wall_11"
+    ],
+    "justpuckphysicshittingitatfixedpoint": [
+      "puck_05",
+      "puck_08",
+      "puck_09"
+    ]
+  },
+  "candidates": {
+    "current (restitution + proportional loss)": [
+      {
+        "train": "justhittingwallphysicsfixedpoint",
+        "test": {
+          "score": 48.1836,
+          "path_rmse_median": 3.0486,
+          "v2_rmse_median": 33.288,
+          "pos_rmse_median": 3.106,
+          "n": 3
+        },
+        "fitted": {
+          "board_friction": 0.20612085539110353,
+          "board_restitution": 0.2860131430609518
+        },
+        "train_score": 2.6049270078066633,
+        "test_score": 48.18360451365377,
+        "per_segment_test": {
+          "puck_05": {
+            "path_rmse": 10.06734092213053,
+            "pos_rmse": 10.073137024416644,
+            "samples": 391,
+            "speed_rmse": 3.624854713619419,
+            "stick_rmse": null,
+            "v2_rmse": 38.06602435793523
+          },
+          "puck_08": {
+            "path_rmse": 3.048562633226849,
+            "pos_rmse": 3.106408938684362,
+            "samples": 350,
+            "speed_rmse": 2.153988979535597,
+            "stick_rmse": null,
+            "v2_rmse": 33.28840101459357
+          },
+          "puck_09": {
+            "path_rmse": 0.5248164238562105,
+            "pos_rmse": 0.8421574301056811,
+            "samples": 335,
+            "speed_rmse": 2.33735895882928,
+            "stick_rmse": null,
+            "v2_rmse": 28.388193612535378
+          }
+        }
+      },
+      {
+        "train": "justpuckphysicshittingitatfixedpoint",
+        "test": {
+          "score": 2.9033,
+          "path_rmse_median": 0.4078,
+          "v2_rmse_median": 6.861,
+          "pos_rmse_median": 1.259,
+          "n": 6
+        },
+        "fitted": {
+          "board_friction": 0.14032627396121092,
+          "board_restitution": 0.41161781725229274
+        },
+        "train_score": 10.64747596272153,
+        "test_score": 2.903258178476472,
+        "per_segment_test": {
+          "wall_04": {
+            "path_rmse": 0.43724858647612785,
+            "pos_rmse": 0.8353129944896984,
+            "samples": 148,
+            "speed_rmse": 1.1499413001283385,
+            "stick_rmse": null,
+            "v2_rmse": 4.5454420329279275
+          },
+          "wall_05": {
+            "path_rmse": 0.3783645690961428,
+            "pos_rmse": 1.1327609172018338,
+            "samples": 103,
+            "speed_rmse": 1.3578390684345578,
+            "stick_rmse": null,
+            "v2_rmse": 9.052280854500799
+          },
+          "wall_07": {
+            "path_rmse": 0.25732237897797017,
+            "pos_rmse": 0.36312098883735733,
+            "samples": 170,
+            "speed_rmse": 1.0191213686086373,
+            "stick_rmse": null,
+            "v2_rmse": 3.003279899475331
+          },
+          "wall_09": {
+            "path_rmse": 0.7710940166468401,
+            "pos_rmse": 2.3285147449354873,
+            "samples": 327,
+            "speed_rmse": 1.3391665296474689,
+            "stick_rmse": null,
+            "v2_rmse": 31.61622548477406
+          },
+          "wall_10": {
+            "path_rmse": 0.2537651853179132,
+            "pos_rmse": 1.50505024055861,
+            "samples": 250,
+            "speed_rmse": 1.305530575030001,
+            "stick_rmse": null,
+            "v2_rmse": 18.198888110073312
+          },
+          "wall_11": {
+            "path_rmse": 1.310689907951823,
+            "pos_rmse": 1.3843250082756242,
+            "samples": 189,
+            "speed_rmse": 1.1094664806680912,
+            "stick_rmse": null,
+            "v2_rmse": 4.669044437221083
+          }
+        }
+      }
+    ],
+    "coulomb (restitution + mu (1+e)|v_n|)": [
+      {
+        "train": "justhittingwallphysicsfixedpoint",
+        "test": {
+          "score": 9.3712,
+          "path_rmse_median": 0.402,
+          "v2_rmse_median": 30.171,
+          "pos_rmse_median": 0.701,
+          "n": 3
+        },
+        "fitted": {
+          "board_coulomb_friction": 0.13028278848120473,
+          "board_restitution": 0.2794779750049565
+        },
+        "train_score": 2.549407776076761,
+        "test_score": 9.37124139779038,
+        "per_segment_test": {
+          "puck_05": {
+            "path_rmse": 0.4396426794269632,
+            "pos_rmse": 1.0179465523626536,
+            "samples": 391,
+            "speed_rmse": 1.3275414302991497,
+            "stick_rmse": null,
+            "v2_rmse": 30.171087816999375
+          },
+          "puck_08": {
+            "path_rmse": 0.18270017841510866,
+            "pos_rmse": 0.654703100266245,
+            "samples": 350,
+            "speed_rmse": 1.3793542702992088,
+            "stick_rmse": null,
+            "v2_rmse": 32.616490764674545
+          },
+          "puck_09": {
+            "path_rmse": 0.40198206439308526,
+            "pos_rmse": 0.7014109707526023,
+            "samples": 335,
+            "speed_rmse": 2.2975277632253537,
+            "stick_rmse": null,
+            "v2_rmse": 28.256272708690542
+          }
+        }
+      },
+      {
+        "train": "justpuckphysicshittingitatfixedpoint",
+        "test": {
+          "score": 2.5535,
+          "path_rmse_median": 0.2888,
+          "v2_rmse_median": 6.673,
+          "pos_rmse_median": 0.969,
+          "n": 6
+        },
+        "fitted": {
+          "board_coulomb_friction": 0.11657079617734492,
+          "board_restitution": 0.27959076739383265
+        },
+        "train_score": 9.295855033543207,
+        "test_score": 2.5534764077862837,
+        "per_segment_test": {
+          "wall_04": {
+            "path_rmse": 0.7006452395647842,
+            "pos_rmse": 0.748079617321129,
+            "samples": 148,
+            "speed_rmse": 1.1542693178170382,
+            "stick_rmse": null,
+            "v2_rmse": 3.817588026630801
+          },
+          "wall_05": {
+            "path_rmse": 0.32398051862996863,
+            "pos_rmse": 0.932288010079633,
+            "samples": 103,
+            "speed_rmse": 1.2635059663077641,
+            "stick_rmse": null,
+            "v2_rmse": 8.495560014597292
+          },
+          "wall_07": {
+            "path_rmse": 0.19250522478799525,
+            "pos_rmse": 0.3903476141811188,
+            "samples": 170,
+            "speed_rmse": 1.1200583517075495,
+            "stick_rmse": null,
+            "v2_rmse": 3.4492719005474695
+          },
+          "wall_09": {
+            "path_rmse": 0.14420020821703083,
+            "pos_rmse": 1.0063766118482749,
+            "samples": 327,
+            "speed_rmse": 1.393439158049614,
+            "stick_rmse": null,
+            "v2_rmse": 30.270085820583503
+          },
+          "wall_10": {
+            "path_rmse": 0.2536950925588594,
+            "pos_rmse": 1.481392707319852,
+            "samples": 250,
+            "speed_rmse": 1.4261964956077577,
+            "stick_rmse": null,
+            "v2_rmse": 18.204043794236988
+          },
+          "wall_11": {
+            "path_rmse": 0.9510157780326434,
+            "pos_rmse": 1.161385798803188,
+            "samples": 189,
+            "speed_rmse": 1.1340675989142657,
+            "stick_rmse": null,
+            "v2_rmse": 4.850094194128907
+          }
+        }
+      }
+    ],
+    "both": [
+      {
+        "train": "justhittingwallphysicsfixedpoint",
+        "test": {
+          "score": 9.3712,
+          "path_rmse_median": 0.402,
+          "v2_rmse_median": 30.171,
+          "pos_rmse_median": 0.701,
+          "n": 3
+        },
+        "fitted": {
+          "board_coulomb_friction": 0.1302827998627582,
+          "board_friction": 0.0,
+          "board_restitution": 0.27947795727702995
+        },
+        "train_score": 2.5494077760767513,
+        "test_score": 9.37124156686631,
+        "per_segment_test": {
+          "puck_05": {
+            "path_rmse": 0.4396429641485891,
+            "pos_rmse": 1.0179470050452635,
+            "samples": 391,
+            "speed_rmse": 1.3275414869345414,
+            "stick_rmse": null,
+            "v2_rmse": 30.171088195671402
+          },
+          "puck_08": {
+            "path_rmse": 0.1827002523188937,
+            "pos_rmse": 0.6547031587709893,
+            "samples": 350,
+            "speed_rmse": 1.3793543095232261,
+            "stick_rmse": null,
+            "v2_rmse": 32.616490721270594
+          },
+          "puck_09": {
+            "path_rmse": 0.40198206606812237,
+            "pos_rmse": 0.7014110030178042,
+            "samples": 335,
+            "speed_rmse": 2.297527780856065,
+            "stick_rmse": null,
+            "v2_rmse": 28.25627275883827
+          }
+        }
+      },
+      {
+        "train": "justpuckphysicshittingitatfixedpoint",
+        "test": {
+          "score": 2.9224,
+          "path_rmse_median": 0.432,
+          "v2_rmse_median": 6.718,
+          "pos_rmse_median": 1.243,
+          "n": 6
+        },
+        "fitted": {
+          "board_coulomb_friction": 0.10365568557471692,
+          "board_friction": 0.03794719525919307,
+          "board_restitution": 0.4092052648811172
+        },
+        "train_score": 10.001212815957409,
+        "test_score": 2.922449907043966,
+        "per_segment_test": {
+          "wall_04": {
+            "path_rmse": 0.32061730200869876,
+            "pos_rmse": 0.5561744955391955,
+            "samples": 148,
+            "speed_rmse": 1.1372523302886528,
+            "stick_rmse": null,
+            "v2_rmse": 3.9127897357675603
+          },
+          "wall_05": {
+            "path_rmse": 0.3946219965700405,
+            "pos_rmse": 1.0537940388539868,
+            "samples": 103,
+            "speed_rmse": 1.3012438011581329,
+            "stick_rmse": null,
+            "v2_rmse": 8.633979978886225
+          },
+          "wall_07": {
+            "path_rmse": 0.46946208838611697,
+            "pos_rmse": 0.47103051335076335,
+            "samples": 170,
+            "speed_rmse": 1.0513298947169034,
+            "stick_rmse": null,
+            "v2_rmse": 2.928346845368854
+          },
+          "wall_09": {
+            "path_rmse": 1.1289099701206662,
+            "pos_rmse": 1.973327149891269,
+            "samples": 327,
+            "speed_rmse": 1.341886862053568,
+            "stick_rmse": null,
+            "v2_rmse": 30.636296014125882
+          },
+          "wall_10": {
+            "path_rmse": 0.25368351750813517,
+            "pos_rmse": 1.4863478238171837,
+            "samples": 250,
+            "speed_rmse": 1.3398681372393502,
+            "stick_rmse": null,
+            "v2_rmse": 18.196214901987332
+          },
+          "wall_11": {
+            "path_rmse": 1.3436261073745235,
+            "pos_rmse": 1.431487968651779,
+            "samples": 189,
+            "speed_rmse": 1.1259708543615286,
+            "stick_rmse": null,
+            "v2_rmse": 4.801067158064252
+          }
+        }
+      }
+    ],
+    "current, e fixed (fit proportional loss only)": [
+      {
+        "train": "justhittingwallphysicsfixedpoint",
+        "test": {
+          "score": 11.2876,
+          "path_rmse_median": 0.8715,
+          "v2_rmse_median": 32.124,
+          "pos_rmse_median": 1.5,
+          "n": 3
+        },
+        "fitted": {
+          "board_friction": 0.14696801943335416
+        },
+        "train_score": 2.877350324038481,
+        "test_score": 11.287616098016102,
+        "per_segment_test": {
+          "puck_05": {
+            "path_rmse": 1.61487181393219,
+            "pos_rmse": 2.372746257552056,
+            "samples": 391,
+            "speed_rmse": 1.6490464100595728,
+            "stick_rmse": null,
+            "v2_rmse": 32.12425686220884
+          },
+          "puck_08": {
+            "path_rmse": 0.19351217086773562,
+            "pos_rmse": 1.4996491137881298,
+            "samples": 350,
+            "speed_rmse": 1.3238057169477164,
+            "stick_rmse": null,
+            "v2_rmse": 34.57861598325993
+          },
+          "puck_09": {
+            "path_rmse": 0.87149588306191,
+            "pos_rmse": 1.4167188806675999,
+            "samples": 335,
+            "speed_rmse": 2.246416313762766,
+            "stick_rmse": null,
+            "v2_rmse": 28.603495698041097
+          }
+        }
+      },
+      {
+        "train": "justpuckphysicshittingitatfixedpoint",
+        "test": {
+          "score": 2.8866,
+          "path_rmse_median": 0.4237,
+          "v2_rmse_median": 6.94,
+          "pos_rmse_median": 1.24,
+          "n": 6
+        },
+        "fitted": {
+          "board_friction": 0.1160932789857881
+        },
+        "train_score": 11.036386858848465,
+        "test_score": 2.886581540649052,
+        "per_segment_test": {
+          "wall_04": {
+            "path_rmse": 0.47672074563796213,
+            "pos_rmse": 0.8969200805010041,
+            "samples": 148,
+            "speed_rmse": 1.1551019818985786,
+            "stick_rmse": null,
+            "v2_rmse": 4.698129116739042
+          },
+          "wall_05": {
+            "path_rmse": 0.37077211088052986,
+            "pos_rmse": 1.1512846556190075,
+            "samples": 103,
+            "speed_rmse": 1.3743871277693258,
+            "stick_rmse": null,
+            "v2_rmse": 9.182783816114034
+          },
+          "wall_07": {
+            "path_rmse": 0.1964990610067858,
+            "pos_rmse": 0.3555458309573528,
+            "samples": 170,
+            "speed_rmse": 1.0174295081077924,
+            "stick_rmse": null,
+            "v2_rmse": 3.080472965796243
+          },
+          "wall_09": {
+            "path_rmse": 0.6486125039160462,
+            "pos_rmse": 2.3929563487882772,
+            "samples": 327,
+            "speed_rmse": 1.3445430687851794,
+            "stick_rmse": null,
+            "v2_rmse": 31.876019726781035
+          },
+          "wall_10": {
+            "path_rmse": 0.2537689566453047,
+            "pos_rmse": 1.50613306582134,
+            "samples": 250,
+            "speed_rmse": 1.3058401662688386,
+            "stick_rmse": null,
+            "v2_rmse": 18.199441039018833
+          },
+          "wall_11": {
+            "path_rmse": 1.2613417899212684,
+            "pos_rmse": 1.3285068778662965,
+            "samples": 189,
+            "speed_rmse": 1.0973163684147584,
+            "stick_rmse": null,
+            "v2_rmse": 4.562974777549335
+          }
+        }
+      }
+    ],
+    "coulomb, e fixed (fit mu only)": [
+      {
+        "train": "justhittingwallphysicsfixedpoint",
+        "test": {
+          "score": 10.7474,
+          "path_rmse_median": 0.1695,
+          "v2_rmse_median": 32.937,
+          "pos_rmse_median": 1.551,
+          "n": 3
+        },
+        "fitted": {
+          "board_coulomb_friction": 0.08070227100139307
+        },
+        "train_score": 2.842760099415336,
+        "test_score": 10.747434690230287,
+        "per_segment_test": {
+          "puck_05": {
+            "path_rmse": 0.1695409276263651,
+            "pos_rmse": 1.4532224258330935,
+            "samples": 391,
+            "speed_rmse": 1.2269647490568174,
+            "stick_rmse": null,
+            "v2_rmse": 32.93745485183673
+          },
+          "puck_08": {
+            "path_rmse": 0.16242724161925737,
+            "pos_rmse": 1.9715563065206048,
+            "samples": 350,
+            "speed_rmse": 1.306876652006599,
+            "stick_rmse": null,
+            "v2_rmse": 35.09477434043912
+          },
+          "puck_09": {
+            "path_rmse": 0.8091243350837615,
+            "pos_rmse": 1.550849720736554,
+            "samples": 335,
+            "speed_rmse": 2.233926833439648,
+            "stick_rmse": null,
+            "v2_rmse": 28.926292477388795
+          }
+        }
+      },
+      {
+        "train": "justpuckphysicshittingitatfixedpoint",
+        "test": {
+          "score": 2.9276,
+          "path_rmse_median": 0.4523,
+          "v2_rmse_median": 6.683,
+          "pos_rmse_median": 1.23,
+          "n": 6
+        },
+        "fitted": {
+          "board_coulomb_friction": 0.12841257154941554
+        },
+        "train_score": 9.834986211401676,
+        "test_score": 2.9276296986301884,
+        "per_segment_test": {
+          "wall_04": {
+            "path_rmse": 0.3024825911774387,
+            "pos_rmse": 0.49938151232137046,
+            "samples": 148,
+            "speed_rmse": 1.138579105332414,
+            "stick_rmse": null,
+            "v2_rmse": 3.8248451143781144
+          },
+          "wall_05": {
+            "path_rmse": 0.3961816519818486,
+            "pos_rmse": 1.0372140473837397,
+            "samples": 103,
+            "speed_rmse": 1.2915044621247558,
+            "stick_rmse": null,
+            "v2_rmse": 8.564863193829424
+          },
+          "wall_07": {
+            "path_rmse": 0.5083474589442737,
+            "pos_rmse": 0.5156773920225598,
+            "samples": 170,
+            "speed_rmse": 1.0639108633491776,
+            "stick_rmse": null,
+            "v2_rmse": 2.9960837640682967
+          },
+          "wall_09": {
+            "path_rmse": 1.185298358024328,
+            "pos_rmse": 1.9058902759345566,
+            "samples": 327,
+            "speed_rmse": 1.3497404560696387,
+            "stick_rmse": null,
+            "v2_rmse": 30.499715540178475
+          },
+          "wall_10": {
+            "path_rmse": 0.2536522123018544,
+            "pos_rmse": 1.4819978902559423,
+            "samples": 250,
+            "speed_rmse": 1.3486739473716882,
+            "stick_rmse": null,
+            "v2_rmse": 18.195747644229517
+          },
+          "wall_11": {
+            "path_rmse": 1.3327908171160192,
+            "pos_rmse": 1.4232530816301956,
+            "samples": 189,
+            "speed_rmse": 1.1260018906096152,
+            "stick_rmse": null,
+            "v2_rmse": 4.8009918690619235
+          }
+        }
+      }
+    ]
+  },
+  "defaults_test_score": {
+    "justhittingwallphysicsfixedpoint": 2.976638420535742,
+    "justpuckphysicshittingitatfixedpoint": 12.945064981513596
+  }
+}

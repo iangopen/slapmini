@@ -1,0 +1,107 @@
+diff --git a/calib/data/params.synthetic.json b/calib/data/params.synthetic.json
+index 35a3426..c8b8675 100644
+--- a/calib/data/params.synthetic.json
++++ b/calib/data/params.synthetic.json
+@@ -10,6 +10,7 @@
+     "rink_corner_radius":        { "value": 8.0,   "provenance": "placeholder", "unit": "m" },
+     "board_restitution":         { "value": 0.7,   "provenance": "placeholder", "unit": "ratio", "note": "normal velocity kept on board hit" },
+     "board_friction":            { "value": 0.1,   "provenance": "placeholder", "unit": "ratio", "note": "fraction of tangential velocity lost on board hit" },
++    "board_coulomb_friction":    { "value": 0.0,   "provenance": "placeholder", "unit": "ratio", "note": "EXPERIMENT: Coulomb-style board friction, tangential speed loss = this x (1 + e) x |v_n| per contact; 0 = off" },
+ 
+     "net_x":                     { "value": 26.0,  "provenance": "placeholder", "unit": "m", "note": "|x| of goal line; nets at +net_x and -net_x, mouths face center" },
+     "net_width":                 { "value": 3.0,   "provenance": "placeholder", "unit": "m" },
+diff --git a/params.fitted.json b/params.fitted.json
+index afc5db2..a3ce956 100644
+--- a/params.fitted.json
++++ b/params.fitted.json
+@@ -285,6 +285,12 @@
+       "provenance": "placeholder",
+       "unit": "ratio",
+       "note": "DISPLAY ONLY: real-game m/s per sim m/s, for the mph/kph readout"
++    },
++    "board_coulomb_friction": {
++      "value": 0.0,
++      "provenance": "placeholder",
++      "unit": "ratio",
++      "note": "EXPERIMENT"
+     }
+   }
+ }
+diff --git a/params.json b/params.json
+index 950af71..fcfb080 100644
+--- a/params.json
++++ b/params.json
+@@ -10,6 +10,7 @@
+     "rink_corner_radius":        {"value": 8.7238, "provenance": "measured-shape", "unit": "m", "note": "MEASURED SHAPE: from the rounded outline's area deficit, mean of 3 clips (sd 0.033 m); absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"},
+     "board_restitution":         {"value": 0.405894, "provenance": "fitted", "unit": "ratio", "note": "FITTED on real wall-bounce segments (puck_05, puck_08, puck_09, wall_04, wall_07, wall_09), path-only objective (rebound geometry), ice params fixed from the glide fit; held out by clip: train justhittin -> held-out justpuckph score 283.85 -> 12.81; train justpuckph -> held-out justhittin score 56.10 -> 2.30. Positions/speeds at the PLACEHOLDER meter scale; ratio, scale-free."},
+     "board_friction":            {"value": 0.045837, "provenance": "fitted", "unit": "ratio", "note": "FITTED on real wall-bounce segments (puck_05, puck_08, puck_09, wall_04, wall_07, wall_09), path-only objective (rebound geometry), ice params fixed from the glide fit; held out by clip: train justhittin -> held-out justpuckph score 283.85 -> 12.81; train justpuckph -> held-out justhittin score 56.10 -> 2.30. Positions/speeds at the PLACEHOLDER meter scale; ratio, scale-free."},
++    "board_coulomb_friction":    { "value": 0.0,   "provenance": "placeholder", "unit": "ratio", "note": "EXPERIMENT: Coulomb-style board friction, tangential speed loss = this x (1 + e) x |v_n| per contact; 0 = off" },
+ 
+     "net_x":                     {"value": 22.8171, "provenance": "measured-shape", "unit": "m", "note": "MEASURED SHAPE: goal line |x| (net mouth), grey line nearest each net, painted ice markings, ice-plane scale, mean of 3 clips (sd 0.010 m); absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"},
+     "net_width":                 {"value": 5.9208, "provenance": "measured-shape", "unit": "m", "note": "MEASURED SHAPE: net roof width seen from above, corrected for roof-height parallax (k = 0.0844, from the off-center clip); camera-centered clips; absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"},
+diff --git a/params.placeholder.json b/params.placeholder.json
+index f7bdc3a..0a9632d 100644
+--- a/params.placeholder.json
++++ b/params.placeholder.json
+@@ -10,6 +10,7 @@
+     "rink_corner_radius":        {"value": 8.7238, "provenance": "measured-shape", "unit": "m", "note": "MEASURED SHAPE: from the rounded outline's area deficit, mean of 3 clips (sd 0.033 m); absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"},
+     "board_restitution":         { "value": 0.7,   "provenance": "placeholder", "unit": "ratio", "note": "normal velocity kept on board hit" },
+     "board_friction":            { "value": 0.1,   "provenance": "placeholder", "unit": "ratio", "note": "fraction of tangential velocity lost on board hit" },
++    "board_coulomb_friction":    { "value": 0.0,   "provenance": "placeholder", "unit": "ratio", "note": "EXPERIMENT: Coulomb-style board friction, tangential speed loss = this x (1 + e) x |v_n| per contact; 0 = off" },
+ 
+     "net_x":                     {"value": 22.8171, "provenance": "measured-shape", "unit": "m", "note": "MEASURED SHAPE: goal line |x| (net mouth), grey line nearest each net, painted ice markings, ice-plane scale, mean of 3 clips (sd 0.010 m); absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"},
+     "net_width":                 {"value": 5.9208, "provenance": "measured-shape", "unit": "m", "note": "MEASURED SHAPE: net roof width seen from above, corrected for roof-height parallax (k = 0.0844, from the off-center clip); camera-centered clips; absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"},
+diff --git a/sim/src/params.rs b/sim/src/params.rs
+index 108ef76..c804f7f 100644
+--- a/sim/src/params.rs
++++ b/sim/src/params.rs
+@@ -30,7 +30,7 @@ macro_rules! define_params {
+ 
+ define_params!(
+     timestep, substeps, gravity,
+-    rink_length, rink_width, rink_corner_radius, board_restitution, board_friction,
++    rink_length, rink_width, rink_corner_radius, board_restitution, board_friction, board_coulomb_friction,
+     net_x, net_width, net_depth, net_height, net_restitution,
+     puck_radius, puck_mass, ice_friction_decel, ice_linear_drag, air_drag, ice_restitution,
+     player_radius, player_height, player_mass, player_accel, player_max_speed, player_ice_drag,
+diff --git a/sim/src/step.rs b/sim/src/step.rs
+index bf09ec4..2569bdd 100644
+--- a/sim/src/step.rs
++++ b/sim/src/step.rs
+@@ -69,13 +69,19 @@ fn closest_on_segment(ax: f64, ay: f64, bx: f64, by: f64, qx: f64, qy: f64) -> (
+     (ax + ex * t, ay + ey * t)
+ }
+ 
+-fn puck_static_bounce(puck: &mut Puck, nx: f64, ny: f64, pen: f64, restitution: f64, tangential_loss: f64) {
++fn puck_static_bounce(puck: &mut Puck, nx: f64, ny: f64, pen: f64, restitution: f64, tangential_loss: f64, coulomb: f64) {
+     puck.x += nx * pen;
+     puck.y += ny * pen;
+     let vn = puck.vx * nx + puck.vy * ny;
+     if vn < 0.0 {
+         let (tx, ty) = (puck.vx - vn * nx, puck.vy - vn * ny);
+-        let keep_t = 1.0 - tangential_loss;
++        let mut keep_t = 1.0 - tangential_loss;
++        // Coulomb-style friction: tangential speed loss proportional to the normal velocity change, capped at |v_t|.
++        let vt = len(tx, ty);
++        if coulomb > 0.0 && vt > EPS {
++            let loss = (coulomb * (1.0 + restitution) * -vn).min(vt);
++            keep_t *= (vt - loss) / vt;
++        }
+         let vn_new = -vn * restitution;
+         puck.vx = tx * keep_t + vn_new * nx;
+         puck.vy = ty * keep_t + vn_new * ny;
+@@ -447,12 +453,12 @@ pub fn step(state: &mut State, inputs: &[PlayerInput], p: &Params) {
+                 let (dx, dy) = (state.puck.x - qx, state.puck.y - qy);
+                 let d = len(dx, dy);
+                 if d < p.puck_radius && d > EPS {
+-                    puck_static_bounce(&mut state.puck, dx / d, dy / d, p.puck_radius - d, p.net_restitution, 0.0);
++                    puck_static_bounce(&mut state.puck, dx / d, dy / d, p.puck_radius - d, p.net_restitution, 0.0, 0.0);
+                 }
+             }
+         }
+         if let Some((nx, ny, pen)) = board_contact(p, state.puck.x, state.puck.y, p.puck_radius) {
+-            puck_static_bounce(&mut state.puck, nx, ny, pen, p.board_restitution, p.board_friction);
++            puck_static_bounce(&mut state.puck, nx, ny, pen, p.board_restitution, p.board_friction, p.board_coulomb_friction);
+         }
+     }
+ 

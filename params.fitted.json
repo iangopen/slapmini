@@ -38,16 +38,16 @@
       "note": "MEASURED SHAPE: from the rounded outline's area deficit, mean of 3 clips (sd 0.033 m); absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"
     },
     "board_restitution": {
-      "value": 0.405894,
+      "value": 0.342796,
       "provenance": "fitted",
       "unit": "ratio",
-      "note": "FITTED on real wall-bounce segments (puck_05, puck_08, puck_09, wall_04, wall_07, wall_09), path-only objective (rebound geometry), ice params fixed from the glide fit; held out by clip: train justhittin -> held-out justpuckph score 283.85 -> 12.81; train justpuckph -> held-out justhittin score 56.10 -> 2.30. Positions/speeds at the PLACEHOLDER meter scale; ratio, scale-free."
+      "note": "FITTED on real wall-bounce segments (puck_05, puck_08, puck_09, wall_04, wall_07, wall_09), path-only objective (rebound geometry), ice params fixed from the glide fit; held out by clip: train justhittin -> held-out justpuckph score 307.05 -> 3.06; train justpuckph -> held-out justhittin score 51.54 -> 0.46. Positions/speeds at the PLACEHOLDER meter scale; ratio, scale-free."
     },
     "board_friction": {
-      "value": 0.045837,
+      "value": 0.0,
       "provenance": "fitted",
       "unit": "ratio",
-      "note": "FITTED on real wall-bounce segments (puck_05, puck_08, puck_09, wall_04, wall_07, wall_09), path-only objective (rebound geometry), ice params fixed from the glide fit; held out by clip: train justhittin -> held-out justpuckph score 283.85 -> 12.81; train justpuckph -> held-out justhittin score 56.10 -> 2.30. Positions/speeds at the PLACEHOLDER meter scale; ratio, scale-free."
+      "note": "FITTED on real wall-bounce segments (puck_05, puck_08, puck_09, wall_04, wall_07, wall_09), path-only objective (rebound geometry), ice params fixed from the glide fit; held out by clip: train justhittin -> held-out justpuckph score 307.05 -> 3.06; train justpuckph -> held-out justhittin score 51.54 -> 0.46. Positions/speeds at the PLACEHOLDER meter scale; ratio, scale-free."
     },
     "net_x": {
       "value": 22.8171,
@@ -79,9 +79,10 @@
       "unit": "ratio"
     },
     "puck_radius": {
-      "value": 0.15,
-      "provenance": "placeholder",
-      "unit": "m"
+      "value": 0.2298,
+      "provenance": "measured-shape",
+      "unit": "m",
+      "note": "MEASURED SHAPE: half-max edge of the resting puck's bright face near the image center, corrected for the top face's height magnification; 3 clip(s) (0.2309, 0.2176, 0.2409 m); the dark-green rim reaches ~0.32 m and the tracker blob ~0.245 m; absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"
     },
     "puck_mass": {
       "value": 0.17,
@@ -92,13 +93,13 @@
       "value": 0.0,
       "provenance": "fitted",
       "unit": "m/s^2",
-      "note": "FITTED on real glide segments (puck_01, puck_02, puck_03, puck_04, puck_06, puck_07, puck_10, wall_01, wall_02, wall_03, wall_05, wall_06, wall_08, wall_10, wall_11), path objective; held out by clip: train justhittin -> held-out justpuckph score 283.85 -> 12.81; train justpuckph -> held-out justhittin score 56.10 -> 2.30. Positions/speeds at the PLACEHOLDER meter scale; fitted ~0 in both hold-out directions, so unit-free in practice."
+      "note": "FITTED on real glide segments (puck_01, puck_02, puck_03, puck_04, puck_06, puck_07, puck_10, wall_01, wall_02, wall_03, wall_05, wall_06, wall_08, wall_10, wall_11), path objective; held out by clip: train justhittin -> held-out justpuckph score 307.05 -> 3.06; train justpuckph -> held-out justhittin score 51.54 -> 0.46. Positions/speeds at the PLACEHOLDER meter scale; fitted ~0 in both hold-out directions, so unit-free in practice."
     },
     "ice_linear_drag": {
-      "value": 0.407916,
+      "value": 0.47254,
       "provenance": "fitted",
       "unit": "1/s",
-      "note": "FITTED on real glide segments (puck_01, puck_02, puck_03, puck_04, puck_06, puck_07, puck_10, wall_01, wall_02, wall_03, wall_05, wall_06, wall_08, wall_10, wall_11), path objective; held out by clip: train justhittin -> held-out justpuckph score 283.85 -> 12.81; train justpuckph -> held-out justhittin score 56.10 -> 2.30. Positions/speeds at the PLACEHOLDER meter scale; 1/s, scale-free."
+      "note": "FITTED on real glide segments (puck_01, puck_02, puck_03, puck_04, puck_06, puck_07, puck_10, wall_01, wall_02, wall_03, wall_05, wall_06, wall_08, wall_10, wall_11), path objective; held out by clip: train justhittin -> held-out justpuckph score 307.05 -> 3.06; train justpuckph -> held-out justhittin score 51.54 -> 0.46. Positions/speeds at the PLACEHOLDER meter scale; 1/s, scale-free."
     },
     "air_drag": {
       "value": 0.01,
@@ -113,9 +114,10 @@
       "note": "vertical bounce on landing"
     },
     "player_radius": {
-      "value": 0.45,
-      "provenance": "placeholder",
-      "unit": "m"
+      "value": 0.4557,
+      "provenance": "measured-shape",
+      "unit": "m",
+      "note": "MEASURED SHAPE: the player's pink disc (half-max edge circle fit), 3 clips (0.4591, 0.4576, 0.4505 m); the blue rim around it reaches ~0.53 m; the disc may be drawn at the player's height (unknown parallax magnification, so possibly a few % large); absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"
     },
     "player_height": {
       "value": 1.8,

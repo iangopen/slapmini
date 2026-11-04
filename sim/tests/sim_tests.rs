@@ -43,7 +43,9 @@ fn determinism_100k_steps_byte_identical() {
 }
 
 /// Params whose SHAPE (ratio to rink_length) was measured from real clips; the meter scale is still a placeholder.
-const MEASURED_SHAPE: [&str; 4] = ["rink_width", "rink_corner_radius", "net_width", "net_depth"];
+const MEASURED_SHAPE: [&str; 9] = [
+    "rink_width", "rink_corner_radius", "net_width", "net_depth", "net_x", "blue_line_x", "faceoff_x", "faceoff_y", "faceoff_circle_radius",
+];
 
 #[test]
 fn params_file_complete_and_provenance_known() {

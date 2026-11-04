@@ -164,6 +164,8 @@ pub enum Objective {
     Time,
     /// Timing-robust: sum of path_rmse^2 + PATH_V2_WEIGHT * v2_rmse^2 (compared at equal arc length).
     Path,
+    /// Geometry only: sum of path_rmse^2 (where the puck goes, e.g. rebound angles; ignores speed).
+    PathOnly,
 }
 
 impl std::str::FromStr for Objective {
@@ -172,7 +174,8 @@ impl std::str::FromStr for Objective {
         match s {
             "time" => Ok(Objective::Time),
             "path" => Ok(Objective::Path),
-            _ => Err(format!("unknown objective '{s}' (time | path)")),
+            "path-only" => Ok(Objective::PathOnly),
+            _ => Err(format!("unknown objective '{s}' (time | path | path-only)")),
         }
     }
 }
@@ -356,6 +359,7 @@ pub fn objective_with(cases: &[Case], p: &Params, kind: Objective) -> f64 {
         .map(|e| match kind {
             Objective::Time => e.pos_rmse.powi(2) + 0.1 * e.speed_rmse.powi(2),
             Objective::Path => e.path_rmse.powi(2) + PATH_V2_WEIGHT * e.v2_rmse.powi(2),
+            Objective::PathOnly => e.path_rmse.powi(2),
         })
         .sum()
 }

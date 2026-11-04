@@ -123,6 +123,8 @@ def area_model(u_raw: np.ndarray, v_raw: np.ndarray, area: np.ndarray, center=(9
         if s_.sum() >= 20:
             rc.append(float(np.median(r[s_])))
             med.append(float(np.median(area[s_])))
+    if len(rc) < 2:
+        raise ValueError("too few radius bins for the area model")
     a1, a0 = np.polyfit(rc, med, 1)
     return float(a0), float(a1)
 
@@ -188,7 +190,7 @@ def analyse_tracklet(m: RinkMap, f, u, v, area, area_ref, boxes):
     for s in out:
         bounces, net_hit = [], False
         bd = board_distance(m, u, v)
-        for q in range(s["i0"] + 2, s["i1"] - 1):
+        for q in range(s["i0"], s["i1"] - 1):
             if net[q]:
                 d0, d1 = direction(f, u, v, q, -1), direction(f, u, v, q, +1)
                 if d0 and d1 and d0[0] * d1[0] + d0[1] * d1[1] < math.cos(math.radians(15)):
@@ -196,7 +198,8 @@ def analyse_tracklet(m: RinkMap, f, u, v, area, area_ref, boxes):
                 continue
             if not wall[q] or bd[q] > bd[max(q - 5, s["i0"]) : min(q + 6, s["i1"] + 1)].min():
                 continue  # bounce = local minimum of the distance to the boards
-            a0, a1 = max(q - 7, s["i0"]), max(q - 2, s["i0"])
+            # The approach may come from before the stretch (a shot straight into the board next to the player).
+            a0, a1 = max(q - 7, 0), max(q - 2, 0)
             b0, b1 = min(q + 2, s["i1"]), min(q + 7, s["i1"])
             if a1 <= a0 or b1 <= b0:
                 continue
@@ -230,11 +233,13 @@ def run_segment(clips: list[Path], results: Path, out_dir: Path = OUT, params_pa
         meta = json.loads((results / f"{name}.track.json").read_text())
         R = meta["rows"]
         f_all = np.array(R["frame"])
-        u_all, v_all = np.array(R["u_px"]), np.array(R["v_px"])
+        # Positions: ground points (blob centroid reprojected for the puck's height) when available.
+        u_all, v_all = np.array(R.get("ug_px", R["u_px"])), np.array(R.get("vg_px", R["v_px"]))
+        u_blob, v_blob = np.array(R["u_px"]), np.array(R["v_px"])
         tid = np.array(R["tracklet"])
         area_all = np.array(R.get("area_px", [50] * len(f_all)), float)
-        u_raw = u_all + np.array(R.get("shift_u", [0] * len(f_all)))
-        v_raw = v_all + np.array(R.get("shift_v", [0] * len(f_all)))
+        u_raw = u_blob + np.array(R.get("shift_u", [0] * len(f_all)))
+        v_raw = v_blob + np.array(R.get("shift_v", [0] * len(f_all)))
         a0, a1 = area_model(u_raw, v_raw, area_all)
         area_exp_all = a0 + a1 * np.hypot(u_raw - 960.0, v_raw - 540.0)
         manifest.setdefault("puck_area_model", {})[name] = {"area_px2_at_center": round(a0, 2), "per_px_from_center": round(a1, 5)}
@@ -255,6 +260,31 @@ def run_segment(clips: list[Path], results: Path, out_dir: Path = OUT, params_pa
                 i0, i1 = s["i0"], s["i1"]
                 if s["start_reason"] == "after stop":
                     continue  # began moving from rest with no detected hit: a slow stick push, not a free puck
+                # The initial state comes from a fit to the first rows; it must not straddle a bounce. A bounce in
+                # the first 12 rows moves the start to 4 rows after it (the shot into the board is not used).
+                while s["bounces"] and s["bounces"][0] - i0 < 12:
+                    i0 = s["bounces"].pop(0) + 4
+                    s["start_reason"] = "after a bounce right after the hit"
+                if i0 >= i1:
+                    continue
+                # Still accelerating? (the stick contact lasts longer than the speed-up test saw): start at the
+                # window-speed peak if the speed keeps rising by > 3% within the first 15 rows.
+                spw = window_speed(f, u, v)
+                pk = i0 + int(np.argmax(spw[i0 : min(i0 + 15, i1)]))
+                if pk > i0 and spw[pk] > 1.03 * spw[i0]:
+                    i0 = pk
+                    s["start_reason"] += " (moved to the speed peak: puck still accelerating)"
+                    s["bounces"] = [q for q in s["bounces"] if q > i0 + 2]
+                # Cut off at a reset: if the stretch ends at the board (the puck hit it as it was reset), trim the
+                # rows from where it came within reach of the board (the bounce itself is not in the data).
+                if s["end_reason"].startswith("track end"):
+                    bdw = board_distance(m, u[i0 : i1 + 1], v[i0 : i1 + 1]) < PUCK_R_PX + WALL_MARGIN_PX
+                    tail = [q for q in range(max(i1 - 12, i0), i1 + 1) if bdw[q - i0]]
+                    if tail and (not s["bounces"] or s["bounces"][-1] < tail[0] - 6):
+                        i1 = tail[0] - 1
+                        s["end_reason"] += "; trimmed where the puck reached the board"
+                if i1 - i0 < 5:
+                    continue
                 dur = (f[i1] - f[i0]) / m.fps
                 if dur < MIN_DURATION_S:
                     continue
@@ -264,6 +294,8 @@ def run_segment(clips: list[Path], results: Path, out_dir: Path = OUT, params_pa
                 x, y = m.px_to_m(u[i0 : i1 + 1], v[i0 : i1 + 1])
                 tt = (ff - ff[0]) / m.fps
                 nfit = min(10, len(tt))
+                if s["bounces"]:
+                    nfit = min(nfit, s["bounces"][0] - i0 - 2)
                 x0, y0, vx0, vy0 = quad_state(tt[:nfit], x[:nfit], y[:nfit], 0.0)
                 label = "net hit" if s["net_hit"] else ("wall bounce" if s["bounces"] else "glide")
                 steps = int(math.ceil(tt[-1] / params["timestep"] - 1e-9))

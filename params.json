@@ -11,9 +11,9 @@
     "board_restitution":         { "value": 0.7,   "provenance": "placeholder", "unit": "ratio", "note": "normal velocity kept on board hit" },
     "board_friction":            { "value": 0.1,   "provenance": "placeholder", "unit": "ratio", "note": "fraction of tangential velocity lost on board hit" },
 
-    "net_x":                     { "value": 26.0,  "provenance": "placeholder", "unit": "m", "note": "|x| of goal line; nets at +net_x and -net_x, mouths face center" },
+    "net_x":                     {"value": 22.8171, "provenance": "measured-shape", "unit": "m", "note": "MEASURED SHAPE: goal line |x| (net mouth), grey line nearest each net, painted ice markings, ice-plane scale, mean of 3 clips (sd 0.010 m); absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"},
     "net_width":                 {"value": 5.9208, "provenance": "measured-shape", "unit": "m", "note": "MEASURED SHAPE: net roof width seen from above, corrected for roof-height parallax (k = 0.0844, from the off-center clip); camera-centered clips; absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"},
-    "net_depth":                 {"value": 2.2263, "provenance": "measured-shape", "unit": "m", "note": "MEASURED SHAPE: goal line to the parallax-corrected back of the roof, assuming a flat roof (uncorrected roof outline gives 4.34 m); measured goal line |x| = 22.82 m (net_x NOT changed); absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"},
+    "net_depth":                 {"value": 2.2263, "provenance": "measured-shape", "unit": "m", "note": "MEASURED SHAPE: goal line to the parallax-corrected back of the roof, assuming a flat roof (uncorrected roof outline gives 4.34 m); absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"},
     "net_height":                { "value": 1.2,   "provenance": "placeholder", "unit": "m", "note": "puck above this passes over the net frame" },
     "net_restitution":           { "value": 0.4,   "provenance": "placeholder", "unit": "ratio" },
 
@@ -54,10 +54,10 @@
     "lift_max_vz":               { "value": 6.0,   "provenance": "placeholder", "unit": "m/s" },
     "chip_max_speed":            { "value": 12.0,  "provenance": "placeholder", "unit": "m/s", "note": "PLACEHOLDER LOGIC: dash + lift hit is capped to this (low-speed chip)" },
 
-    "blue_line_x":               { "value": 8.5,   "provenance": "placeholder", "unit": "m", "note": "DISPLAY ONLY: |x| of the blue lines" },
-    "faceoff_x":                 { "value": 20.0,  "provenance": "placeholder", "unit": "m", "note": "DISPLAY ONLY: |x| of end-zone faceoff dots" },
-    "faceoff_y":                 { "value": 7.0,   "provenance": "placeholder", "unit": "m", "note": "DISPLAY ONLY: |y| of end-zone faceoff dots" },
-    "faceoff_circle_radius":     { "value": 4.0,   "provenance": "placeholder", "unit": "m", "note": "DISPLAY ONLY" },
+    "blue_line_x":               {"value": 8.05, "provenance": "measured-shape", "unit": "m", "note": "DISPLAY ONLY. MEASURED SHAPE: |x| of the inner grey lines, painted ice markings, ice-plane scale, mean of 3 clips (sd 0.015 m); absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"},
+    "faceoff_x":                 {"value": 16.3052, "provenance": "measured-shape", "unit": "m", "note": "DISPLAY ONLY. MEASURED SHAPE: |x| of the end-zone faceoff dots, painted ice markings, ice-plane scale, mean of 3 clips (sd 0.013 m); absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"},
+    "faceoff_y":                 {"value": 10.4264, "provenance": "measured-shape", "unit": "m", "note": "DISPLAY ONLY. MEASURED SHAPE: |y| of the end-zone faceoff dots, painted ice markings, ice-plane scale, mean of 3 clips (sd 0.011 m); absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"},
+    "faceoff_circle_radius":     {"value": 4.7084, "provenance": "measured-shape", "unit": "m", "note": "DISPLAY ONLY. MEASURED SHAPE: faceoff circle radius (ellipse fits), painted ice markings, ice-plane scale, mean of 3 clips (sd 0.003 m); absolute scale UNMEASURED (meters assume the placeholder rink_length 60 m); the ratio to rink_length is measured"},
     "speed_display_scale":       { "value": 1.0,   "provenance": "placeholder", "unit": "ratio", "note": "DISPLAY ONLY: real-game m/s per sim m/s, for the mph/kph readout" }
   }
 }

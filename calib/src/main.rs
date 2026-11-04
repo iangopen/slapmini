@@ -1,7 +1,7 @@
 //! calib CLI.
 //!
 //!   calib eval  --params params.json <scenario.json> <traj.csv> [<scenario> <traj> ...]
-//!   calib fit   --params params.json --fit name1,name2 --out fitted.json [--iters N] [--objective time|path] <scenario> <traj> ...
+//!   calib fit   --params params.json --fit name1,name2 --out fitted.json [--iters N] [--objective time|path|path-only] <scenario> <traj> ...
 //!   calib synth --params params.json --out-dir calib/data
 //!   calib replay --params params.json <scenario.json> <out.csv>
 
@@ -12,7 +12,7 @@ use std::process::ExitCode;
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage:\n  calib eval   --params P <scenario.json> <traj.csv> [...]\n  calib fit    --params P --fit a,b --out OUT [--iters N] [--objective time|path] <scenario.json> <traj.csv> [...]\n  calib synth  --params P --out-dir DIR\n  calib replay --params P <scenario.json> <out.csv>"
+        "usage:\n  calib eval   --params P [--json 1] <scenario.json> <traj.csv> [...]\n  calib fit    --params P --fit a,b --out OUT [--iters N] [--objective time|path|path-only] <scenario.json> <traj.csv> [...]\n  calib synth  --params P --out-dir DIR\n  calib replay --params P <scenario.json> <out.csv>"
     );
     ExitCode::from(2)
 }
@@ -71,7 +71,13 @@ fn run(raw: &[String]) -> Result<(), String> {
     match cmd {
         "eval" => {
             let cases = load_cases(&a.pos)?;
-            print_errors(&cases, &evaluate(&cases, &params));
+            let errs = evaluate(&cases, &params);
+            if a.get("json").is_some_and(|v| v == "1" || v == "true") {
+                let rows: Vec<_> = cases.iter().zip(&errs).map(|(c, e)| serde_json::json!({"name": c.scenario.name, "errors": e})).collect();
+                println!("{}", serde_json::to_string(&rows).map_err(|e| e.to_string())?);
+            } else {
+                print_errors(&cases, &errs);
+            }
         }
         "fit" => {
             let names: Vec<&str> = a.get("fit").ok_or("--fit required")?.split(',').map(str::trim).collect();

@@ -1,0 +1,28 @@
+# per-segment residuals: placeholder params.json vs params.fitted.json (all-ground staged fit) vs held-out (staged fit trained on the OTHER clip)
+# meters at the PLACEHOLDER scale; score = path_rmse^2 + 0.01 v2_rmse^2
+segment  clip    label        air | placeholder pos/path/v2/score       | fitted pos/path/v2/score            | held-out pos/path/v2/score
+puck_01  justpuc glide            |   0.881  0.036  140.17   196.47 |   1.019  0.286   86.09   74.20 |   1.317  0.472  105.29  111.08
+puck_02  justpuc glide            |   1.592  0.165  210.70   443.98 |   0.329  0.165   40.65   16.55 |   0.177  0.165   13.83    1.94
+puck_03  justpuc glide            |   1.182  0.333   21.17     4.59 |   0.418  0.333    5.25    0.39 |   0.352  0.333    5.18    0.38
+puck_04  justpuc glide            |   2.682  0.341   14.10     2.10 |   0.484  0.341    2.47    0.18 |   0.466  0.359    2.33    0.18
+puck_05  justpuc wall bounce      |  21.959  3.054  313.80   994.00 |   1.055  0.130   37.71   14.24 |   1.588  0.142   23.95    5.75
+puck_06  justpuc glide            |   3.816  0.478   20.45     4.41 |   0.559  0.478    2.80    0.31 |   0.748  0.543    3.30    0.40
+puck_07  justpuc glide            |   4.113  0.467   22.32     5.20 |   0.498  0.467    1.95    0.26 |   1.161  0.732    4.58    0.75
+puck_08  justpuc wall bounce      |  19.372  1.425  276.07   764.18 |   2.649  0.135   39.07   15.28 |   1.334  0.162   20.25    4.13
+puck_09  justpuc wall bounce      |  12.769  2.221  202.31   414.21 |   1.931  0.597   30.61    9.72 |   0.685  0.524   16.70    3.06
+puck_10  justpuc glide            |   5.536  0.289   30.42     9.34 |   0.405  0.289    3.49    0.21 |   0.907  0.527    4.27    0.46
+wall_01  justhit glide            |   0.678  0.452    8.07     0.86 |   0.535  0.463    4.68    0.43 |   0.514  0.459    4.09    0.38
+wall_02  justhit glide            |   0.732  0.321   19.53     3.92 |   0.323  0.321    4.56    0.31 |   0.323  0.321    4.52    0.31
+wall_03  justhit glide            |   0.825  0.549    3.24     0.41 |   0.589  0.550    1.53    0.33 |   0.567  0.549    1.35    0.32
+wall_04  justhit wall bounce      |   2.235  0.204   14.60     2.17 |   1.086  0.612    6.10    0.75 |   1.251  0.744    6.46    0.97
+wall_05  justhit glide            |   1.894  0.404   15.64     2.61 |   1.184  0.290   10.38    1.16 |   1.226  0.275   10.76    1.23
+wall_06  justhit glide            |   0.135  0.024    4.91     0.24 |   0.103  0.025    4.02    0.16 |   0.106  0.024    4.10    0.17
+wall_07  justhit wall bounce      |   2.618  0.930   14.64     3.01 |   0.433  0.108    4.15    0.18 |   0.554  0.227    4.49    0.25
+wall_08  justhit glide            |  10.763  0.820   95.40    91.68 |   1.702  0.820   11.75    2.05 |   2.044  0.820   13.68    2.54
+wall_09  justhit wall bounce      |  12.540  2.311  195.27   386.63 |   2.718  0.423   33.19   11.19 |   3.129  0.163   36.94   13.67
+wall_10  justhit glide            |   6.806  0.255  110.37   121.88 |   1.514  0.253   18.30    3.41 |   1.700  0.253   20.90    4.43
+wall_11  justhit glide            |   1.988  1.880    3.35     3.65 |   1.136  1.083    4.18    1.35 |   0.977  0.938    3.92    1.03
+lift_01  justlif glide        Y   |   3.833  0.052   20.40     4.17 |   0.823  0.298    3.92    0.24 |    (lifted: not used)
+lift_02  justlif wall bounce  Y   |  28.981  0.578  562.27  3161.85 |   4.263  0.370  125.28  157.08 |    (lifted: not used)
+lift_03  justlif wall bounce  Y   |  21.982  1.121  437.62  1916.35 |   3.686  0.186   99.13   98.31 |    (lifted: not used)
+lift_04  justlif wall bounce  Y   |  18.849  0.980  357.01  1275.50 |   3.663  0.159   93.57   87.57 |    (lifted: not used)

@@ -17,3 +17,8 @@
 - Added measure/ (Python): map / track / qa / synth, the coordinate convention, synthetic-video tests, QA sheets.
 - Found: the real rink's length/width ratio is ~1.57 (params 2.31); one "fixed" clip's camera moves; the recording duplicates frames.
 - Feel lab gained a game view (rotated like the real camera) used to check a real track as a ghost.
+
+## 2026-11-04 – Session 4: first real fits
+- Ice-plane scale check (board outline is at ice level), puck ground reprojection (height parallax), measured rink markings and net_x.
+- Clip-held-out staged fits of board_restitution, board_friction, ice_linear_drag, ice_friction_decel → params.fitted.json.
+- Drag-law comparison: no quadratic term; an unexplained medium-speed dip in decel/v is real. Segmenter fixes found via overlays.

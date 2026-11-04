@@ -22,7 +22,7 @@
   },
   "corner_radius_px": 132.788,
   "m_per_px": 0.06571741511500548,
-  "scale_source": "params.json rink_length = 60 m (PLACEHOLDER, unmeasured) / measured inner board length 913.00 px",
+  "scale_source": "ICE-PLANE scale for puck motion: params.json rink_length = 60 m (PLACEHOLDER, unmeasured) / inner board length 913.00 px x (1 + k_board +0.00000); the board outline is at ice level within k_board = -0.00244 +- 0.00144, so board and ice scales agree. Puck positions are blob centroids reprojected to the ground (see track.json puck_parallax).",
   "extra": {
     "origin_source": "center dot (gap in the center line) at the center-line row",
     "center_line_v_px": 515.57,
@@ -810,7 +810,36 @@
         }
       ]
     },
-    "background_png": "justpuckphysicshittingitatfixedpoint.bg.png"
+    "background_png": "justpuckphysicshittingitatfixedpoint.bg.png",
+    "scales": {
+      "m_per_px_board": 0.06571741511500548,
+      "m_per_px_ice": 0.06571741511500548,
+      "k_board_measured": -0.002439,
+      "k_board_sigma": 0.00144,
+      "k_board_used": 0.0,
+      "used_for_puck_motion": "m_per_px_ice",
+      "board_vs_ice": {
+        "board_length_px": 913.0,
+        "board_width_px": 582.0,
+        "faceoff_spacing_v_px": 496.579,
+        "faceoff_spacing_h_px": 317.563,
+        "center_circle_diameter_px": 143.529,
+        "board_length_over_faceoff_spacing": 1.83858,
+        "board_width_over_faceoff_spacing": 1.83271,
+        "board_length_over_center_circle": 6.36106,
+        "gaps_px": {
+          "left": 132.38,
+          "right": 132.056,
+          "top": 207.96,
+          "bottom": 208.462
+        },
+        "board_center_minus_pp_px": [
+          -0.5,
+          -24.0
+        ]
+      },
+      "note": "absolute scale UNMEASURED either way: both assume rink_length = 60 m"
+    }
   },
   "y_axis_px": [
     -1.0,

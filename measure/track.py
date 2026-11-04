@@ -488,4 +488,7 @@ def run_track(clip: Path, out_dir: Path, params_path: Path, max_step_px: float |
         f"{len(s['spike_frames'])} {s['spike_frames'][:10]}; uncorrectable frames dropped: {s['camera_moved_frames']}"
     )
     print(f"[track] wrote {out_dir / meta['csv']} ({len(rows)} rows) and {info.name}.track.json")
-    return rows, meta
+    from .scale import reproject
+
+    reproject(out_dir, info.name)  # CSV positions -> ground points (puck height parallax)
+    return rows, json.loads((out_dir / f"{info.name}.track.json").read_text())

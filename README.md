@@ -93,6 +93,12 @@ C="clips/justpuckphysicshittingitatfixedpoint.mkv clips/justhittingwallphysicsfi
 .venv/bin/python -m measure segqa    $C --frames wall_09   # segment QA sheets (+ frame strip for a segment)
 .venv/bin/python -m measure estimate             # scale-free restitution / deceleration -> calib/data/real/estimates.json
 .venv/bin/python -m measure params   $C --dry-run  # measured rink shape (drop --dry-run to write params.json)
+.venv/bin/python -m measure scale    $C          # board vs ice-plane scale -> map JSONs
+.venv/bin/python -m measure reproject $C         # puck blob -> ground point, rewrites the traj CSVs (track does it too)
+cargo build --release -p calib
+.venv/bin/python -m measure holdout              # clip-held-out fits -> params.fitted.json (+ calib/data/real/holdout.json)
+.venv/bin/python -m measure dragmodel            # drag-law comparison -> calib/data/real/dragmodel.json
+.venv/bin/python -m measure compare puck_08 --params params.json --params params.fitted.json   # overlay -> qa/compare_puck_08.png
 ```
 
 - `map` finds the inner board outline, center line and center dot in a median frame, fits ellipses to the center and faceoff

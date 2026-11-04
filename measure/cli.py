@@ -43,6 +43,20 @@ def main(argv: list[str] | None = None) -> int:
     pp.add_argument("--dry-run", action="store_true")
     pe = sub.add_parser("estimate", help="scale-free restitution + glide-deceleration estimates from the segment manifest")
     pe.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
+    psc = sub.add_parser("scale", help="board vs ice-plane scale per clip; stores both in the map JSONs")
+    psc.add_argument("clips", nargs="+", type=Path)
+    psc.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
+    prj = sub.add_parser("reproject", help="puck blob centroids -> ground points; rewrites NAME.traj.csv (no re-detection)")
+    prj.add_argument("clips", nargs="+", type=Path)
+    prj.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
+    sub.add_parser("holdout", help="fit scale-free puck params with clip hold-out; writes params.fitted.json if both directions improve")
+    pc = sub.add_parser("compare", help="overlay a real segment with sim replays (one per --params)")
+    pc.add_argument("segment")
+    pc.add_argument("--params", type=Path, action="append", required=True)
+    pc.add_argument("--label", action="append")
+    pc.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
+    pdm = sub.add_parser("dragmodel", help="held-out drag-model comparison + smoothing and synthetic-jitter checks")
+    pdm.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     ps = sub.add_parser("synth", help="render the synthetic test video (for debugging the tests)")
     ps.add_argument("out", type=Path)
 
@@ -53,6 +67,32 @@ def main(argv: list[str] | None = None) -> int:
 
         truth = render(a.out)
         print(f"wrote {a.out} ({len(truth['frames'])} frames)")
+        return 0
+    if a.cmd == "dragmodel":
+        from .dragmodel import run_dragmodel
+
+        run_dragmodel(a.out_dir)
+        return 0
+    if a.cmd == "compare":
+        from .compare import run_compare
+
+        run_compare(a.segment, a.params, a.out_dir, a.label)
+        return 0
+    if a.cmd == "holdout":
+        from .holdout import run_holdout
+
+        run_holdout()
+        return 0
+    if a.cmd == "scale":
+        from .scale import run_scale
+
+        run_scale(a.out_dir, [Path(x).stem for x in a.clips])
+        return 0
+    if a.cmd == "reproject":
+        from .scale import reproject
+
+        for x in a.clips:
+            reproject(a.out_dir, Path(x).stem)
         return 0
     if a.cmd == "estimate":
         from .estimate import run_estimate

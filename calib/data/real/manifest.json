@@ -10,9 +10,9 @@
       "clip": "justpuckphysicshittingitatfixedpoint",
       "tracklet": 0,
       "start_frame": 77,
-      "end_frame": 147,
-      "duration_s": 1.1667,
-      "rows": 66,
+      "end_frame": 143,
+      "duration_s": 1.1,
+      "rows": 62,
       "label": "glide",
       "wall_bounce_frames": [],
       "net_hit": false,
@@ -20,9 +20,9 @@
       "possibly_airborne": false,
       "airborne_frac": 0.0,
       "start_reason": "after contact",
-      "end_reason": "track end (teleport/reset or lost)",
-      "v0_m_s": 24.369,
-      "v0_px_per_frame": 6.18
+      "end_reason": "track end (teleport/reset or lost); trimmed where the puck reached the board",
+      "v0_m_s": 24.243,
+      "v0_px_per_frame": 6.148
     },
     {
       "id": "puck_02",
@@ -42,8 +42,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "track end (teleport/reset or lost)",
-      "v0_m_s": 26.821,
-      "v0_px_per_frame": 6.802
+      "v0_m_s": 26.681,
+      "v0_px_per_frame": 6.767
     },
     {
       "id": "puck_03",
@@ -63,8 +63,8 @@
       "airborne_frac": 0.01,
       "start_reason": "after contact",
       "end_reason": "track end (teleport/reset or lost)",
-      "v0_m_s": 8.772,
-      "v0_px_per_frame": 2.225
+      "v0_m_s": 8.727,
+      "v0_px_per_frame": 2.213
     },
     {
       "id": "puck_04",
@@ -72,20 +72,20 @@
       "csv": "puck_04.csv",
       "clip": "justpuckphysicshittingitatfixedpoint",
       "tracklet": 3,
-      "start_frame": 490,
+      "start_frame": 495,
       "end_frame": 737,
-      "duration_s": 4.1167,
-      "rows": 248,
+      "duration_s": 4.0333,
+      "rows": 243,
       "label": "glide",
       "wall_bounce_frames": [],
       "net_hit": false,
       "airborne": false,
       "possibly_airborne": false,
       "airborne_frac": 0.0,
-      "start_reason": "after contact",
+      "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 6.494,
-      "v0_px_per_frame": 1.647
+      "v0_m_s": 7.005,
+      "v0_px_per_frame": 1.776
     },
     {
       "id": "puck_05",
@@ -108,8 +108,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 32.017,
-      "v0_px_per_frame": 8.12
+      "v0_m_s": 31.85,
+      "v0_px_per_frame": 8.078
     },
     {
       "id": "puck_06",
@@ -117,20 +117,20 @@
       "csv": "puck_06.csv",
       "clip": "justpuckphysicshittingitatfixedpoint",
       "tracklet": 5,
-      "start_frame": 1479,
+      "start_frame": 1482,
       "end_frame": 1749,
-      "duration_s": 4.5,
-      "rows": 270,
+      "duration_s": 4.45,
+      "rows": 267,
       "label": "glide",
       "wall_bounce_frames": [],
       "net_hit": false,
       "airborne": false,
       "possibly_airborne": false,
       "airborne_frac": 0.004,
-      "start_reason": "after contact",
+      "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 8.528,
-      "v0_px_per_frame": 2.163
+      "v0_m_s": 8.004,
+      "v0_px_per_frame": 2.03
     },
     {
       "id": "puck_07",
@@ -138,20 +138,20 @@
       "csv": "puck_07.csv",
       "clip": "justpuckphysicshittingitatfixedpoint",
       "tracklet": 7,
-      "start_frame": 2237,
-      "end_frame": 2531,
-      "duration_s": 4.9,
-      "rows": 295,
+      "start_frame": 2239,
+      "end_frame": 2520,
+      "duration_s": 4.6833,
+      "rows": 282,
       "label": "glide",
       "wall_bounce_frames": [],
       "net_hit": false,
       "airborne": false,
       "possibly_airborne": false,
       "airborne_frac": 0.0,
-      "start_reason": "after contact",
+      "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 8.101,
-      "v0_px_per_frame": 2.055
+      "v0_m_s": 8.501,
+      "v0_px_per_frame": 2.156
     },
     {
       "id": "puck_08",
@@ -174,8 +174,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 27.926,
-      "v0_px_per_frame": 7.082
+      "v0_m_s": 27.782,
+      "v0_px_per_frame": 7.046
     },
     {
       "id": "puck_09",
@@ -197,8 +197,8 @@
       "airborne_frac": 0.006,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 23.115,
-      "v0_px_per_frame": 5.862
+      "v0_m_s": 22.995,
+      "v0_px_per_frame": 5.832
     },
     {
       "id": "puck_10",
@@ -206,20 +206,20 @@
       "csv": "puck_10.csv",
       "clip": "justpuckphysicshittingitatfixedpoint",
       "tracklet": 10,
-      "start_frame": 3527,
+      "start_frame": 3529,
       "end_frame": 3828,
-      "duration_s": 5.0167,
-      "rows": 300,
+      "duration_s": 4.9833,
+      "rows": 298,
       "label": "glide",
       "wall_bounce_frames": [],
       "net_hit": false,
       "airborne": false,
       "possibly_airborne": false,
       "airborne_frac": 0.0,
-      "start_reason": "after contact",
+      "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 9.673,
-      "v0_px_per_frame": 2.453
+      "v0_m_s": 9.221,
+      "v0_px_per_frame": 2.339
     },
     {
       "id": "wall_01",
@@ -227,20 +227,20 @@
       "csv": "wall_01.csv",
       "clip": "justhittingwallphysicsfixedpoint",
       "tracklet": 0,
-      "start_frame": 145,
+      "start_frame": 157,
       "end_frame": 262,
-      "duration_s": 1.95,
-      "rows": 118,
+      "duration_s": 1.75,
+      "rows": 106,
       "label": "glide",
       "wall_bounce_frames": [],
       "net_hit": false,
       "airborne": false,
       "possibly_airborne": false,
       "airborne_frac": 0.008,
-      "start_reason": "after contact",
+      "start_reason": "after a bounce right after the hit (moved to the speed peak: puck still accelerating)",
       "end_reason": "track end (teleport/reset or lost)",
-      "v0_m_s": 9.107,
-      "v0_px_per_frame": 2.312
+      "v0_m_s": 7.326,
+      "v0_px_per_frame": 1.86
     },
     {
       "id": "wall_02",
@@ -248,20 +248,20 @@
       "csv": "wall_02.csv",
       "clip": "justhittingwallphysicsfixedpoint",
       "tracklet": 1,
-      "start_frame": 336,
+      "start_frame": 341,
       "end_frame": 417,
-      "duration_s": 1.35,
-      "rows": 81,
+      "duration_s": 1.2667,
+      "rows": 76,
       "label": "glide",
       "wall_bounce_frames": [],
       "net_hit": false,
       "airborne": false,
       "possibly_airborne": false,
       "airborne_frac": 0.074,
-      "start_reason": "after contact",
+      "start_reason": "after a bounce right after the hit",
       "end_reason": "contact (slow-down)",
-      "v0_m_s": 6.46,
-      "v0_px_per_frame": 1.64
+      "v0_m_s": 9.185,
+      "v0_px_per_frame": 2.332
     },
     {
       "id": "wall_03",
@@ -269,20 +269,20 @@
       "csv": "wall_03.csv",
       "clip": "justhittingwallphysicsfixedpoint",
       "tracklet": 1,
-      "start_frame": 425,
+      "start_frame": 431,
       "end_frame": 632,
-      "duration_s": 3.45,
-      "rows": 208,
+      "duration_s": 3.35,
+      "rows": 202,
       "label": "glide",
       "wall_bounce_frames": [],
       "net_hit": false,
       "airborne": false,
       "possibly_airborne": false,
       "airborne_frac": 0.0,
-      "start_reason": "after contact",
+      "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 4.222,
-      "v0_px_per_frame": 1.072
+      "v0_m_s": 5.256,
+      "v0_px_per_frame": 1.334
     },
     {
       "id": "wall_04",
@@ -290,10 +290,10 @@
       "csv": "wall_04.csv",
       "clip": "justhittingwallphysicsfixedpoint",
       "tracklet": 3,
-      "start_frame": 809,
+      "start_frame": 811,
       "end_frame": 958,
-      "duration_s": 2.4833,
-      "rows": 150,
+      "duration_s": 2.45,
+      "rows": 148,
       "label": "wall bounce",
       "wall_bounce_frames": [
         832
@@ -302,10 +302,10 @@
       "airborne": false,
       "possibly_airborne": false,
       "airborne_frac": 0.02,
-      "start_reason": "after contact",
+      "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 7.508,
-      "v0_px_per_frame": 1.906
+      "v0_m_s": 6.989,
+      "v0_px_per_frame": 1.775
     },
     {
       "id": "wall_05",
@@ -313,20 +313,20 @@
       "csv": "wall_05.csv",
       "clip": "justhittingwallphysicsfixedpoint",
       "tracklet": 4,
-      "start_frame": 1166,
+      "start_frame": 1168,
       "end_frame": 1270,
-      "duration_s": 1.7333,
-      "rows": 105,
+      "duration_s": 1.7,
+      "rows": 103,
       "label": "glide",
       "wall_bounce_frames": [],
       "net_hit": false,
       "airborne": false,
       "possibly_airborne": false,
       "airborne_frac": 0.019,
-      "start_reason": "after contact",
+      "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 5.681,
-      "v0_px_per_frame": 1.442
+      "v0_m_s": 6.423,
+      "v0_px_per_frame": 1.631
     },
     {
       "id": "wall_06",
@@ -334,20 +334,20 @@
       "csv": "wall_06.csv",
       "clip": "justhittingwallphysicsfixedpoint",
       "tracklet": 5,
-      "start_frame": 1453,
+      "start_frame": 1454,
       "end_frame": 1488,
-      "duration_s": 0.5833,
-      "rows": 36,
+      "duration_s": 0.5667,
+      "rows": 35,
       "label": "glide",
       "wall_bounce_frames": [],
       "net_hit": false,
       "airborne": false,
       "possibly_airborne": false,
       "airborne_frac": 0.111,
-      "start_reason": "after contact",
+      "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 4.943,
-      "v0_px_per_frame": 1.255
+      "v0_m_s": 4.811,
+      "v0_px_per_frame": 1.221
     },
     {
       "id": "wall_07",
@@ -369,8 +369,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 7.565,
-      "v0_px_per_frame": 1.921
+      "v0_m_s": 7.525,
+      "v0_px_per_frame": 1.91
     },
     {
       "id": "wall_08",
@@ -378,20 +378,20 @@
       "csv": "wall_08.csv",
       "clip": "justhittingwallphysicsfixedpoint",
       "tracklet": 7,
-      "start_frame": 1917,
+      "start_frame": 1921,
       "end_frame": 2264,
-      "duration_s": 5.7833,
-      "rows": 340,
+      "duration_s": 5.7167,
+      "rows": 336,
       "label": "glide",
       "wall_bounce_frames": [],
       "net_hit": false,
       "airborne": false,
       "possibly_airborne": false,
       "airborne_frac": 0.015,
-      "start_reason": "after contact",
+      "start_reason": "after a bounce right after the hit",
       "end_reason": "stop",
-      "v0_m_s": 14.091,
-      "v0_px_per_frame": 3.577
+      "v0_m_s": 13.852,
+      "v0_px_per_frame": 3.517
     },
     {
       "id": "wall_09",
@@ -399,23 +399,22 @@
       "csv": "wall_09.csv",
       "clip": "justhittingwallphysicsfixedpoint",
       "tracklet": 8,
-      "start_frame": 2481,
+      "start_frame": 2490,
       "end_frame": 2818,
-      "duration_s": 5.6167,
-      "rows": 336,
+      "duration_s": 5.4667,
+      "rows": 327,
       "label": "wall bounce",
       "wall_bounce_frames": [
-        2486,
         2591
       ],
       "net_hit": false,
       "airborne": false,
       "possibly_airborne": false,
       "airborne_frac": 0.0,
-      "start_reason": "after contact",
+      "start_reason": "after a bounce right after the hit",
       "end_reason": "stop",
-      "v0_m_s": 30.529,
-      "v0_px_per_frame": 7.751
+      "v0_m_s": 21.991,
+      "v0_px_per_frame": 5.583
     },
     {
       "id": "wall_10",
@@ -423,64 +422,41 @@
       "csv": "wall_10.csv",
       "clip": "justhittingwallphysicsfixedpoint",
       "tracklet": 9,
-      "start_frame": 2881,
-      "end_frame": 2901,
-      "duration_s": 0.3333,
-      "rows": 21,
+      "start_frame": 3015,
+      "end_frame": 3265,
+      "duration_s": 4.1667,
+      "rows": 250,
       "label": "glide",
       "wall_bounce_frames": [],
       "net_hit": false,
       "airborne": false,
       "possibly_airborne": false,
-      "airborne_frac": 0.095,
-      "start_reason": "after contact",
-      "end_reason": "contact (speed-up)",
-      "v0_m_s": 1.923,
-      "v0_px_per_frame": 0.488
+      "airborne_frac": 0.0,
+      "start_reason": "after a bounce right after the hit",
+      "end_reason": "stop",
+      "v0_m_s": 15.088,
+      "v0_px_per_frame": 3.831
     },
     {
       "id": "wall_11",
       "scenario": "wall_11.scenario.json",
       "csv": "wall_11.csv",
       "clip": "justhittingwallphysicsfixedpoint",
-      "tracklet": 9,
-      "start_frame": 3005,
-      "end_frame": 3265,
-      "duration_s": 4.3333,
-      "rows": 260,
-      "label": "wall bounce",
-      "wall_bounce_frames": [
-        3011
-      ],
-      "net_hit": false,
-      "airborne": false,
-      "possibly_airborne": false,
-      "airborne_frac": 0.0,
-      "start_reason": "after contact",
-      "end_reason": "stop",
-      "v0_m_s": 25.951,
-      "v0_px_per_frame": 6.589
-    },
-    {
-      "id": "wall_12",
-      "scenario": "wall_12.scenario.json",
-      "csv": "wall_12.csv",
-      "clip": "justhittingwallphysicsfixedpoint",
       "tracklet": 10,
-      "start_frame": 3459,
+      "start_frame": 3463,
       "end_frame": 3651,
-      "duration_s": 3.2,
-      "rows": 193,
+      "duration_s": 3.1333,
+      "rows": 189,
       "label": "glide",
       "wall_bounce_frames": [],
       "net_hit": false,
       "airborne": false,
       "possibly_airborne": false,
       "airborne_frac": 0.01,
-      "start_reason": "after contact",
+      "start_reason": "after contact (moved to the speed peak: puck still accelerating)",
       "end_reason": "stop",
-      "v0_m_s": 6.686,
-      "v0_px_per_frame": 1.697
+      "v0_m_s": 5.628,
+      "v0_px_per_frame": 1.429
     },
     {
       "id": "lift_01",
@@ -500,8 +476,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 8.674,
-      "v0_px_per_frame": 2.202
+      "v0_m_s": 8.638,
+      "v0_px_per_frame": 2.193
     },
     {
       "id": "lift_02",
@@ -523,8 +499,8 @@
       "airborne_frac": 0.004,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 38.167,
-      "v0_px_per_frame": 9.69
+      "v0_m_s": 38.01,
+      "v0_px_per_frame": 9.65
     },
     {
       "id": "lift_03",
@@ -546,8 +522,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 33.489,
-      "v0_px_per_frame": 8.503
+      "v0_m_s": 33.352,
+      "v0_px_per_frame": 8.468
     },
     {
       "id": "lift_04",
@@ -569,8 +545,8 @@
       "airborne_frac": 0.0,
       "start_reason": "after contact",
       "end_reason": "stop",
-      "v0_m_s": 29.506,
-      "v0_px_per_frame": 7.491
+      "v0_m_s": 29.384,
+      "v0_px_per_frame": 7.46
     }
   ],
   "puck_area_model": {
@@ -588,13 +564,13 @@
     }
   },
   "summary": {
-    "segments": 26,
+    "segments": 25,
     "by_clip": {
       "justhittingwallphysicsfixedpoint": {
         "glide": 8,
-        "wall bounce": 4,
+        "wall bounce": 3,
         "net hit": 0,
-        "total": 12,
+        "total": 11,
         "possibly_airborne": 0
       },
       "justliftedshots": {
@@ -614,7 +590,7 @@
     },
     "by_label": {
       "glide": 16,
-      "wall bounce": 10,
+      "wall bounce": 9,
       "net hit": 0
     },
     "skipped_rule": "stretches shorter than 0.3 s are skipped, and so are stretches that start from rest without a detected hit (slow stick pushes)"

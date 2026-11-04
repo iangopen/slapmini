@@ -136,7 +136,9 @@ try {
   console.log("   tick      z(m)");
   zs.filter((_, i) => i % 8 === 0 || i === zs.length - 1).forEach((r) => console.log(`  ${String(r.tick).padStart(6)}  ${r.z.toFixed(4)}`));
   const zPeak = Math.max(...zs.map((r) => r.z));
-  const land = zs.findIndex((r) => r.z === 0);
+  // First ground contact: the first step whose vertical velocity is no longer negative after falling, near the ice.
+  // (Samples are per step and contact happens on a substep, so z === 0 is only seen by chance.)
+  const land = zs.findIndex((r, i) => i > 0 && zs[i - 1].vz < 0 && r.vz >= 0 && r.z < 0.3);
   const tFall = land / 120;
   console.log(`  first ground contact after ${land} steps (${tFall.toFixed(3)} s); free fall from ${zPeak.toFixed(3)} m predicts ${Math.sqrt((2 * zPeak) / 9.81).toFixed(3)} s`);
   check(held.spawn.z > 1 && land > 0, "spawn rose while F held and the puck fell to the ice");

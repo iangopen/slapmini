@@ -1,15 +1,15 @@
 {
   "name": "puck_06",
-  "description": "MEASURED (glide) from justpuckphysicshittingitatfixedpoint frames 1479-1749; placeholder meter scale; z unknown",
-  "steps": 540,
+  "description": "MEASURED (glide) from justpuckphysicshittingitatfixedpoint frames 1482-1749; placeholder meter scale; z unknown",
+  "steps": 534,
   "initial_state": {
     "tick": 0,
     "puck": {
-      "x": 0.09478721497560948,
-      "y": -0.05420611371104381,
+      "x": 0.3999992034252756,
+      "y": 0.20462491287463666,
       "z": 0.0,
-      "vx": 6.6484217863188055,
-      "vy": 5.341397988648816,
+      "vx": 6.413446181419852,
+      "vy": 4.789365727372277,
       "vz": 0.0,
       "in_net": null
     },

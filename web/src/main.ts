@@ -250,7 +250,7 @@ window.lab = {
       const f = (l: Lab) => {
         const pl = l.state.players[0];
         const pk = l.state.puck;
-        out.push({ tick: l.state.tick, target: l.inputs[0].stick_target_angle, angle: pl.stick_angle, omega: pl.stick_omega, x: pk.x, y: pk.y, z: pk.z, speed: Math.hypot(pk.vx, pk.vy) });
+        out.push({ tick: l.state.tick, target: l.inputs[0].stick_target_angle, angle: pl.stick_angle, omega: pl.stick_omega, x: pk.x, y: pk.y, z: pk.z, vz: pk.vz, speed: Math.hypot(pk.vx, pk.vy) });
         if (out.length >= n) {
           l.stepListeners = l.stepListeners.filter((g) => g !== f);
           resolve(out);

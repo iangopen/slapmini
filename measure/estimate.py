@@ -31,7 +31,7 @@ def _seg_rows(results: Path, seg: dict):
     R = json.loads((results / f"{seg['clip']}.track.json").read_text())["rows"]
     f = np.array(R["frame"])
     sel = (np.array(R["tracklet"]) == seg["tracklet"]) & (f >= seg["start_frame"]) & (f <= seg["end_frame"])
-    f, u, v = f[sel], np.array(R["u_px"])[sel], np.array(R["v_px"])[sel]
+    f, u, v = f[sel], np.array(R.get("ug_px", R["u_px"]))[sel], np.array(R.get("vg_px", R["v_px"]))[sel]
     keep = np.r_[True, np.hypot(np.diff(u), np.diff(v)) > 0.05]  # stale repeats, if any
     return f[keep], u[keep], v[keep]
 
@@ -82,7 +82,7 @@ def bounces(results: Path, manifest: dict) -> list[dict]:
     return out
 
 
-def glides(results: Path, manifest: dict) -> list[dict]:
+def glides(results: Path, manifest: dict, half: int = 8) -> list[dict]:
     out = []
     for seg in manifest["segments"]:
         if seg.get("possibly_airborne"):
@@ -114,8 +114,8 @@ def glides(results: Path, manifest: dict) -> list[dict]:
             # Capture jitter only adds zero-mean noise to these.
             P, Vs, As, Ts = [], [], [], []
             for q in range(len(t)):
-                a_, b_ = max(q - 8, 0), min(q + 8, len(t) - 1)
-                if b_ - a_ < 10:
+                a_, b_ = max(q - half, 0), min(q + half, len(t) - 1)
+                if b_ - a_ < max(5, int(1.25 * half)):
                     continue
                 tt = t[a_ : b_ + 1] - t[q]
                 cu, cv_ = np.polyfit(tt, uu[a_ : b_ + 1], 2), np.polyfit(tt, vv[a_ : b_ + 1], 2)

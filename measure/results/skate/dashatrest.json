@@ -1,0 +1,280 @@
+{
+ "clip": "dashatrest",
+ "fps": 60.0,
+ "frames": 2137,
+ "frame_size": [
+  1920,
+  1080
+ ],
+ "calibration": {
+  "ice_bgr": [
+   58.0,
+   54.0,
+   46.0
+  ],
+  "board_width_px": 645.314697265625,
+  "s_px_per_m": 16.950708293128976,
+  "board_width_dev_px": {
+   "median": 0.001,
+   "p95": 0.013,
+   "max": 0.041
+  },
+  "u_c_range_px": [
+   1136.43,
+   1136.46
+  ]
+ },
+ "scale_source": "px per meter from the painted line spacing; meters at the PLACEHOLDER scale (params.json, rink_length 60 m)",
+ "registration": {
+  "anchored_frames": 2137,
+  "odometry_frames": 0,
+  "unregistered_frames": 0,
+  "residual_px": {
+   "median": 0.147,
+   "p95": 0.206,
+   "max": 0.256
+  },
+  "lines_per_anchored_frame": {
+   "4": 796,
+   "5": 1341
+  },
+  "odometry_drift_vs_anchors": {
+   "1": {
+    "median_px": 0.056,
+    "p95_px": 0.259,
+    "n": 2131
+   },
+   "5": {
+    "median_px": 0.329,
+    "p95_px": 1.277,
+    "n": 2107
+   },
+   "15": {
+    "median_px": 1.058,
+    "p95_px": 3.599,
+    "n": 2047
+   },
+   "30": {
+    "median_px": 2.462,
+    "p95_px": 6.193,
+    "n": 1957
+   },
+   "60": {
+    "median_px": 5.454,
+    "p95_px": 8.965,
+    "n": 1777
+   },
+   "120": {
+    "median_px": 8.486,
+    "p95_px": 14.899,
+    "n": 1417
+   }
+  }
+ },
+ "detection": {
+  "player_frames": 2118,
+  "puck_frames": 1798
+ },
+ "key_events": [
+  {
+   "frame": 80,
+   "key": "Shift",
+   "down": true
+  },
+  {
+   "frame": 105,
+   "key": "Shift",
+   "down": false
+  },
+  {
+   "frame": 161,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 162,
+   "key": "Shift",
+   "down": true
+  },
+  {
+   "frame": 168,
+   "key": "W",
+   "down": false
+  },
+  {
+   "frame": 168,
+   "key": "Shift",
+   "down": false
+  },
+  {
+   "frame": 383,
+   "key": "R",
+   "down": true
+  },
+  {
+   "frame": 390,
+   "key": "R",
+   "down": false
+  },
+  {
+   "frame": 415,
+   "key": "Shift",
+   "down": true
+  },
+  {
+   "frame": 429,
+   "key": "Shift",
+   "down": false
+  },
+  {
+   "frame": 454,
+   "key": "Shift",
+   "down": true
+  },
+  {
+   "frame": 507,
+   "key": "Shift",
+   "down": false
+  },
+  {
+   "frame": 542,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 543,
+   "key": "Shift",
+   "down": true
+  },
+  {
+   "frame": 547,
+   "key": "W",
+   "down": false
+  },
+  {
+   "frame": 547,
+   "key": "Shift",
+   "down": false
+  },
+  {
+   "frame": 835,
+   "key": "R",
+   "down": true
+  },
+  {
+   "frame": 840,
+   "key": "R",
+   "down": false
+  },
+  {
+   "frame": 876,
+   "key": "Shift",
+   "down": true
+  },
+  {
+   "frame": 877,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 881,
+   "key": "W",
+   "down": false
+  },
+  {
+   "frame": 882,
+   "key": "Shift",
+   "down": false
+  },
+  {
+   "frame": 1165,
+   "key": "R",
+   "down": true
+  },
+  {
+   "frame": 1171,
+   "key": "R",
+   "down": false
+  },
+  {
+   "frame": 1194,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 1195,
+   "key": "Shift",
+   "down": true
+  },
+  {
+   "frame": 1199,
+   "key": "W",
+   "down": false
+  },
+  {
+   "frame": 1199,
+   "key": "Shift",
+   "down": false
+  },
+  {
+   "frame": 1473,
+   "key": "R",
+   "down": true
+  },
+  {
+   "frame": 1479,
+   "key": "R",
+   "down": false
+  },
+  {
+   "frame": 1507,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 1507,
+   "key": "Shift",
+   "down": true
+  },
+  {
+   "frame": 1511,
+   "key": "Shift",
+   "down": false
+  },
+  {
+   "frame": 1512,
+   "key": "W",
+   "down": false
+  },
+  {
+   "frame": 1791,
+   "key": "R",
+   "down": true
+  },
+  {
+   "frame": 1797,
+   "key": "R",
+   "down": false
+  },
+  {
+   "frame": 1822,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 1823,
+   "key": "Shift",
+   "down": true
+  },
+  {
+   "frame": 1827,
+   "key": "W",
+   "down": false
+  },
+  {
+   "frame": 1828,
+   "key": "Shift",
+   "down": false
+  }
+ ]
+}

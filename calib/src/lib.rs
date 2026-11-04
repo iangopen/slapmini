@@ -24,6 +24,10 @@ pub struct Scenario {
     pub initial_state: State,
     #[serde(default)]
     pub inputs: Vec<InputEvent>,
+    /// What the trajectory CSV measures: "" or "puck" (default) = the puck; "player0", "player1", ... = that
+    /// player's position (z = 0). Used by the player fits (measure/skatefit.py).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub track: String,
 }
 
 impl Scenario {
@@ -101,12 +105,13 @@ pub fn replay(sc: &Scenario, p: &Params) -> Vec<Sample> {
     let mut events = sc.inputs.clone();
     events.sort_by_key(|e| e.step); // stable: same-step events keep file order
     let mut ev = events.iter().peekable();
-    let sample = |s: &State, t: f64| Sample {
-        t,
-        x: s.puck.x,
-        y: s.puck.y,
-        z: s.puck.z,
-        stick_angle: s.players.first().map(|pl| pl.stick_angle),
+    let player = sc.track.strip_prefix("player").and_then(|i| i.parse::<usize>().ok());
+    let sample = |s: &State, t: f64| {
+        let (x, y, z) = match player.and_then(|i| s.players.get(i)) {
+            Some(pl) => (pl.x, pl.y, 0.0),
+            None => (s.puck.x, s.puck.y, s.puck.z),
+        };
+        Sample { t, x, y, z, stick_angle: s.players.first().map(|pl| pl.stick_angle) }
     };
     let mut out = Vec::with_capacity(sc.steps as usize + 1);
     out.push(sample(&state, 0.0));
@@ -466,6 +471,7 @@ pub fn synthetic_scenarios(p: &Params) -> Vec<Scenario> {
             steps: 1200,
             initial_state: slide,
             inputs: vec![],
+            track: String::new(),
         },
         Scenario {
             name: "wall_bounce".into(),
@@ -473,6 +479,7 @@ pub fn synthetic_scenarios(p: &Params) -> Vec<Scenario> {
             steps: 360,
             initial_state: bounce,
             inputs: vec![],
+            track: String::new(),
         },
     ]
 }

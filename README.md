@@ -211,3 +211,21 @@ PowerShell (replace `.venv\Scripts\python` with `.venv/bin/python` and `\` with 
 
 `runs/` is gitignored. Useful knobs: `--envs` (default 64), `--threads` (env worker threads, 0 = all cores), `--device`
 (`auto`/`cpu`/`cuda`), `--reward weights.json`, `--episode-seconds`. On a GPU, more envs (256–1024) keep it busy.
+
+## Skating clips, key display and scale (session s7)
+
+```sh
+# (clips from the clip-data branch, see "Measuring real clips")
+.venv/bin/python -m measure.skate templates                               # keycap glyph templates (measure/key_templates.json)
+.venv/bin/python -m measure.skate track clips/wkeymovement.mkv clips/diagonalkeypresses.mkv clips/whilemovingturning.mkv clips/dashatrest.mkv clips/dashwhilerunning.mkv
+.venv/bin/python -m measure.skate qa diagonalkeypresses                   # registered player path over frames
+cargo build --release -p calib
+.venv/bin/python -m measure.skatefit scenarios                            # runs + key->motion lag -> calib/data/skate/
+.venv/bin/python -m measure.skatefit fit                                  # held-out player/dash fits -> results/skate/fits.json
+.venv/bin/python -m measure.skatefit params                               # -> params.player.json (provenance fitted)
+.venv/bin/python -m measure.skatefit plot                                 # measured vs sim speed curves
+.venv/bin/python -m measure.goalscale track                               # goalspeeds_part00..03 (one recording)
+.venv/bin/python -m measure.goalscale scale                               # -> measure/results/scale.json
+```
+(PowerShell: `.venv\Scripts\python` and backslashes.) A calib scenario with `"track": "player0"` compares player 0's path instead
+of the puck: `cargo run --release -p calib -- eval --params params.json calib/data/skate/wkeymovement_00.scenario.json calib/data/skate/wkeymovement_00.csv`.

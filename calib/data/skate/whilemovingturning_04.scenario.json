@@ -1,0 +1,94 @@
+{
+ "name": "whilemovingturning_04",
+ "description": "s7 whilemovingturning frames 1983-2391, keys D+W; inputs from the key display shifted by the measured lag 0.000 s; player 0 tracked from video (placeholder-scale meters)",
+ "steps": 818,
+ "initial_state": {
+  "tick": 0,
+  "puck": {
+   "x": 25.0,
+   "y": -15.0,
+   "z": 0.0,
+   "vx": 0.0,
+   "vy": 0.0,
+   "vz": 0.0,
+   "in_net": null
+  },
+  "players": [
+   {
+    "team": 0,
+    "x": -16.199643341404354,
+    "y": 10.460526392251808,
+    "vx": 0.0,
+    "vy": 0.0,
+    "facing": 0.015824900748394044,
+    "stick_angle": 0.0,
+    "stick_omega": 0.0,
+    "dash_timer": 0.0,
+    "dash_cooldown": 0.0,
+    "dash_prev": false
+   }
+  ],
+  "score": [
+   0,
+   0
+  ]
+ },
+ "inputs": [
+  {
+   "step": 0,
+   "player": 0,
+   "input": {
+    "move_x": 0.0,
+    "move_y": 0.0,
+    "stick_target_angle": 0.0,
+    "dash": false,
+    "lift": false
+   }
+  },
+  {
+   "step": 20,
+   "player": 0,
+   "input": {
+    "move_x": 1.0,
+    "move_y": 0.0,
+    "stick_target_angle": 0.0,
+    "dash": false,
+    "lift": false
+   }
+  },
+  {
+   "step": 116,
+   "player": 0,
+   "input": {
+    "move_x": 1.0,
+    "move_y": -1.0,
+    "stick_target_angle": 0.0,
+    "dash": false,
+    "lift": false
+   }
+  },
+  {
+   "step": 406,
+   "player": 0,
+   "input": {
+    "move_x": 1.0,
+    "move_y": 0.0,
+    "stick_target_angle": 0.0,
+    "dash": false,
+    "lift": false
+   }
+  },
+  {
+   "step": 754,
+   "player": 0,
+   "input": {
+    "move_x": 0.0,
+    "move_y": 0.0,
+    "stick_target_angle": 0.0,
+    "dash": false,
+    "lift": false
+   }
+  }
+ ],
+ "track": "player0"
+}

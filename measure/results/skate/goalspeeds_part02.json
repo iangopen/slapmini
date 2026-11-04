@@ -1,0 +1,79 @@
+{
+ "clip": "goalspeeds_part02",
+ "fps": 60.0,
+ "frames": 1441,
+ "frame_size": [
+  1920,
+  1080
+ ],
+ "calibration": {
+  "ice_bgr": [
+   58.0,
+   54.0,
+   46.0
+  ],
+  "board_width_px": 645.348388671875,
+  "s_px_per_m": 16.94293159295771,
+  "board_width_dev_px": {
+   "median": 0.209,
+   "p95": 1.618,
+   "max": 1.687
+  },
+  "u_c_range_px": [
+   836.44,
+   980.44
+  ]
+ },
+ "scale_source": "px per meter from the painted line spacing; meters at the PLACEHOLDER scale (params.json, rink_length 60 m)",
+ "registration": {
+  "anchored_frames": 1069,
+  "odometry_frames": 372,
+  "unregistered_frames": 0,
+  "residual_px": {
+   "median": 0.235,
+   "p95": 0.621,
+   "max": 0.717
+  },
+  "lines_per_anchored_frame": {
+   "3": 5,
+   "4": 647,
+   "5": 417
+  },
+  "odometry_drift_vs_anchors": {
+   "1": {
+    "median_px": 0.006,
+    "p95_px": 0.206,
+    "n": 1066
+   },
+   "5": {
+    "median_px": 0.031,
+    "p95_px": 0.894,
+    "n": 1058
+   },
+   "15": {
+    "median_px": 0.142,
+    "p95_px": 2.597,
+    "n": 1038
+   },
+   "30": {
+    "median_px": 0.342,
+    "p95_px": 4.588,
+    "n": 1008
+   },
+   "60": {
+    "median_px": 1.313,
+    "p95_px": 6.755,
+    "n": 948
+   },
+   "120": {
+    "median_px": 2.874,
+    "p95_px": 12.232,
+    "n": 828
+   }
+  }
+ },
+ "detection": {
+  "player_frames": 1044,
+  "puck_frames": 1220
+ }
+}

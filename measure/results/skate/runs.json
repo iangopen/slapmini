@@ -1,0 +1,575 @@
+{
+ "lag_s_median": 0.0,
+ "lag_samples": [
+  {
+   "clip": "wkeymovement",
+   "key": "W",
+   "frame": 42,
+   "lag_s": 0.0042,
+   "accel_m_s2": 17.787,
+   "rms_m": 0.0381
+  },
+  {
+   "clip": "wkeymovement",
+   "key": "W",
+   "frame": 528,
+   "lag_s": 0.0167,
+   "accel_m_s2": 17.801,
+   "rms_m": 0.0435
+  },
+  {
+   "clip": "wkeymovement",
+   "key": "W",
+   "frame": 1082,
+   "lag_s": -0.0083,
+   "accel_m_s2": 18.033,
+   "rms_m": 0.0314
+  },
+  {
+   "clip": "wkeymovement",
+   "key": "W",
+   "frame": 1616,
+   "lag_s": 0.0167,
+   "accel_m_s2": 19.59,
+   "rms_m": 0.0325
+  },
+  {
+   "clip": "whilemovingturning",
+   "key": "W",
+   "frame": 25,
+   "lag_s": -0.0542,
+   "accel_m_s2": 14.619,
+   "rms_m": 0.0396
+  },
+  {
+   "clip": "whilemovingturning",
+   "key": "W",
+   "frame": 466,
+   "lag_s": -0.0167,
+   "accel_m_s2": 16.811,
+   "rms_m": 0.0395
+  },
+  {
+   "clip": "whilemovingturning",
+   "key": "W",
+   "frame": 885,
+   "lag_s": -0.0042,
+   "accel_m_s2": 17.654,
+   "rms_m": 0.0264
+  },
+  {
+   "clip": "whilemovingturning",
+   "key": "W",
+   "frame": 1308,
+   "lag_s": -0.0792,
+   "accel_m_s2": 11.884,
+   "rms_m": 0.0375
+  },
+  {
+   "clip": "whilemovingturning",
+   "key": "W",
+   "frame": 1993,
+   "lag_s": 0.0042,
+   "accel_m_s2": 18.821,
+   "rms_m": 0.0278
+  },
+  {
+   "clip": "dashwhilerunning",
+   "key": "W",
+   "frame": 433,
+   "lag_s": 0.0042,
+   "accel_m_s2": 17.868,
+   "rms_m": 0.0159
+  },
+  {
+   "clip": "dashwhilerunning",
+   "key": "W",
+   "frame": 1316,
+   "lag_s": 0.0292,
+   "accel_m_s2": 22.117,
+   "rms_m": 0.0479
+  },
+  {
+   "clip": "dashwhilerunning",
+   "key": "W",
+   "frame": 2263,
+   "lag_s": -0.025,
+   "accel_m_s2": 14.367,
+   "rms_m": 0.0308
+  }
+ ],
+ "runs": [
+  {
+   "clip": "wkeymovement",
+   "start": 11,
+   "end": 466,
+   "keys": [
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 42,
+   "id": "wkeymovement_00",
+   "frames": [
+    16,
+    496
+   ],
+   "duration_s": 8.0,
+   "peak_speed_m_s": 12.025,
+   "kind": "skate"
+  },
+  {
+   "clip": "wkeymovement",
+   "start": 495,
+   "end": 966,
+   "keys": [
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 528,
+   "id": "wkeymovement_01",
+   "frames": [
+    527,
+    1006
+   ],
+   "duration_s": 7.983,
+   "peak_speed_m_s": 11.743,
+   "kind": "skate"
+  },
+  {
+   "clip": "wkeymovement",
+   "start": 1013,
+   "end": 1475,
+   "keys": [
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 1082,
+   "id": "wkeymovement_02",
+   "frames": [
+    1065,
+    1545
+   ],
+   "duration_s": 8.0,
+   "peak_speed_m_s": 12.415,
+   "kind": "skate"
+  },
+  {
+   "clip": "wkeymovement",
+   "start": 1495,
+   "end": 1924,
+   "keys": [
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 1616,
+   "id": "wkeymovement_03",
+   "frames": [
+    1566,
+    2046
+   ],
+   "duration_s": 8.0,
+   "peak_speed_m_s": 13.651,
+   "kind": "skate"
+  },
+  {
+   "clip": "diagonalkeypresses",
+   "start": 34,
+   "end": 508,
+   "keys": [
+    "D",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 56,
+   "id": "diagonalkeypresses_00",
+   "frames": [
+    48,
+    528
+   ],
+   "duration_s": 8.0,
+   "peak_speed_m_s": 11.902,
+   "kind": "skate"
+  },
+  {
+   "clip": "diagonalkeypresses",
+   "start": 565,
+   "end": 1033,
+   "keys": [
+    "D",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 606,
+   "id": "diagonalkeypresses_01",
+   "frames": [
+    597,
+    1077
+   ],
+   "duration_s": 8.0,
+   "peak_speed_m_s": 12.292,
+   "kind": "skate"
+  },
+  {
+   "clip": "diagonalkeypresses",
+   "start": 1091,
+   "end": 1558,
+   "keys": [
+    "D",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 1150,
+   "id": "diagonalkeypresses_02",
+   "frames": [
+    1141,
+    1621
+   ],
+   "duration_s": 8.0,
+   "peak_speed_m_s": 12.187,
+   "kind": "skate"
+  },
+  {
+   "clip": "diagonalkeypresses",
+   "start": 2082,
+   "end": 2561,
+   "keys": [
+    "A",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 2152,
+   "id": "diagonalkeypresses_03",
+   "frames": [
+    2146,
+    2626
+   ],
+   "duration_s": 8.0,
+   "peak_speed_m_s": 12.571,
+   "kind": "skate"
+  },
+  {
+   "clip": "diagonalkeypresses",
+   "start": 2692,
+   "end": 3167,
+   "keys": [
+    "A",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 2777,
+   "id": "diagonalkeypresses_04",
+   "frames": [
+    2771,
+    3251
+   ],
+   "duration_s": 8.0,
+   "peak_speed_m_s": 12.786,
+   "kind": "skate"
+  },
+  {
+   "clip": "diagonalkeypresses",
+   "start": 3243,
+   "end": 3636,
+   "keys": [
+    "A",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 3333,
+   "id": "diagonalkeypresses_05",
+   "frames": [
+    3329,
+    3731
+   ],
+   "duration_s": 6.7,
+   "peak_speed_m_s": 11.493,
+   "kind": "skate"
+  },
+  {
+   "clip": "whilemovingturning",
+   "start": 11,
+   "end": 424,
+   "keys": [
+    "D",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 25,
+   "id": "whilemovingturning_00",
+   "frames": [
+    16,
+    437
+   ],
+   "duration_s": 7.017,
+   "peak_speed_m_s": 12.022,
+   "kind": "skate"
+  },
+  {
+   "clip": "whilemovingturning",
+   "start": 439,
+   "end": 796,
+   "keys": [
+    "D",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 466,
+   "id": "whilemovingturning_01",
+   "frames": [
+    458,
+    824
+   ],
+   "duration_s": 6.1,
+   "peak_speed_m_s": 13.46,
+   "kind": "skate"
+  },
+  {
+   "clip": "whilemovingturning",
+   "start": 814,
+   "end": 1054,
+   "keys": [
+    "D",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 885,
+   "id": "whilemovingturning_02",
+   "frames": [
+    862,
+    1130
+   ],
+   "duration_s": 4.467,
+   "peak_speed_m_s": 12.994,
+   "kind": "skate"
+  },
+  {
+   "clip": "whilemovingturning",
+   "start": 1068,
+   "end": 1317,
+   "keys": [
+    "D",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 1308,
+   "id": "whilemovingturning_03",
+   "frames": [
+    1277,
+    1557
+   ],
+   "duration_s": 4.667,
+   "peak_speed_m_s": 11.891,
+   "kind": "skate"
+  },
+  {
+   "clip": "whilemovingturning",
+   "start": 1641,
+   "end": 2017,
+   "keys": [
+    "D",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 1993,
+   "id": "whilemovingturning_04",
+   "frames": [
+    1983,
+    2391
+   ],
+   "duration_s": 6.8,
+   "peak_speed_m_s": 12.093,
+   "kind": "skate"
+  },
+  {
+   "clip": "dashatrest",
+   "start": 24,
+   "end": 276,
+   "keys": [
+    "Shift",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 80,
+   "id": "dashatrest_00",
+   "frames": [
+    66,
+    382
+   ],
+   "duration_s": 5.267,
+   "peak_speed_m_s": 12.51,
+   "kind": "dash"
+  },
+  {
+   "clip": "dashatrest",
+   "start": 282,
+   "end": 581,
+   "keys": [
+    "Shift",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 415,
+   "id": "dashatrest_01",
+   "frames": [
+    405,
+    784
+   ],
+   "duration_s": 6.317,
+   "peak_speed_m_s": 11.41,
+   "kind": "dash"
+  },
+  {
+   "clip": "dashatrest",
+   "start": 646,
+   "end": 897,
+   "keys": [
+    "Shift",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 876,
+   "id": "dashatrest_02",
+   "frames": [
+    869,
+    1124
+   ],
+   "duration_s": 4.25,
+   "peak_speed_m_s": 12.224,
+   "kind": "dash"
+  },
+  {
+   "clip": "dashatrest",
+   "start": 945,
+   "end": 1226,
+   "keys": [
+    "Shift",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 1194,
+   "id": "dashatrest_03",
+   "frames": [
+    1173,
+    1472
+   ],
+   "duration_s": 4.983,
+   "peak_speed_m_s": 11.039,
+   "kind": "dash"
+  },
+  {
+   "clip": "dashatrest",
+   "start": 1249,
+   "end": 1535,
+   "keys": [
+    "Shift",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 1507,
+   "id": "dashatrest_04",
+   "frames": [
+    1499,
+    1790
+   ],
+   "duration_s": 4.85,
+   "peak_speed_m_s": 11.555,
+   "kind": "dash"
+  },
+  {
+   "clip": "dashatrest",
+   "start": 1547,
+   "end": 1833,
+   "keys": [
+    "Shift",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 1822,
+   "id": "dashatrest_05",
+   "frames": [
+    1807,
+    2103
+   ],
+   "duration_s": 4.933,
+   "peak_speed_m_s": 11.361,
+   "kind": "dash"
+  },
+  {
+   "clip": "dashwhilerunning",
+   "start": 395,
+   "end": 751,
+   "keys": [
+    "Shift",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 433,
+   "id": "dashwhilerunning_00",
+   "frames": [
+    424,
+    788
+   ],
+   "duration_s": 6.067,
+   "peak_speed_m_s": 12.161,
+   "kind": "dash"
+  },
+  {
+   "clip": "dashwhilerunning",
+   "start": 1194,
+   "end": 1566,
+   "keys": [
+    "Shift",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 1316,
+   "id": "dashwhilerunning_01",
+   "frames": [
+    1289,
+    1687
+   ],
+   "duration_s": 6.633,
+   "peak_speed_m_s": 12.301,
+   "kind": "dash"
+  },
+  {
+   "clip": "dashwhilerunning",
+   "start": 1585,
+   "end": 1974,
+   "keys": [
+    "Shift",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 1738,
+   "id": "dashwhilerunning_02",
+   "frames": [
+    1724,
+    2133
+   ],
+   "duration_s": 6.817,
+   "peak_speed_m_s": 12.538,
+   "kind": "dash"
+  },
+  {
+   "clip": "dashwhilerunning",
+   "start": 2031,
+   "end": 2494,
+   "keys": [
+    "Shift",
+    "W"
+   ],
+   "from_rest": true,
+   "key_down_frame": 2263,
+   "id": "dashwhilerunning_03",
+   "frames": [
+    2247,
+    2727
+   ],
+   "duration_s": 8.0,
+   "peak_speed_m_s": 13.398,
+   "kind": "dash"
+  }
+ ],
+ "note": "key->motion lag fitted per standing start; scenarios use the median"
+}

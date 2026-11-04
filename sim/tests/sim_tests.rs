@@ -42,13 +42,17 @@ fn determinism_100k_steps_byte_identical() {
     assert!(a.players[0].x.is_finite() && a.puck.x.is_finite());
 }
 
+/// Params whose SHAPE (ratio to rink_length) was measured from real clips; the meter scale is still a placeholder.
+const MEASURED_SHAPE: [&str; 4] = ["rink_width", "rink_corner_radius", "net_width", "net_depth"];
+
 #[test]
-fn params_file_complete_and_all_placeholder() {
+fn params_file_complete_and_provenance_known() {
     let f = ParamFile::from_json(DEFAULT_PARAMS_JSON).unwrap();
     f.to_params().unwrap();
     assert_eq!(f.params.len(), Params::NAMES.len());
     for (k, e) in &f.params {
-        assert_eq!(e.provenance, "placeholder", "{k} must stay placeholder until measured");
+        let want = if MEASURED_SHAPE.contains(&k.as_str()) { "measured-shape" } else { "placeholder" };
+        assert_eq!(e.provenance, want, "{k}: unexpected provenance (only the rink shape is measured so far)");
     }
 }
 

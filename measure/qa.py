@@ -37,6 +37,7 @@ def run_qa(clip: Path, out_dir: Path) -> list[Path]:
     meta = json.loads((out_dir / f"{info.name}.track.json").read_text())
     R = meta["rows"]
     pos = {f: (u, v, c, it, tid) for f, u, v, c, it, tid in zip(R["frame"], R["u_px"], R["v_px"], R["conf"], R["interpolated"], R["tracklet"])}
+    shift = {f: (a, b) for f, a, b in zip(R["frame"], R.get("shift_u", [0] * len(R["frame"])), R.get("shift_v", [0] * len(R["frame"])))}
     seg_ids = sorted(set(R["tracklet"]))
     color = {t: SEG_COLORS[i % len(SEG_COLORS)] for i, t in enumerate(seg_ids)}
     b = m.board_px
@@ -76,6 +77,10 @@ def run_qa(clip: Path, out_dir: Path) -> list[Path]:
             if i > max(want):
                 break
             continue
+        if i in shift:  # positions are reference-frame pixels: show the camera-corrected frame
+            from .camera import Camera, Shift
+
+            f = Camera.undo(f, Shift(shift[i][0], shift[i][1], 0.0, 4))
         img = f.copy()
         for g in range(i - 45, i):
             if g in pos and g + 1 in pos and pos[g][4] == pos[g + 1][4]:
@@ -88,7 +93,7 @@ def run_qa(clip: Path, out_dir: Path) -> list[Path]:
             prev = [g for g in frames if g < i]
             zc = (pos[prev[-1]][0], pos[prev[-1]][1]) if prev else ((x0 + x1) / 2, (y0 + y1) / 2)
             moved = any(a <= i <= b for a, b in meta["summary"].get("camera_moved_ranges", []))
-            status = "CAMERA MOVED: frame dropped" if moved else "NO DETECTION (zoom at last known)"
+            status = "CAMERA UNCORRECTABLE: frame dropped" if moved else "NO DETECTION (zoom at last known)"
         Z, H = 4, 24
         cu, cv_ = int(round(zc[0])), int(round(zc[1]))
         zoom = f[max(cv_ - H, 0) : cv_ + H, max(cu - H, 0) : cu + H].copy()

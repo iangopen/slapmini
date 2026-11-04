@@ -40,8 +40,23 @@ class SyntheticTrackerTest(unittest.TestCase):
         b = synth.BOARD
         self.assertAlmostEqual(m.board_length_px, b["bottom"] - b["top"], delta=1.0)
         self.assertAlmostEqual(m.board_width_px, b["right"] - b["left"], delta=1.0)
-        self.assertTrue(m.extra["drift"]["ok"])
-        self.assertLess(m.extra["drift"]["max_px"], 0.1)
+        d = m.extra["drift"]
+        self.assertTrue(d["ok"])
+        self.assertTrue(d["camera_moves"])  # the 1 s sample at frame 120 is inside the pan
+        self.assertAlmostEqual(d["max_px"], math.hypot(synth.PAN[2], synth.PAN[3]), delta=0.2)
+        self.assertLess(d["max_residual_after_correction_px"], 0.3)
+        self.assertTrue(m.extra["shape"]["circles"]["summary"]["round"])
+
+    def test_camera_pan_corrected(self):
+        s = self.meta["summary"]
+        self.assertEqual(s["camera_moved_frames"], 0, "every panned frame must be corrected, not dropped")
+        self.assertEqual(s["frames_kept_without_correction"], synth.N - (synth.PAN[1] - synth.PAN[0]))
+        self.assertLess(s["camera_residual_after_correction_px"]["max"], 0.3)
+        pan = [r for r in self.rows if synth.PAN[0] <= r["frame"] < synth.PAN[1]]
+        self.assertGreaterEqual(len(pan), synth.PAN[1] - synth.PAN[0] - 1)
+        for r in pan:
+            self.assertAlmostEqual(r["shift_u"], synth.PAN[2], delta=0.2)
+            self.assertAlmostEqual(r["shift_v"], synth.PAN[3], delta=0.2)
 
     def test_path_within_1px(self):
         frames = self.truth["frames"]
@@ -79,6 +94,35 @@ class SyntheticTrackerTest(unittest.TestCase):
             for lu, lv in lights:
                 self.assertGreater(math.hypot(r["u"] - lu, r["v"] - lv), 12, "green light reported as puck")
             self.assertTrue(m.rink_mask(8.0)[int(r["v"]), int(r["u"])] > 0, "HUD / outside-rink point reported")
+
+    def test_segment(self):
+        """One free stretch: rest, hit at frame 20, glide, bounce off the top board, glide."""
+        from measure.segment import run_segment
+
+        dest = self.dir / "real"
+        with redirect_stdout(StringIO()):
+            man = run_segment([self.clip], self.dir, dest)
+        segs = man["segments"]
+        self.assertEqual(len(segs), 1, segs)
+        s = segs[0]
+        self.assertEqual(s["label"], "wall bounce")
+        self.assertGreater(s["start_frame"], 20)  # starts after the hit, once the puck is free
+        self.assertLess(s["start_frame"], 30)
+        # truth bounce: the frame where the vertical velocity flips sign
+        fr = self.truth["frames"]
+        bounce = next(f for f in range(22, synth.N - 1) if fr[f - 1] and fr[f] and fr[f + 1] and (fr[f][1] - fr[f - 1][1]) < 0 < (fr[f + 1][1] - fr[f][1]))
+        self.assertEqual(len(s["wall_bounce_frames"]), 1)
+        self.assertLessEqual(abs(s["wall_bounce_frames"][0] - bounce), 2)
+        sc = json.loads((dest / s["scenario"]).read_text())
+        p = sc["initial_state"]["puck"]
+        tu, tv = fr[s["start_frame"]]
+        tx, ty = self.map.px_to_m(tu, tv)
+        self.assertLess(math.hypot(p["x"] - tx, p["y"] - ty), 0.5 * self.map.m_per_px)
+        # initial velocity: truth pixel velocity (per frame) mapped to m/s
+        (u0, v0), (u1, v1) = fr[s["start_frame"]], fr[s["start_frame"] + 1]
+        vx_t, vy_t = (v0 - v1) * self.map.m_per_px * synth.FPS, (u0 - u1) * self.map.m_per_px * synth.FPS
+        self.assertLess(math.hypot(p["vx"] - vx_t, p["vy"] - vy_t), 0.03 * math.hypot(vx_t, vy_t))
+        self.assertEqual(sc["initial_state"]["players"], [])
 
     def test_csv_format(self):
         lines = (self.dir / "synthetic.traj.csv").read_text().splitlines()

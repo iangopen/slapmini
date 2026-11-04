@@ -19,12 +19,14 @@ cargo test --workspace --release -- --nocapture       # prints fitter recovery +
 cargo run --release -p sim --example bench            # single-thread steps/sec
 wasm-pack build sim-wasm --release --target web       # -> sim-wasm/pkg
 
-# calibration
-cargo run --release -p calib -- synth  --params params.json --out-dir calib/data
-cargo run --release -p calib -- eval   --params params.json calib/data/slide_stop.scenario.json calib/data/slide_stop.csv
-cargo run --release -p calib -- fit    --params params.json --fit ice_friction_decel,board_restitution --out fitted.json \
-    calib/data/slide_stop.scenario.json calib/data/slide_stop.csv calib/data/wall_bounce.scenario.json calib/data/wall_bounce.csv
+# calibration (the synthetic self-check data in calib/data/ uses the pinned calib/data/params.synthetic.json)
+cargo run --release -p calib -- synth  --params calib/data/params.synthetic.json --out-dir calib/data
+cargo run --release -p calib -- eval   --params calib/data/params.synthetic.json calib/data/slide_stop.scenario.json calib/data/slide_stop.csv
+cargo run --release -p calib -- fit    --params calib/data/params.synthetic.json --fit ice_friction_decel,board_restitution --out fitted.json \
+    [--objective path] calib/data/slide_stop.scenario.json calib/data/slide_stop.csv calib/data/wall_bounce.scenario.json calib/data/wall_bounce.csv
 cargo run --release -p calib -- replay --params params.json <scenario.json> <out.csv>
+# real segments (measured): baseline error of the current params
+cargo run --release -p calib -- eval --params params.json calib/data/real/wall_09.scenario.json calib/data/real/wall_09.csv
 
 # native-vs-wasm determinism cross-check
 wasm-pack build sim-wasm --release --target nodejs --out-dir pkg-node
@@ -80,17 +82,34 @@ python3 -m venv .venv
 .venv/bin/python -m unittest discover -s measure/tests -t .
 ```
 
-- `map` finds the inner board outline, center line and center dot in a median frame, writes `NAME.map.json` + `NAME.map.png`,
-  and re-matches a board-corner landmark once per second. It exits non-zero if the camera drifts more than 2 px.
-- `track` needs a passing map. For a clip whose camera moved, `--stable-frames-only` keeps only frames whose own landmark
-  drift is at most 2 px. Writes `NAME.traj.csv` (`t,x,y,z`, z always 0) and `NAME.track.json` (per-row frame, pixel position,
-  confidence, interpolated flag, segment id; summary; `scale_source`).
+Full pipeline (bash; in PowerShell use `.venv\Scripts\python` and backslashes):
+
+```bash
+C="clips/justpuckphysicshittingitatfixedpoint.mkv clips/justhittingwallphysicsfixedpoint.mkv clips/justliftedshots.mkv"
+.venv/bin/python -m measure map      $C          # rink, circles (camera top-down?), lines, nets, camera check
+.venv/bin/python -m measure track    $C          # puck per frame, camera motion undone
+.venv/bin/python -m measure qa       $C          # QA sheets per clip
+.venv/bin/python -m measure segment  $C          # free-puck stretches -> calib/data/real/*.scenario.json + .csv + manifest.json
+.venv/bin/python -m measure segqa    $C --frames wall_09   # segment QA sheets (+ frame strip for a segment)
+.venv/bin/python -m measure estimate             # scale-free restitution / deceleration -> calib/data/real/estimates.json
+.venv/bin/python -m measure params   $C --dry-run  # measured rink shape (drop --dry-run to write params.json)
+```
+
+- `map` finds the inner board outline, center line and center dot in a median frame, fits ellipses to the center and faceoff
+  circles (round = top-down camera), finds the grey lines and net roofs, writes `NAME.map.json` + `NAME.map.png`, and checks the
+  camera once per second against four faceoff-dot landmarks: raw drift, and the residual after undoing it by a translation.
+  It fails only if the camera motion cannot be corrected to 2 px.
+- `track` undoes each frame's camera translation before detection (all positions are reference-frame pixels; frames that cannot
+  be corrected are dropped). Writes `NAME.traj.csv` (`t,x,y,z`, z always 0) and `NAME.track.json` (per-row frame, pixel position,
+  confidence, interpolated flag, tracklet id, blob area, camera shift; summary; `scale_source`). `--no-camera-correction` drops moved frames instead.
 - `qa` writes `qa/NAME.overview.png` (whole path on the background) and `qa/NAME.sheet.png` (sampled frames with zoom insets).
+- `segment` / `segqa` / `estimate` / `params`: see CLAUDE.md (segment manifest, scale-free estimates, measured rink shape).
 - Several clips can be passed at once. `python -m measure synth out.mkv` renders the synthetic test video.
 
 ## File formats
 
-- **params.json**: `{"params": {name: {"value", "provenance", "unit", "note"}}}`. Provenance is `placeholder`, `fitted` or `measured`.
+- **params.json**: `{"params": {name: {"value", "provenance", "unit", "note"}}}`. Provenance is `placeholder`, `fitted`, `measured`,
+  or `measured-shape` (a ratio to rink_length is measured; the meter value still assumes the placeholder scale).
 - **Scenario** (`*.scenario.json`): `{name, description, steps, initial_state: State, inputs: [{step, player, input}]}`.
   Each input is held from its `step` until that player's next event.
 - **Trajectory CSV**: header `t,x,y,z` plus an optional `stick_angle` (player 0) column. Puck position in meters, rink-centered.

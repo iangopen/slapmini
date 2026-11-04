@@ -1,18 +1,18 @@
 //! calib CLI.
 //!
 //!   calib eval  --params params.json <scenario.json> <traj.csv> [<scenario> <traj> ...]
-//!   calib fit   --params params.json --fit name1,name2 --out fitted.json [--iters N] <scenario> <traj> ...
+//!   calib fit   --params params.json --fit name1,name2 --out fitted.json [--iters N] [--objective time|path] <scenario> <traj> ...
 //!   calib synth --params params.json --out-dir calib/data
 //!   calib replay --params params.json <scenario.json> <out.csv>
 
-use calib::{evaluate, fit, parse_csv, replay, synthetic_scenarios, write_csv, Case, Scenario};
+use calib::{evaluate, fit_with, parse_csv, replay, synthetic_scenarios, write_csv, Case, Objective, Scenario};
 use sim::ParamFile;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 fn usage() -> ExitCode {
     eprintln!(
-        "usage:\n  calib eval   --params P <scenario.json> <traj.csv> [...]\n  calib fit    --params P --fit a,b --out OUT [--iters N] <scenario.json> <traj.csv> [...]\n  calib synth  --params P --out-dir DIR\n  calib replay --params P <scenario.json> <out.csv>"
+        "usage:\n  calib eval   --params P <scenario.json> <traj.csv> [...]\n  calib fit    --params P --fit a,b --out OUT [--iters N] [--objective time|path] <scenario.json> <traj.csv> [...]\n  calib synth  --params P --out-dir DIR\n  calib replay --params P <scenario.json> <out.csv>"
     );
     ExitCode::from(2)
 }
@@ -55,10 +55,10 @@ fn load_cases(pos: &[String]) -> Result<Vec<Case>, String> {
 }
 
 fn print_errors(cases: &[Case], errs: &[calib::Errors]) {
-    println!("{:<20} {:>8} {:>14} {:>14} {:>14}", "scenario", "samples", "pos_rmse(m)", "speed_rmse", "stick_rmse");
+    println!("{:<20} {:>8} {:>14} {:>14} {:>14} {:>14} {:>14}", "scenario", "samples", "pos_rmse(m)", "speed_rmse", "stick_rmse", "path_rmse(m)", "v2_rmse");
     for (c, e) in cases.iter().zip(errs) {
         let st = e.stick_rmse.map_or("-".to_string(), |v| format!("{v:.6e}"));
-        println!("{:<20} {:>8} {:>14.6e} {:>14.6e} {:>14}", c.scenario.name, e.samples, e.pos_rmse, e.speed_rmse, st);
+        println!("{:<20} {:>8} {:>14.6e} {:>14.6e} {:>14} {:>14.6e} {:>14.6e}", c.scenario.name, e.samples, e.pos_rmse, e.speed_rmse, st, e.path_rmse, e.v2_rmse);
     }
 }
 
@@ -77,10 +77,12 @@ fn run(raw: &[String]) -> Result<(), String> {
             let names: Vec<&str> = a.get("fit").ok_or("--fit required")?.split(',').map(str::trim).collect();
             let out = a.get("out").ok_or("--out required")?;
             let iters = a.get("iters").map(|s| s.parse::<usize>().map_err(|e| e.to_string())).transpose()?.unwrap_or(500);
+            let kind: Objective = a.get("objective").unwrap_or("time").parse()?;
             let cases = load_cases(&a.pos)?;
+            println!("objective: {kind:?}");
             println!("before:");
             print_errors(&cases, &evaluate(&cases, &params));
-            let r = fit(&cases, &params, &names, iters)?;
+            let r = fit_with(&cases, &params, &names, iters, kind)?;
             println!("after ({} iterations, objective {:.3e}):", r.iterations, r.objective);
             print_errors(&cases, &evaluate(&cases, &r.params));
             for n in &names {

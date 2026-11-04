@@ -1,0 +1,23 @@
+{
+  "name": "lift_01",
+  "description": "MEASURED (glide) from justliftedshots frames 111-407; placeholder meter scale; z unknown",
+  "steps": 592,
+  "initial_state": {
+    "tick": 0,
+    "puck": {
+      "x": -0.4702534314700659,
+      "y": 0.4484889596180665,
+      "z": 0.0,
+      "vx": 8.489838870101506,
+      "vy": 1.7775014919434142,
+      "vz": 0.0,
+      "in_net": null
+    },
+    "players": [],
+    "score": [
+      0,
+      0
+    ]
+  },
+  "inputs": []
+}

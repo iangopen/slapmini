@@ -150,7 +150,151 @@ pub struct Errors {
     pub speed_rmse: f64,
     /// Player 0 stick angle RMSE, rad (only if the CSV has the column).
     pub stick_rmse: Option<f64>,
+    /// Timing-free: position RMSE at equal arc length along the path, m (see `path_errors`).
+    pub path_rmse: f64,
+    /// Timing-free: RMSE of v^2 compared at equal distance travelled, m^2/s^2.
+    pub v2_rmse: f64,
     pub samples: usize,
+}
+
+/// Which fit objective to use.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Objective {
+    /// Default: sum of pos_rmse^2 + 0.1 * speed_rmse^2 (positions compared at equal times).
+    Time,
+    /// Timing-robust: sum of path_rmse^2 + PATH_V2_WEIGHT * v2_rmse^2 (compared at equal arc length).
+    Path,
+}
+
+impl std::str::FromStr for Objective {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, String> {
+        match s {
+            "time" => Ok(Objective::Time),
+            "path" => Ok(Objective::Path),
+            _ => Err(format!("unknown objective '{s}' (time | path)")),
+        }
+    }
+}
+
+/// Weight of the v^2 term in the path objective: an RMSE of 1 m^2/s^2 in v^2 counts like 0.1 m of path error.
+pub const PATH_V2_WEIGHT: f64 = 0.01;
+/// Half-width (samples) of the local quadratic fits that smooth measured positions and velocities.
+pub const PATH_SMOOTH_HALF: usize = 5;
+
+/// Local quadratic least-squares fit of the measured samples around index k: (position, velocity) at t_k.
+/// The capture's timing jitter enters only as zero-mean noise here.
+fn local_fit(meas: &[Sample], k: usize, half: usize) -> ([f64; 3], [f64; 3]) {
+    let a = k.saturating_sub(half);
+    let b = (k + half).min(meas.len() - 1);
+    let t0 = meas[k].t;
+    let n = b - a + 1;
+    let deg2 = n >= 5;
+    // Normal equations for y = c0 + c1 dt (+ c2 dt^2).
+    let (mut s0, mut s1, mut s2, mut s3, mut s4) = (0.0, 0.0, 0.0, 0.0, 0.0);
+    let mut r = [[0.0f64; 3]; 3]; // r[axis] = [sum y, sum y dt, sum y dt^2]
+    for m in &meas[a..=b] {
+        let d = m.t - t0;
+        s0 += 1.0;
+        s1 += d;
+        s2 += d * d;
+        s3 += d * d * d;
+        s4 += d * d * d * d;
+        for (ax, y) in [m.x, m.y, m.z].into_iter().enumerate() {
+            r[ax][0] += y;
+            r[ax][1] += y * d;
+            r[ax][2] += y * d * d;
+        }
+    }
+    let mut pos = [meas[k].x, meas[k].y, meas[k].z];
+    let mut vel = [0.0; 3];
+    for ax in 0..3 {
+        if deg2 {
+            let m3 = [[s0, s1, s2], [s1, s2, s3], [s2, s3, s4]];
+            if let Some(c) = solve3(m3, r[ax]) {
+                pos[ax] = c[0];
+                vel[ax] = c[1];
+                continue;
+            }
+        }
+        let det = s0 * s2 - s1 * s1;
+        if det.abs() > 1e-15 {
+            pos[ax] = (r[ax][0] * s2 - r[ax][1] * s1) / det;
+            vel[ax] = (s0 * r[ax][1] - s1 * r[ax][0]) / det;
+        }
+    }
+    (pos, vel)
+}
+
+fn solve3(m: [[f64; 3]; 3], r: [f64; 3]) -> Option<[f64; 3]> {
+    let det = |a: [[f64; 3]; 3]| a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0]) + a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]);
+    let d = det(m);
+    if d.abs() < 1e-18 {
+        return None;
+    }
+    let mut out = [0.0; 3];
+    for c in 0..3 {
+        let mut mc = m;
+        for row in 0..3 {
+            mc[row][c] = r[row];
+        }
+        out[c] = det(mc) / d;
+    }
+    Some(out)
+}
+
+/// Timing-free comparison. Both paths get the same smoothing (local quadratic fits over
+/// +-PATH_SMOOTH_HALF samples; the sim is sampled at the measured times first, so the corner rounding
+/// at a bounce is identical on both sides) and are parameterized by distance travelled s.
+/// Returns (path_rmse, v2_rmse):
+/// - path_rmse: distance between measured and sim positions at the same s (sim clamped at its end);
+/// - v2_rmse: v^2 at the same s. For constant friction v^2 falls linearly with s.
+/// The two paths are aligned by s, never by frame time, so capture jitter, duplicated and skipped
+/// frames only add zero-mean noise to the measured positions and velocities.
+pub fn path_errors(sim: &[Sample], dt: f64, meas: &[Sample]) -> (f64, f64) {
+    if meas.len() < 3 || sim.len() < 2 {
+        return (0.0, 0.0);
+    }
+    let simm: Vec<Sample> = meas
+        .iter()
+        .map(|m| {
+            let (x, y, z, _) = sim_at(sim, dt, m.t);
+            Sample { t: m.t, x, y, z, stick_angle: None }
+        })
+        .collect();
+    let smooth = |ss: &[Sample]| -> (Vec<[f64; 3]>, Vec<f64>, Vec<f64>) {
+        let fits: Vec<_> = (0..ss.len()).map(|k| local_fit(ss, k, PATH_SMOOTH_HALF)).collect();
+        let mut s = vec![0.0; ss.len()];
+        for k in 1..ss.len() {
+            let (a, b) = (fits[k - 1].0, fits[k].0);
+            s[k] = s[k - 1] + ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2) + (b[2] - a[2]).powi(2)).sqrt();
+        }
+        let v2 = fits.iter().map(|f| f.1[0] * f.1[0] + f.1[1] * f.1[1] + f.1[2] * f.1[2]).collect();
+        (fits.into_iter().map(|f| f.0).collect(), s, v2)
+    };
+    let (mp, ms, mv2) = smooth(meas);
+    let (sp, ss, sv2) = smooth(&simm);
+    let last = ss.len() - 1;
+    let (mut pe, mut ve) = (0.0, 0.0);
+    let mut j = 0usize;
+    for k in 0..meas.len() {
+        let s = ms[k];
+        while j + 1 < ss.len() && ss[j + 1] < s {
+            j += 1;
+        }
+        let (p, v2) = if j >= last || s >= ss[last] {
+            (sp[last], sv2[last])
+        } else {
+            let span = ss[j + 1] - ss[j];
+            let a = if span > 0.0 { ((s - ss[j]) / span).clamp(0.0, 1.0) } else { 0.0 };
+            let l = |p: f64, q: f64| p + (q - p) * a;
+            ([l(sp[j][0], sp[j + 1][0]), l(sp[j][1], sp[j + 1][1]), l(sp[j][2], sp[j + 1][2])], l(sv2[j], sv2[j + 1]))
+        };
+        pe += (mp[k][0] - p[0]).powi(2) + (mp[k][1] - p[1]).powi(2) + (mp[k][2] - p[2]).powi(2);
+        ve += (mv2[k] - v2).powi(2);
+    }
+    let n = meas.len() as f64;
+    ((pe / n).sqrt(), (ve / n).sqrt())
 }
 
 /// Compare a replay against measured samples.
@@ -179,10 +323,13 @@ pub fn compare(sim: &[Sample], dt: f64, meas: &[Sample]) -> Errors {
         spd += (ms - ss).powi(2);
         spd_n += 1;
     }
+    let (path_rmse, v2_rmse) = path_errors(sim, dt, meas);
     Errors {
         pos_rmse: if n > 0 { (pos / n as f64).sqrt() } else { 0.0 },
         speed_rmse: if spd_n > 0 { (spd / spd_n as f64).sqrt() } else { 0.0 },
         stick_rmse: if stick_n > 0 { Some((stick / stick_n as f64).sqrt()) } else { None },
+        path_rmse,
+        v2_rmse,
         samples: n,
     }
 }
@@ -197,9 +344,20 @@ pub fn evaluate(cases: &[Case], p: &Params) -> Vec<Errors> {
     cases.iter().map(|c| compare(&replay(&c.scenario, p), p.timestep, &c.measured)).collect()
 }
 
-/// Fit objective: sum over cases of pos_rmse^2 + 0.1 * speed_rmse^2.
+/// Fit objective (default): sum over cases of pos_rmse^2 + 0.1 * speed_rmse^2.
 pub fn objective(cases: &[Case], p: &Params) -> f64 {
-    evaluate(cases, p).iter().map(|e| e.pos_rmse.powi(2) + 0.1 * e.speed_rmse.powi(2)).sum()
+    objective_with(cases, p, Objective::Time)
+}
+
+/// Fit objective of the chosen kind.
+pub fn objective_with(cases: &[Case], p: &Params, kind: Objective) -> f64 {
+    evaluate(cases, p)
+        .iter()
+        .map(|e| match kind {
+            Objective::Time => e.pos_rmse.powi(2) + 0.1 * e.speed_rmse.powi(2),
+            Objective::Path => e.path_rmse.powi(2) + PATH_V2_WEIGHT * e.v2_rmse.powi(2),
+        })
+        .sum()
 }
 
 // ---------- Fitter ----------
@@ -214,6 +372,11 @@ pub struct FitResult {
 /// Nelder-Mead over the named params. Searches in coordinates scaled by the starting values
 /// (so params of different magnitude converge together); values are kept non-negative.
 pub fn fit(cases: &[Case], start: &Params, names: &[&str], max_iter: usize) -> Result<FitResult, String> {
+    fit_with(cases, start, names, max_iter, Objective::Time)
+}
+
+/// `fit` with a chosen objective.
+pub fn fit_with(cases: &[Case], start: &Params, names: &[&str], max_iter: usize, kind: Objective) -> Result<FitResult, String> {
     let x0: Vec<f64> = names
         .iter()
         .map(|n| start.get(n).ok_or(format!("fit: unknown param '{n}'")))
@@ -227,7 +390,7 @@ pub fn fit(cases: &[Case], start: &Params, names: &[&str], max_iter: usize) -> R
         }
         p
     };
-    let f = |u: &[f64]| objective(cases, &build(u));
+    let f = |u: &[f64]| objective_with(cases, &build(u), kind);
 
     let u0: Vec<f64> = x0.iter().zip(&scale).map(|(v, s)| v / s).collect();
     let mut simplex: Vec<Vec<f64>> = vec![u0.clone()];

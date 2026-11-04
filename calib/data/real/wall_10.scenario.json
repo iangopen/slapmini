@@ -1,0 +1,23 @@
+{
+  "name": "wall_10",
+  "description": "MEASURED (glide) from justhittingwallphysicsfixedpoint frames 2881-2901; placeholder meter scale; z unknown",
+  "steps": 40,
+  "initial_state": {
+    "tick": 0,
+    "puck": {
+      "x": -0.9517006166699792,
+      "y": 15.660834891585445,
+      "z": 0.0,
+      "vx": 1.712801869902576,
+      "vy": 0.8746697831706138,
+      "vz": 0.0,
+      "in_net": null
+    },
+    "players": [],
+    "score": [
+      0,
+      0
+    ]
+  },
+  "inputs": []
+}

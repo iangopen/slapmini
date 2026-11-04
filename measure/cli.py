@@ -24,9 +24,25 @@ def main(argv: list[str] | None = None) -> int:
     pt = sub.add_parser("track", help="track the puck, write NAME.traj.csv and NAME.track.json")
     common(pt)
     pt.add_argument("--max-step-px", type=float, default=None, help="gate: max puck travel per frame (default from the speed cap)")
-    pt.add_argument("--stable-frames-only", action="store_true", help="track a clip whose map failed the drift check, keeping only frames with <= 2 px drift")
+    pt.add_argument("--no-camera-correction", action="store_true", help="do not undo camera motion; drop frames drifting > 2 px instead")
     pq = sub.add_parser("qa", help="write QA sheets (track drawn over sampled frames)")
     common(pq)
+    pg = sub.add_parser("segment", help="cut tracks into free-puck stretches -> calib/data/real/ scenarios + manifest")
+    pg.add_argument("clips", nargs="+", type=Path)
+    pg.add_argument("--out-dir", type=Path, default=DEFAULT_OUT, help="where the map/track results are")
+    pg.add_argument("--params", type=Path, default=PARAMS_PATH)
+    pg.add_argument("--dest", type=Path, default=None, help="default calib/data/real")
+    pq2 = sub.add_parser("segqa", help="QA sheets for the segment manifest (+ frame strips for --frames IDs)")
+    pq2.add_argument("clips", nargs="+", type=Path)
+    pq2.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
+    pq2.add_argument("--frames", default="", help="comma-separated segment ids to draw frame strips for")
+    pp = sub.add_parser("params", help="write the measured rink shape into params.json (provenance measured-shape)")
+    pp.add_argument("clips", nargs="+", type=Path)
+    pp.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
+    pp.add_argument("--params", type=Path, default=PARAMS_PATH)
+    pp.add_argument("--dry-run", action="store_true")
+    pe = sub.add_parser("estimate", help="scale-free restitution + glide-deceleration estimates from the segment manifest")
+    pe.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     ps = sub.add_parser("synth", help="render the synthetic test video (for debugging the tests)")
     ps.add_argument("out", type=Path)
 
@@ -38,6 +54,26 @@ def main(argv: list[str] | None = None) -> int:
         truth = render(a.out)
         print(f"wrote {a.out} ({len(truth['frames'])} frames)")
         return 0
+    if a.cmd == "estimate":
+        from .estimate import run_estimate
+
+        run_estimate(a.out_dir)
+        return 0
+    if a.cmd == "params":
+        from .shape_params import run_params
+
+        run_params(a.out_dir, [Path(x).stem for x in a.clips], a.params, write=not a.dry_run)
+        return 0
+    if a.cmd == "segqa":
+        from .segqa import run_segqa
+
+        run_segqa(a.clips, a.out_dir, [x for x in a.frames.split(",") if x])
+        return 0
+    if a.cmd == "segment":
+        from .segment import OUT, run_segment
+
+        run_segment(a.clips, a.out_dir, a.dest or OUT, a.params)
+        return 0
     for clip in a.clips:
         try:
             if a.cmd == "map":
@@ -47,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
             elif a.cmd == "track":
                 from .track import run_track
 
-                run_track(clip, a.out_dir, a.params, max_step_px=a.max_step_px, stable_frames_only=a.stable_frames_only)
+                run_track(clip, a.out_dir, a.params, max_step_px=a.max_step_px, correct_camera=not a.no_camera_correction)
             elif a.cmd == "qa":
                 from .qa import run_qa
 

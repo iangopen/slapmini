@@ -1,0 +1,23 @@
+{
+  "name": "puck_09",
+  "description": "MEASURED (wall bounce) from justpuckphysicshittingitatfixedpoint frames 3128-3465; placeholder meter scale; z unknown",
+  "steps": 674,
+  "initial_state": {
+    "tick": 0,
+    "puck": {
+      "x": 1.8632601812207523,
+      "y": 1.7484112317036724,
+      "z": 0.0,
+      "vx": 15.916354674897953,
+      "vy": 16.762299113810574,
+      "vz": 0.0,
+      "in_net": null
+    },
+    "players": [],
+    "score": [
+      0,
+      0
+    ]
+  },
+  "inputs": []
+}

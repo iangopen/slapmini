@@ -1,0 +1,23 @@
+{
+  "name": "lift_02",
+  "description": "MEASURED (wall bounce) from justliftedshots frames 626-854; placeholder meter scale; z unknown",
+  "steps": 456,
+  "initial_state": {
+    "tick": 0,
+    "puck": {
+      "x": 3.565834493733834,
+      "y": 2.4112761090113404,
+      "z": 0.0,
+      "vx": 34.879323652277655,
+      "vy": 15.4956922617863,
+      "vz": 0.0,
+      "in_net": null
+    },
+    "players": [],
+    "score": [
+      0,
+      0
+    ]
+  },
+  "inputs": []
+}

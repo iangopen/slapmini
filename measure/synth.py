@@ -2,7 +2,8 @@
 
 Rink (vertical long axis) with grey boards, cyan center line and a ringed center dot; a green puck
 that rests, then glides and bounces; an always-on green light inside the rink; a blinking green
-light that jumps between two spots; a moving pink disc with a blue glow; a HUD box with an animated
+light that jumps between two spots; a moving pink disc with a blue glow; faceoff circles (the camera landmarks); a camera pan
+over frames 100-129; a HUD box with an animated
 green bar and green "stamina" dots outside the rink; and one duplicated (repeated) frame.
 """
 
@@ -26,6 +27,10 @@ PUCK_R = 4.0
 PINK, GLOW = (250, 148, 255), (230, 120, 60)
 CENTER = (480.0, 270.0)
 DUP_FRAME = 70  # rendered identical to frame 69
+FACEOFFS = [(400.0, 110.0), (560.0, 110.0), (400.0, 430.0), (560.0, 430.0)]
+RING_R = 35.0
+RING_COL = (88, 90, 92)  # grey ring, like the real faceoff circles
+PAN = (100, 130, 7.4, -3.2)  # frames [100, 130) are shifted by (+7.4, -3.2) px: a camera pan
 SHIFT = 4
 S = 1 << SHIFT
 
@@ -47,6 +52,13 @@ def background() -> np.ndarray:
     # Edges are pixel boundaries: ice pixel centers run from left to right - 1.
     _rounded_rect(img, b["left"] - BAND, b["top"] - BAND, b["right"] - 1 + BAND, b["bottom"] - 1 + BAND, CORNER_R + BAND, BOARD_COL)
     _rounded_rect(img, b["left"], b["top"], b["right"] - 1, b["bottom"] - 1, CORNER_R, ICE)
+    cv2.circle(img, _P(*CENTER), int(40 * S), RING_COL, 2, cv2.LINE_AA, SHIFT)
+    for fx, fy in FACEOFFS:
+        cv2.circle(img, _P(fx, fy), int(RING_R * S), RING_COL, 2, cv2.LINE_AA, SHIFT)
+        for dx, dy in ((1, 1), (1, -1), (-1, 1), (-1, -1)):  # cross marks: texture for the camera landmarks
+            cv2.line(img, _P(fx + 6 * dx, fy + 3 * dy), _P(fx + 14 * dx, fy + 3 * dy), RING_COL, 1, cv2.LINE_AA, SHIFT)
+            cv2.line(img, _P(fx + 3 * dx, fy + 6 * dy), _P(fx + 3 * dx, fy + 14 * dy), RING_COL, 1, cv2.LINE_AA, SHIFT)
+        cv2.circle(img, _P(fx, fy), int(3 * S), LINE_COL, -1, cv2.LINE_AA, SHIFT)
     cv2.rectangle(img, (b["left"], int(CENTER[1]) - 3), (b["right"] - 1, int(CENTER[1]) + 3), LINE_COL, -1)
     cv2.circle(img, _P(*CENTER), int(6 * S), (60, 60, 60), -1, cv2.LINE_AA, SHIFT)
     cv2.circle(img, _P(*CENTER), int(4.5 * S), (150, 150, 140), -1, cv2.LINE_AA, SHIFT)
@@ -55,7 +67,7 @@ def background() -> np.ndarray:
 
 def puck_path() -> list:
     """Truth (u, v) per frame. Rests 20 frames, then glides with drag and bounces off the boards."""
-    u, v = 420.0, 400.0
+    u, v = 470.0, 380.0
     vu, vv = 0.0, 0.0
     lo_u, hi_u = BOARD["left"] + PUCK_R, BOARD["right"] - PUCK_R
     lo_v, hi_v = BOARD["top"] + PUCK_R, BOARD["bottom"] - PUCK_R
@@ -118,11 +130,14 @@ def render(out: Path) -> dict:
         u, v = path[f]
         min_pink = min(min_pink, math.hypot(u - pu, v - pv))
         cv2.circle(img, _P(u, v), int(PUCK_R * S), PUCK_COL, -1, cv2.LINE_AA, SHIFT)
+        if PAN[0] <= f < PAN[1]:
+            M = np.float32([[1, 0, PAN[2]], [0, 1, PAN[3]]])
+            img = cv2.warpAffine(img, M, (W, H), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
         wr.write(img)
         prev = img
         truth.append([u, v])
     wr.release()
     meta = {"frames": truth, "fps": FPS, "board": BOARD, "corner_r": CORNER_R, "center": CENTER, "dup_frame": DUP_FRAME,
-            "static_light": STATIC_LIGHT, "blink_spots": BLINK_SPOTS, "min_puck_pink_px": min_pink}
+            "static_light": STATIC_LIGHT, "blink_spots": BLINK_SPOTS, "min_puck_pink_px": min_pink, "pan": PAN}
     out.with_suffix(".truth.json").write_text(json.dumps(meta))
     return meta

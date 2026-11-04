@@ -193,15 +193,19 @@ def annotate(bgr: np.ndarray, m: RinkMap, lm_center, drift_max: float) -> np.nda
     arrow(m.x_axis_px, (0, 0, 255), "+x")
     arrow(m.y_axis_px, (0, 255, 0), "+y")
     cv2.drawMarker(img, (int(round(u0)), int(round(v0))), (255, 255, 255), cv2.MARKER_CROSS, 24, 1)
-    lu, lv = lm_center
-    cv2.rectangle(img, (int(lu - 40), int(lv - 40)), (int(lu + 40), int(lv + 40)), (0, 128, 255), 2)
+    for lu, lv in m.extra.get("drift", {}).get("landmark_px", []):
+        cv2.rectangle(img, (int(lu - 40), int(lv - 40)), (int(lu + 40), int(lv + 40)), (0, 128, 255), 2)
+    for v in m.extra.get("shape", {}).get("circles", {}).get("fits", {}).values():
+        if v:
+            cv2.ellipse(img, ((v["center_px"][0], v["center_px"][1]), (v["axes_px"][0], v["axes_px"][1]), v["angle_deg"]), (0, 0, 255), 1, cv2.LINE_AA)
     lines = [
         m.clip,
         f"origin (center dot) = ({u0:.1f}, {v0:.1f}) px",
         f"board L x W = {m.board_length_px:.1f} x {m.board_width_px:.1f} px, corner r = {m.corner_radius_px:.1f} px",
         f"m/px = {m.m_per_px:.5f} (PLACEHOLDER rink_length)",
         f"L/W measured {m.extra['length_width_ratio']['measured']:.3f} vs params {m.extra['length_width_ratio']['params']:.3f}",
-        f"max camera drift {drift_max:.2f} px (orange box = landmark)",
+        f"raw camera drift {drift_max:.2f} px (orange boxes = camera landmarks, red = circle fits)",
+        f"circles v/h {m.extra['shape']['circles']['summary']['v_over_h_mean']:.4f} (1 = top-down)",
     ]
     for k, t in enumerate(lines):
         cv2.putText(img, t, (20, 140 + 34 * k), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 5)
@@ -245,7 +249,43 @@ def build_map(ref: np.ndarray, name: str, fps: float, frame_count: int, params: 
     return m
 
 
+def shape_block(ref: np.ndarray, m: RinkMap) -> dict:
+    """Circles (camera check), grey lines, net roofs, faceoff layout: pixels and placeholder-scale meters."""
+    from .shape import circles, grey_lines
+    from .track import net_zones
+
+    ice = detect_ice(ref)
+    circ = circles(ref, ice, m.origin_px, m.board_px)
+    lines = grey_lines(ref, ice, m.board_px)
+    u0, v0 = m.origin_px
+    mpp = m.m_per_px
+    out = {"circles": circ, "grey_lines_v_px": [round(x, 3) for x in lines]}
+    if len(lines) == 4:
+        out["goal_line_x_m"] = round(0.5 * ((v0 - lines[0]) + (lines[3] - v0)) * mpp, 4)
+        out["blue_line_x_m"] = round(0.5 * ((v0 - lines[1]) + (lines[2] - v0)) * mpp, 4)
+    zones = net_zones(ref, m, pad=0)
+    out["net_roofs_px"] = zones
+    if len(zones) == 2 and len(lines) == 4:
+        (a, b_) = sorted(zones, key=lambda z: z[1])
+        out["net_width_m"] = round(0.5 * ((a[2] - a[0]) + (b_[2] - b_[0])) * mpp, 4)
+        # depth: goal line to the back of the roof (roof is above the ice: perspective may inflate it slightly)
+        out["net_depth_m"] = round(0.5 * ((lines[0] - a[1]) + (b_[3] - lines[3])) * mpp, 4)
+        out["net_center_u_offset_px"] = round(0.5 * ((a[0] + a[2]) + (b_[0] + b_[2])) / 2 - u0, 2)
+    fo = [v for k, v in circ["fits"].items() if k.startswith("faceoff") and v]
+    if len(fo) == 4:
+        out["faceoff_x_m"] = round(float(np.mean([abs(v0 - f["center_px"][1]) for f in fo])) * mpp, 4)
+        out["faceoff_y_m"] = round(float(np.mean([abs(u0 - f["center_px"][0]) for f in fo])) * mpp, 4)
+        out["faceoff_circle_radius_m"] = round(float(np.mean([f["horizontal_diameter_px"] + f["vertical_diameter_px"] for f in fo])) / 4 * mpp, 4)
+    if circ["fits"].get("center"):
+        c = circ["fits"]["center"]
+        out["center_circle_radius_m"] = round((c["horizontal_diameter_px"] + c["vertical_diameter_px"]) / 4 * mpp, 4)
+    out["note"] = "meters use the PLACEHOLDER scale (params rink_length / board px); ratios are scale-free"
+    return out
+
+
 def run_map(clip: Path, out_dir: Path, params_path: Path, bg_dir: Path | None = None) -> RinkMap:
+    from .camera import Camera, LIMIT_PX, landmark_points
+
     params = load_params(params_path)
     cap, info = open_clip(clip)
     cap.release()
@@ -255,22 +295,38 @@ def run_map(clip: Path, out_dir: Path, params_path: Path, bg_dir: Path | None = 
     cv2.imwrite(str(bg_path), ref)
     m = build_map(ref, info.name, info.fps, info.frame_count, params)
 
+    m.extra["shape"] = shape_block(ref, m)
+    # Camera: 4 faceoff-dot landmarks (on the ice) once per second. Raw drift = median landmark shift; the frame
+    # is then shifted back and re-measured (residual = what a translation cannot fix).
+    cam = Camera(ref, landmark_points(m))
+    samples = []
+    for i, f in iter_frames(clip, every=max(1, int(round(info.fps)))):
+        s = cam.measure(f)
+        rec = {"frame": i, "t": round(i / info.fps, 3), "du": round(s.du, 3), "dv": round(s.dv, 3), "landmarks": s.found, "spread_px": round(min(s.residual, 999.0), 3)}
+        if s.found >= 3:
+            s2 = cam.measure(Camera.undo(f, s))
+            rec["residual_px"] = round(max(s2.magnitude, s2.residual) if s2.found >= 3 else 999.0, 3)
+        else:
+            rec["residual_px"] = 999.0
+        samples.append(rec)
+    raw = [math.hypot(r["du"], r["dv"]) for r in samples if r["landmarks"] >= 3]
+    max_drift = max(raw) if raw else float("inf")
+    bad = [r for r in samples if r["residual_px"] > LIMIT_PX]
+    max_res = max((r["residual_px"] for r in samples if r["residual_px"] < 999), default=float("inf"))
+    ok = bool(raw) and len(bad) <= 0.1 * len(samples)
     lm = landmark_center(m.board_px, m.corner_radius_px)
-    samples = measure_drift(clip, cv2.cvtColor(ref, cv2.COLOR_BGR2GRAY), lm, info.fps)
-    found = [s for s in samples if s["score"] >= 0.5]
-    drifts = [math.hypot(s["du"], s["dv"]) for s in found]
-    max_drift = max(drifts) if drifts else float("inf")
-    lost = len(samples) - len(found)
-    ok = bool(found) and max_drift <= DRIFT_LIMIT_PX and lost <= 0.1 * len(samples)
     m.extra["drift"] = {
-        "landmark": "top-left inner board corner (81x81 px patch at the 45-degree point of the arc)",
-        "landmark_px": [round(lm[0], 2), round(lm[1], 2)],
+        "landmarks": "4 end-zone faceoff dots (81x81 px patches, painted on the ice); shift = median",
+        "landmark_px": [list(map(float, p)) for p in cam.points],
         "interval_s": 1.0,
         "samples": len(samples),
-        "not_found": lost,
         "max_px": round(max_drift, 3),
-        "limit_px": DRIFT_LIMIT_PX,
+        "camera_moves": bool(max_drift > LIMIT_PX),
+        "max_residual_after_correction_px": round(max_res, 3),
+        "uncorrectable_samples": len(bad),
+        "limit_px": LIMIT_PX,
         "ok": ok,
+        "correction": "track shifts every frame back by its measured translation; frames whose residual stays above the limit are dropped",
         "per_second": samples,
     }
     m.extra["background_png"] = str(bg_path.name)
@@ -279,15 +335,27 @@ def run_map(clip: Path, out_dir: Path, params_path: Path, bg_dir: Path | None = 
     cv2.imwrite(str(out_dir / f"{info.name}.map.png"), annotate(ref, m, lm, max_drift))
 
     u0, v0 = m.origin_px
+    sh = m.extra["shape"]
+    cs = sh["circles"]["summary"]
     print(f"[map] origin (center dot) = ({u0:.2f}, {v0:.2f}) px; board center = {m.extra['board_center_px']}")
     print(f"[map] inner board: L = {m.board_length_px:.2f} px (screen vertical), W = {m.board_width_px:.2f} px, corner r = {m.corner_radius_px:.1f} px")
     print(f"[map] scale: {m.m_per_px:.6f} m/px  <- {m.scale_source}")
     print(f"[map] {fmt_ratio(m.board_length_px / m.board_width_px, params)}")
-    print(f"[map] camera drift: max {max_drift:.3f} px over {len(samples)} one-second samples ({lost} landmark misses), limit {DRIFT_LIMIT_PX} px")
+    print(
+        f"[map] circles ({cs['n']} fitted): vertical/horizontal diameter ratio {cs['v_over_h_min']:.4f}..{cs['v_over_h_max']:.4f} "
+        f"(mean {cs['v_over_h_mean']:.4f}) -> {'ROUND: top-down camera, one scale for x and y' if cs['round'] else 'NOT ROUND: camera is tilted'}"
+    )
+    for k, v in sh["circles"]["fits"].items():
+        if v:
+            print(f"[map]   {k:9s} at ({v['center_px'][0]:.1f}, {v['center_px'][1]:.1f}): h {v['horizontal_diameter_px']:.2f} px, v {v['vertical_diameter_px']:.2f} px, v/h {v['v_over_h']:.4f}, rms {v['fit_rms_px']:.3f} px")
+    print(
+        f"[map] camera: raw drift max {max_drift:.3f} px over {len(samples)} one-second samples; after translation correction "
+        f"max residual {max_res:.3f} px; {len(bad)} uncorrectable samples (limit {LIMIT_PX} px)"
+    )
     print(f"[map] wrote {out_dir / (info.name + '.map.json')} and .map.png")
+    if not cs["round"]:
+        m.extra["scale_note"] = "CIRCLES NOT ROUND: separate x/y scales stored; every speed is distorted"
+        print("[map] !!! WARNING: CIRCLES ARE NOT ROUND. The camera is not top-down; x and y scales differ. Nothing was corrected. !!!")
     if not ok:
-        raise MapError(
-            f"camera drift check FAILED for {info.name}: max {max_drift:.2f} px (limit {DRIFT_LIMIT_PX}), "
-            f"{lost}/{len(samples)} landmark misses. Every later number assumes a fixed camera."
-        )
+        raise MapError(f"camera check FAILED for {info.name}: {len(bad)}/{len(samples)} samples cannot be corrected to <= {LIMIT_PX} px")
     return m

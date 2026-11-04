@@ -18,7 +18,7 @@ import cv2
 import numpy as np
 
 from .geometry import CONVENTION, RinkMap, load_params
-from .rinkmap import DRIFT_LIMIT_PX, landmark_center, match_landmark
+from .camera import LIMIT_PX as DRIFT_LIMIT_PX, Camera, landmark_points
 from .video import iter_frames, median_frame, open_clip
 
 # Puck color: saturated green (OpenCV hue 0..180).
@@ -59,7 +59,11 @@ def net_zones(bg_bgr: np.ndarray, m: RinkMap, pad: int = 8) -> list[list[int]]:
     u0 = m.origin_px[0]
     zones = []
     for end, near in (("top", lambda v: v - b["top"] < 0.25 * L), ("bottom", lambda v: b["bottom"] - v < 0.25 * L)):
-        boxes = [st[i] for i in range(1, n) if st[i][4] >= 200 and near(cen[i][1]) and abs(cen[i][0] - u0) < 0.3 * W]
+        # Net roofs: big (the real ones are ~100 x 45 px) and on the long axis (faceoff marks are off-axis).
+        big = [i for i in range(1, n) if st[i][4] >= 1500 and near(cen[i][1]) and abs(cen[i][0] - u0) < 0.15 * W]
+        # Pieces of the same roof (the texture can split) are merged if they overlap the big box's columns.
+        boxes = [st[i] for i in range(1, n) if near(cen[i][1]) and st[i][4] >= 200 and any(
+            st[i][0] < st[j][0] + st[j][2] + 20 and st[j][0] < st[i][0] + st[i][2] + 20 and abs(cen[i][1] - cen[j][1]) < 60 for j in big)]
         if boxes:
             zones.append([
                 int(min(x for x, *_ in boxes)) - pad, int(min(y for _, y, *_ in boxes)) - pad,
@@ -246,42 +250,69 @@ def runs(frames: list[int]) -> list[tuple[int, int]]:
     return [tuple(r) for r in out]
 
 
-def track_video(path: Path, m: RinkMap, bg: np.ndarray, max_step_px: float, check_camera: bool = True):
-    """Returns (rows, report). rows: list of dicts per output frame."""
+def track_video(path: Path, m: RinkMap, bg: np.ndarray, max_step_px: float, correct_camera: bool = True):
+    """Returns (rows, report). rows: list of dicts per output frame.
+
+    Camera: every frame's translation against the reference is measured from the faceoff landmarks and
+    undone before detection, so all positions are in reference-frame pixels. Every 10th corrected frame
+    is re-measured (the residual). Frames that cannot be corrected to <= DRIFT_LIMIT_PX are dropped.
+    With correct_camera=False, frames are only checked and those drifting > the limit are dropped."""
     allowed = m.rink_mask(margin_px=8.0) > 0  # the puck overlaps the board edge on screen
     zones = net_zones(bg, m)
     for x0, y0, x1, y1 in zones:
         allowed[max(y0, 0) : y1, max(x0, 0) : x1] = False
     det = Detector(allowed, static=static_exclusion(bg))
-    lm = landmark_center(m.board_px, m.corner_radius_px)
-    gray_bg = cv2.cvtColor(bg, cv2.COLOR_BGR2GRAY)
-    cu, cv_ = int(round(lm[0])), int(round(lm[1]))
-    tmpl = gray_bg[cv_ - 40 : cv_ + 41, cu - 40 : cu + 41]
+    cam = Camera(bg, landmark_points(m))
     cands: dict[int, list] = {}
-    drift: dict[int, float] = {}
+    drift: dict[int, float] = {}  # raw per-frame camera shift magnitude
+    shifts: dict[int, tuple[float, float]] = {}
+    residuals: list[float] = []  # re-measured after correction (every 10th frame)
+    uncorrectable: list[int] = []
     n = 0
     for i, f in iter_frames(path):
         n = i + 1
-        if check_camera:
-            ya, xa = max(cv_ - 61, 0), max(cu - 61, 0)
-            crop = cv2.cvtColor(f[ya : cv_ + 62, xa : cu + 62], cv2.COLOR_BGR2GRAY)
-            du, dv, sc = match_landmark(crop, tmpl, (cu - xa, cv_ - ya), search=20)
-            drift[i] = math.hypot(du, dv) if sc >= 0.5 else float("inf")
+        sh = cam.measure(f)
+        drift[i] = sh.magnitude if sh.found >= 3 else float("inf")
+        if correct_camera:
+            if not sh.ok:
+                uncorrectable.append(i)
+                cands[i] = []
+                continue
+            f = Camera.undo(f, sh)
+            shifts[i] = (sh.du, sh.dv)
+            if i % 10 == 0:
+                s2 = cam.measure(f)
+                residuals.append(max(s2.magnitude, s2.residual) if s2.found >= 3 else float("inf"))
+                if residuals[-1] > DRIFT_LIMIT_PX:
+                    uncorrectable.append(i)
+        elif drift[i] > DRIFT_LIMIT_PX:
+            uncorrectable.append(i)
         cands[i] = det.candidates(f)
+    # Drop whole uncorrectable stretches: a frame between two bad frames <= 10 apart is dropped too.
+    bad = set(uncorrectable)
+    ub = sorted(bad)
+    for a, b in zip(ub, ub[1:]):
+        if b - a <= 10:
+            bad.update(range(a, b))
+    for i in bad:
+        cands[i] = []
     tracklets = link(cands, max_step_px)
     chosen = select_puck(tracklets)
-    moved = sorted(i for i, d in drift.items() if d > DRIFT_LIMIT_PX)
-    moved_set = set(moved)
-    chosen = {f: p for f, p in chosen.items() if f not in moved_set}
+    moved = sorted(bad)
+    raw_moved = sorted(i for i, d in drift.items() if d > DRIFT_LIMIT_PX)
     # Duplicated capture frames: the recording repeats a frame now and then, so a moving puck shows
     # zero motion for one frame. That row carries a stale position and wrong time: drop it.
+    # Compare with the previous KEPT row, so runs of 2+ repeated frames are all dropped.
     dups = []
+    kept: list[int] = []
     for f in sorted(chosen):
-        a, b = chosen.get(f - 2), chosen.get(f - 1)
         c = chosen[f]
-        if a and b and a[5] == b[5] == c[5]:
-            if math.hypot(c[0] - b[0], c[1] - b[1]) < DUP_EPS_PX and math.hypot(b[0] - a[0], b[1] - a[1]) > 1.0:
+        if len(kept) >= 2 and f - kept[-1] <= 3:
+            a, b = chosen[kept[-2]], chosen[kept[-1]]
+            if a[5] == b[5] == c[5] and math.hypot(c[0] - b[0], c[1] - b[1]) < DUP_EPS_PX and math.hypot(b[0] - a[0], b[1] - a[1]) > 1.0:
                 dups.append(f)
+                continue
+        kept.append(f)
     for f in dups:
         del chosen[f]
     filled = fill_gaps(chosen, set(dups))
@@ -292,7 +323,9 @@ def track_video(path: Path, m: RinkMap, bg: np.ndarray, max_step_px: float, chec
         u, v, tid, interp = filled[f]
         x, y = m.px_to_m(u, v)
         c = 0.0 if interp else confidence(chosen[f][2], chosen[f][3], area_ref)
-        rows.append({"frame": f, "t": f / m.fps, "u": u, "v": v, "x": float(x), "y": float(y), "conf": c, "interpolated": interp, "tracklet": tid})
+        shu, shv = shifts.get(f, (0.0, 0.0))
+        area = 0 if interp else chosen[f][2]
+        rows.append({"frame": f, "t": f / m.fps, "u": u, "v": v, "x": float(x), "y": float(y), "conf": c, "interpolated": interp, "tracklet": tid, "shift_u": shu, "shift_v": shv, "area": area})
 
     # ---- report
     det_frames = sorted(chosen)
@@ -327,9 +360,18 @@ def track_video(path: Path, m: RinkMap, bg: np.ndarray, max_step_px: float, chec
         "duplicate_frames_dropped": len(dups),
         "duplicate_frames": dups,
         "step_jitter": step_jitter(steps),
+        "camera_correction": correct_camera,
+        "camera_moved_frames_raw": len(raw_moved),
+        "frames_kept_without_correction": n - len(raw_moved),
         "camera_moved_frames": len(moved),
         "camera_moved_ranges": runs(moved),
-        "max_camera_drift_px": (max(drift.values()) if drift else None),
+        "frames_kept": n - len(moved),
+        "max_camera_drift_px": (max((d for d in drift.values() if d != float("inf")), default=None)),
+        "camera_residual_after_correction_px": {
+            "samples": len(residuals),
+            "max": max((r for r in residuals if r != float("inf")), default=None),
+            "p99": float(np.percentile([r for r in residuals if r != float("inf")], 99)) if residuals else None,
+        },
         "max_step_px_gate": max_step_px,
         "max_step_px_observed": max((s for _, s in steps), default=0.0),
         "step_px_p99": float(np.percentile([s for _, s in steps], 99)) if steps else 0.0,
@@ -354,7 +396,7 @@ def write_csv(rows: list[dict], path: Path) -> None:
     Path(path).write_text("\n".join(lines) + "\n")
 
 
-def run_track(clip: Path, out_dir: Path, params_path: Path, max_step_px: float | None = None, stable_frames_only: bool = False):
+def run_track(clip: Path, out_dir: Path, params_path: Path, max_step_px: float | None = None, correct_camera: bool = True):
     params = load_params(params_path)
     _, info = open_clip(clip)
     map_path = out_dir / f"{info.name}.map.json"
@@ -362,11 +404,8 @@ def run_track(clip: Path, out_dir: Path, params_path: Path, max_step_px: float |
         raise FileNotFoundError(f"{map_path} missing; run `python -m measure map {clip}` first")
     m = RinkMap.load(map_path)
     drift_ok = m.extra.get("drift", {}).get("ok", False)
-    if not drift_ok and not stable_frames_only:
-        raise RuntimeError(
-            f"{info.name}: the map's camera drift check failed; refusing to track. Pass --stable-frames-only "
-            f"to keep only frames whose own landmark drift is <= {DRIFT_LIMIT_PX} px."
-        )
+    if not drift_ok:
+        raise RuntimeError(f"{info.name}: the map's camera check failed (camera motion not correctable by translation); refusing to track.")
     bg_path = clip.parent / m.extra.get("background_png", f"{info.name}.bg.png")
     bg = cv2.imread(str(bg_path)) if bg_path.exists() else median_frame(clip)
     cap = max(params["max_puck_speed_ice_dash"], params["max_puck_speed_ice_normal"], params["max_puck_speed_air"])
@@ -376,7 +415,7 @@ def run_track(clip: Path, out_dir: Path, params_path: Path, max_step_px: float |
     else:
         gate_src = "command line --max-step-px"
     print(f"[track] {info.name}: {info.frame_count} frames, gate {max_step_px:.1f} px/frame ({gate_src})")
-    rows, rep = track_video(clip, m, bg, max_step_px)
+    rows, rep = track_video(clip, m, bg, max_step_px, correct_camera=correct_camera)
 
     out_dir.mkdir(parents=True, exist_ok=True)
     write_csv(rows, out_dir / f"{info.name}.traj.csv")
@@ -394,7 +433,7 @@ def run_track(clip: Path, out_dir: Path, params_path: Path, max_step_px: float |
         "m_per_px": m.m_per_px,
         "z": "always 0: a top-down view cannot see height (a lifted puck also appears displaced toward the camera)",
         "map_drift_ok": drift_ok,
-        "stable_frames_only": stable_frames_only,
+        "camera_correction": "per-frame translation from the faceoff landmarks, undone before detection; u_px/v_px are reference-frame pixels, shift_u/shift_v the frame's measured shift" if correct_camera else "off: frames drifting > limit dropped",
         "detector": {
             "hsv_green": [HUE_LO, HUE_HI, SAT_MIN, VAL_MIN],
             "blob_area_px": [AREA_MIN, AREA_MAX],
@@ -419,6 +458,9 @@ def run_track(clip: Path, out_dir: Path, params_path: Path, max_step_px: float |
             "conf": [round(r["conf"], 3) for r in rows],
             "interpolated": [int(r["interpolated"]) for r in rows],
             "tracklet": [r["tracklet"] for r in rows],
+            "area_px": [r["area"] for r in rows],
+            "shift_u": [round(r["shift_u"], 3) for r in rows],
+            "shift_v": [round(r["shift_v"], 3) for r in rows],
         },
     }
     (out_dir / f"{info.name}.track.json").write_text(json.dumps(meta, separators=(",", ":")) + "\n")
@@ -428,8 +470,14 @@ def run_track(clip: Path, out_dir: Path, params_path: Path, max_step_px: float |
         f"{s['frames_interpolated']} interpolated, longest gap {s['longest_gap_frames']} frames "
         f"({s['longest_gap_frames'] / m.fps:.2f} s) at {s['longest_gap_range']}"
     )
+    cr = s["camera_residual_after_correction_px"]
+    print(
+        f"[track] camera: raw drift max {s['max_camera_drift_px']:.2f} px; frames kept without correction {s['frames_kept_without_correction']}/{s['frames_total']}, "
+        f"with correction {s['frames_kept']}/{s['frames_total']}; residual after correction max {cr['max'] if cr['max'] is None else round(cr['max'], 3)} px, "
+        f"p99 {cr['p99'] if cr['p99'] is None else round(cr['p99'], 3)} px over {cr['samples']} re-measured frames"
+    )
     if s["camera_moved_frames"]:
-        print(f"[track] detection rate among camera-stable frames: {s['detection_rate_stable_frames'] * 100:.1f}% ({s['camera_moved_frames']} frames dropped for camera drift > {DRIFT_LIMIT_PX} px)")
+        print(f"[track] detection rate among kept frames: {s['detection_rate_stable_frames'] * 100:.1f}% ({s['camera_moved_frames']} uncorrectable frames dropped)")
     print(
         f"[track] {s['tracklets_puck']} puck segments of {s['tracklets_total']} tracklets; "
         f"steps: max {s['max_step_px_observed']:.1f} px, p99 {s['step_px_p99']:.1f} px (gate {max_step_px:.1f}); "
@@ -437,8 +485,7 @@ def run_track(clip: Path, out_dir: Path, params_path: Path, max_step_px: float |
     )
     print(
         f"[track] speed outliers (> {speed_cap:g} m/s): {len(outliers)} {outliers[:10]}; back-and-forth spikes: "
-        f"{len(s['spike_frames'])} {s['spike_frames'][:10]}; camera-moved frames dropped: {s['camera_moved_frames']} "
-        f"(max per-frame drift {s['max_camera_drift_px']:.2f} px)"
+        f"{len(s['spike_frames'])} {s['spike_frames'][:10]}; uncorrectable frames dropped: {s['camera_moved_frames']}"
     )
     print(f"[track] wrote {out_dir / meta['csv']} ({len(rows)} rows) and {info.name}.track.json")
     return rows, meta

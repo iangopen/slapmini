@@ -1,0 +1,23 @@
+{
+  "name": "puck_02",
+  "description": "MEASURED (glide) from justpuckphysicshittingitatfixedpoint frames 226-278; placeholder meter scale; z unknown",
+  "steps": 104,
+  "initial_state": {
+    "tick": 0,
+    "puck": {
+      "x": 2.617024594244751,
+      "y": 2.0956889375684558,
+      "z": 0.0,
+      "vx": 20.094488698596006,
+      "vy": 17.76381758438709,
+      "vz": 0.0,
+      "in_net": null
+    },
+    "players": [],
+    "score": [
+      0,
+      0
+    ]
+  },
+  "inputs": []
+}

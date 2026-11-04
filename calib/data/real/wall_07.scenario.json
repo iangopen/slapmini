@@ -1,0 +1,23 @@
+{
+  "name": "wall_07",
+  "description": "MEASURED (wall bounce) from justhittingwallphysicsfixedpoint frames 1658-1827; placeholder meter scale; z unknown",
+  "steps": 338,
+  "initial_state": {
+    "tick": 0,
+    "puck": {
+      "x": -0.5724742391088121,
+      "y": 16.487058882037,
+      "z": 0.0,
+      "vx": 4.080811617266757,
+      "vy": 6.369444002386963,
+      "vz": 0.0,
+      "in_net": null
+    },
+    "players": [],
+    "score": [
+      0,
+      0
+    ]
+  },
+  "inputs": []
+}

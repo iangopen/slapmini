@@ -1,0 +1,17 @@
+[package]
+name = "sim-wasm"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "wasm-bindgen wrapper around the slapmini sim"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+sim = { path = "../sim" }
+serde_json.workspace = true
+wasm-bindgen = "0.2"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

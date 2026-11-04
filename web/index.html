@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>slapmini feel lab</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <canvas id="rink"></canvas>
+    <aside id="panel">
+      <h1>feel lab</h1>
+      <section id="readout"></section>
+      <section>
+        <h2>Record / replay</h2>
+        <div class="row">
+          <button id="rec">Record</button>
+          <button id="replay" disabled>Replay</button>
+        </div>
+        <div class="row">
+          <button id="dl-scenario" disabled>Scenario .json</button>
+          <button id="dl-csv" disabled>Trajectory .csv</button>
+        </div>
+        <div class="row"><label>Load scenario <input id="load-scenario" type="file" accept=".json" /></label></div>
+        <div id="rec-status" class="muted"></div>
+      </section>
+      <section>
+        <h2>Ghost</h2>
+        <div class="row"><input id="ghost-file" type="file" accept=".csv" /></div>
+        <div class="row"><input id="ghost-scrub" type="range" min="0" max="0" value="0" disabled /> <span id="ghost-t">–</span></div>
+        <div class="row"><button id="ghost-clear" disabled>Clear ghost</button></div>
+      </section>
+      <section>
+        <h2>Practice tools <span class="badge approx">approximate</span></h2>
+        <ul class="muted keys" id="keys"></ul>
+      </section>
+      <section>
+        <h2>Params</h2>
+        <div class="row">
+          <button id="params-reset">Reset to file</button>
+          <button id="params-export">Export JSON</button>
+        </div>
+        <div id="params"></div>
+      </section>
+    </aside>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

@@ -4,7 +4,7 @@ A compressed, top-down 2.5D browser version of Slapshot: Rebound (WASD to move, 
 built to train RL bots. The physics must eventually match the real game. Ian is recording practice-mode clips for calibration.
 
 ## Architecture
-- Cargo workspace with `sim`, `calib` and `sim-wasm`. Commands are in README.md.
+- Cargo workspace with `sim`, `calib` and `sim-wasm`, plus `web/` (the feel lab: Vite + TypeScript, no framework). Commands are in README.md.
 - **sim** (pure, deterministic): `step(&mut State, &[PlayerInput], &Params)`. No I/O, no clock, no RNG. Trig goes through `libm`, so native and wasm give identical bits.
   Deps: serde, serde_json, libm. `params.json` is embedded with `include_str!` as `Params::default()`.
   - `State { tick, puck: Puck{x,y,z,vx,vy,vz,in_net}, players: Vec<Player>, score }`. The player count is not hardcoded (`State::new_default(p, n)`, tested with 6).
@@ -19,7 +19,20 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
 - **calib**: library + CLI (`eval`, `fit`, `synth`, `replay`). It replays a scenario, interpolates the sim at the CSV times, and reports pos RMSE (3D, m), speed RMSE (finite differences, m/s) and an optional stick RMSE.
   The fitter is Nelder-Mead in start-value-scaled coordinates. Objective = Σ pos_rmse² + 0.1·speed_rmse². Fitted names get provenance `fitted` in the output file.
   Synthetic self-check data (generated from the sim itself) is in `calib/data/`.
-- **sim-wasm**: a `Sim` class with `new(params_json, n_players)`, `step(inputs_json)`, `get_state()`, `set_state(json)` and `state_hash()`. JSON crosses the boundary in the same shapes as scenario files.
+- **sim-wasm**: a `Sim` class with `new(params_json, n_players)`, `step(inputs_json)`, `get_state()`, `set_state(json)`, `set_params(json)`, `get_params()`, `reset(scenario_json)` (loads `initial_state`) and `state_hash()`. JSON crosses the boundary in the same shapes as params.json and scenario files.
+- **web/** feel lab. `npm run wasm` builds sim-wasm into `web/wasm-pkg/` (gitignored). `npm run dev` serves it, and `npm run build` (wasm + tsc + vite) writes a static `web/dist/` with relative paths. `npm run verify` is the Playwright check.
+  - The app imports the repo-root `params.json` directly, so param edits show up without a wasm rebuild.
+  - `src/lab.ts`: sim owner with no DOM. Covers stepping, record/replay and practice tools.
+  - `src/loop.ts`: fixed-step accumulator, capped at 5 steps per advance; the overflow is dropped and counted. It doesn't render, so it can run headless.
+  - `src/render.ts`: pure drawing. `src/panel.ts`: param inputs. `src/main.ts`: wiring, plus the only wall-clock reads (`performance.now`).
+  - `src/bindings.ts`: every key binding in one file.
+  - Rendering: rink from params (blue lines, faceoff spots and the speed scale are DISPLAY ONLY params).
+    The puck goes blue → red as z goes from 0 to 2 m, and its shadow grows and offsets with z. The puck is drawn at a 6 px minimum radius (display only).
+    The stick is drawn at its actual angle, with a faint dashed line at the target angle.
+  - Record: snapshots `initial_state` and logs an input event whenever a player's input changes. Samples t,x,y,z,stick_angle each step in the calib CSV format.
+    Replay: `reset(scenario)` and then feeds the events. Keyboard and mouse are ignored during replay.
+  - Practice tools change the state only in play mode; they are disabled while recording or replaying, so recordings stay pure input streams.
+  - Ghost: loads a CSV, draws its path faded, and the scrub slider moves a marker along it.
 
 ## Verified (2026-11-03, Windows, rustc 1.99.1 GNU toolchain)
 - `cargo build --release` and `cargo test --workspace` pass (14 tests).
@@ -27,22 +40,39 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
 - Determinism: two 100k-step runs give byte-identical states. **Native and wasm (Node) hashes match after 100k steps** (`c93c94a203a58d2d`).
 - Benchmark (release, single thread): about 4.4M steps/s with 2 players and about 1.7M steps/s with 6.
 - `wasm-pack build sim-wasm --release --target web` succeeds. wasm-opt is disabled in Cargo metadata to avoid the binaryen download.
+- Feel lab (`npm run build` passes; `npm run verify` reports VERIFY OK, headless Chromium):
+  - The stick chases the mouse: a gap of 1.56 rad on the step the target moved, closing over about 40 steps with a small overshoot.
+  - The same stick hit (launch 20.63 m/s both times) slides 32.94 m at friction 1.0 and 26.52 m at 2.5, with friction changed through the DOM panel.
+  - F held 1.5 s raised the spawn to about 2.3 m. After release the puck landed after 82 steps (0.683 s), against 0.692 s predicted for free fall, then bounced.
+  - A recorded run and its replay produced byte-identical trajectory CSVs (same sha256).
+  - `calib eval` on the lab-recorded scenario and CSV gives pos RMSE 2e-16, so lab recordings and calib formats need no conversion and native Rust reproduces the wasm run.
+  - Screenshots are written to `web/verify-out/` (gitignored). They were checked by eye: rink, puck at rest, mid-slide, high spawn (red puck, big offset shadow), landed, ghost.
 
 ## Placeholder / unmeasured – EVERYTHING physical
 - **Every value in params.json is unmeasured** (provenance `placeholder`): timestep, substeps, gravity, rink size and corner radius, net position and size, puck radius and mass, all friction/drag/restitution values, player accel/speed/drag/turn, stick length/mass/angular limits/z-range, all three puck speed caps, dash and lift numbers. Rink and net dimensions are invented.
 - **Dash logic is a placeholder**: on the press edge it adds a velocity impulse along the move input (or facing) and opens a `dash_duration` window in which hits count as dash shots, then a cooldown applies.
 - **Lift logic is a placeholder**: holding lift at stick contact sets vz = `lift_vz_factor`·speed (capped), and dash + lift caps the hit at `chip_max_speed` (the "chip").
   The real mechanic (dash + lift + slight rotation → low-speed chip) is unknown.
+- **Key bindings are UNVERIFIED GUESSES**: dash = Shift and lift = Space (`web/src/bindings.ts`). The real game's bindings have not been checked.
+- **Practice tools are APPROXIMATE**, written from patch notes and not checked against the real game:
+  - **F**: sets the puck spawn at the cursor (z = 0). Holding F raises the spawn at 1.5 m/s up to 6 m, with the puck pinned there; release drops it.
+  - **G**: sets a target marker at the cursor. The panel shows the puck's closest approach.
+  - **R**: puts the puck back at the spawn, at rest.
+  - **Q**: slides the puck along the ice toward a "forehand" point near the blade on the CCW side of the stick (handedness unknown), sized to arrive at about 3 m/s and capped at 20 m/s.
+- Display-only placeholders: `blue_line_x`, `faceoff_x`, `faceoff_y`, `faceoff_circle_radius` and `speed_display_scale` (the real-game speed per sim m/s used for the mph/kph readout; 1.0 is a guess).
 - Model simplifications that are still open: boards are infinitely tall, the net has no top bar, there is no puck spin, and no stick-on-stick or stick-on-player collision. Facing simply follows velocity. Goals only increment the score (no reset).
 
 ## Open
 - Real calibration data (practice-mode clips → scenario + CSV).
-- Rendering, menu, scripted bots and training (later sessions).
+- Menu, scripted bots and training (later sessions). Measurement pipeline for real clips → ghost CSVs.
+- Opponent player is idle in the lab. Panel edits mark a row as changed but keep the provenance tag (they are experiments, not fits).
+- Practice-tool actions are not recordable (they are state edits). Set up the drill first, then record.
 
 ## Environment notes
 - On Ian's Windows machine the MSVC toolchain can't link (no Windows SDK), so the repo has a local `rustup override set stable-x86_64-pc-windows-gnu`. That override lives in rustup settings, not the repo.
   The minimal GNU toolchain has no `dlltool`, so wasm-pack came from npm (`npm i -g wasm-pack`).
 - Run cargo from PowerShell. In Git Bash, GNU `/usr/bin/link` shadows MSVC `link.exe`.
+- Playwright Chromium is installed with `npx playwright install chromium` (in web/). verify.mjs kills the Vite process tree with `taskkill /T` on Windows.
 
 ## Fidelity log
 (Each later session records per-scenario error versus the real game here.)

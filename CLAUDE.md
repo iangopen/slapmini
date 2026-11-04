@@ -4,7 +4,7 @@ A compressed, top-down 2.5D browser version of Slapshot: Rebound (WASD to move, 
 built to train RL bots. The physics must eventually match the real game. Ian is recording practice-mode clips for calibration.
 
 ## Architecture
-- Cargo workspace with `sim`, `calib` and `sim-wasm`, plus `web/` (the feel lab: Vite + TypeScript, no framework) and `measure/` (Python: real clips → trajectory CSVs). Commands are in README.md.
+- Cargo workspace with `sim`, `calib`, `sim-wasm`, `bots` and `sim-ffi` (see "Bots and training"), plus `train/` (Python PPO), plus `web/` (the feel lab: Vite + TypeScript, no framework) and `measure/` (Python: real clips → trajectory CSVs). Commands are in README.md.
 - **sim** (pure, deterministic): `step(&mut State, &[PlayerInput], &Params)`. No I/O, no clock, no RNG. Trig goes through `libm`, so native and wasm give identical bits.
   Deps: serde, serde_json, libm. `params.json` is embedded with `include_str!` as `Params::default()`.
   - `State { tick, puck: Puck{x,y,z,vx,vy,vz,in_net}, players: Vec<Player>, score }`. The player count is not hardcoded (`State::new_default(p, n)`, tested with 6).
@@ -158,7 +158,8 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
 ## Physics defaults (params.json, provenance `fitted`)
 - **params.json now carries the fitted puck params** (merged from params.fitted.json by `python -m measure merge`):
   **board_restitution 0.343, board_friction 0, ice_linear_drag 0.4725 1/s, ice_friction_decel 0** — all scale-free.
-  `params.placeholder.json` keeps the pre-merge file (placeholder physics, old 0.15 m puck) for tests that need it
+  `params.fitted.json` stays: `measure holdout` writes it and `measure merge` reads it (it carries the same rule keys as
+  params.json). `params.placeholder.json` keeps the pre-merge file (placeholder physics, old 0.15 m puck) for tests that need it
   (`puck_slides_to_stop_on_ice`); `calib/data/params.synthetic.json` stays the pin for the synthetic fitter data.
 - Fit (`python -m measure holdout`, staged, path objective, held out by clip; base = placeholder physics): A = ice_linear_drag
   (+ ice_friction_decel) on glides, B = board_restitution + board_friction on wall bounces with `--objective path-only`.
@@ -285,7 +286,7 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
 6. **Medium-speed glides**: long free glides from ~10 m/s down to rest across open ice (no board contact), to pin down the
    speed-dependence of the ice drag.
   Clips live on the `clip-data` branch; `clips/` is gitignored so clips never land on main.
-- Menu, scripted bots and training (later sessions).
+- Menu (later session). Scripted bots and the training pipeline exist ("Bots and training"); real training runs have not started.
 - Opponent player is idle in the lab. Panel edits mark a row as changed but keep the provenance tag (they are experiments, not fits).
 - Practice-tool actions are not recordable (they are state edits). Set up the drill first, then record.
 
@@ -393,7 +394,9 @@ Scale-free estimates (`python -m measure estimate` → `calib/data/real/estimate
   deceleration in 18 of 19 stretches. Unexplained: decel/v dips to 0.34–0.39 1/s for 50–112 px/s (≈3.3–7.4 m/s placeholder) vs ≈0.52 elsewhere.
   k (1/s) is scale-free; any constant friction term needs the meter scale.
 
-## Player (session s6, 2026-11-04, Linux cloud container) – video-only estimates
+## Player (session s6, 2026-11-04, Linux cloud container) – video-only estimates, PROVISIONAL
+**Provisional**: estimated from video without input logs; params.player.json is a reference only and is NOT merged into
+params.json (a better estimate from input-logged clips is coming). params.json keeps the placeholder player values.
 - Code (new files only): `measure/player.py` (`python -m measure.player {track,qa,estimate}`), `measure/player_motion.py`
   (events, estimates, params.player.json, sim check), `measure/player_synth.py` + `measure/tests/test_player.py` (synthetic video:
   moving pink disc with a stick crossing it, pink board lights + HUD badge, camera-follow stretch, duplicated frame; tracked < 1 px),
@@ -454,7 +457,7 @@ so ≥ 3 faceoff dots stay visible (the tracker follows the camera on them).
 
 ## Match rules (s8 session, 2026-11-04)
 - **Rules (Ian)**: 1v1, no goalie, a 5:00 clock, the team with more goals wins, mercy rule 5, a tie at 5:00 is decided by the next goal.
-- **Mercy interpretation (Ian, please confirm)**: `mercy_lead` = 5 is read as a **5-goal lead**: the match ends as soon as
+- **Mercy interpretation — UNCONFIRMED (Ian, please confirm)**: `mercy_lead` = 5 is read as a **5-goal lead**: the match ends as soon as
   |score0 − score1| ≥ 5 (5-0, 6-1, …). It is not "first to 5 goals": 5-4 or 5-1 play on. `mercy_lead ≤ 0` disables it.
 - **Values** (appended at the end of params.json, params.fitted.json and the pinned calib/data/params.synthetic.json, because
   `to_params` is strict; no physics value changed): `match_length_s` 300 and `mercy_lead` 5 have provenance **`rule`** (Ian's).
@@ -491,7 +494,7 @@ so ≥ 3 faceoff dots stay visible (the tracker follows the camera on them).
   inputs ignored in countdown and goal pause, 100k-step match determinism, native match crosscheck hash).
 - Determinism: a scripted 100k-step match (goals, pauses, mercy end) gives byte-identical states (hash `f3e066e94d96a5fb`).
   **Native and wasm match hashes match after 100k steps: `22f04837353ecb0b`** (`scripts/wasm_crosscheck.mjs` now runs both);
-  free play still `b3e351378683a6f4`. A lab-recorded match segment (goal pause → reset → countdown → play) replays byte-identically
+  free play still `b3e351378683a6f4` (both hashes are pre-merge; see "Integration of s6, s8, s9" for the current ones). A lab-recorded match segment (goal pause → reset → countdown → play) replays byte-identically
   in the lab and through native `calib replay` (same CSV sha256).
 - `npm run build`, `npm run verify` (VERIFY OK) and `npm run verify-match` (VERIFY MATCH OK: mercy 5-0, clock end 0-1, 1-1 at
   00:00 → overtime → 1-2). Screenshots `web/verify-out/match-*.png` checked by eye.
@@ -506,19 +509,20 @@ so ≥ 3 faceoff dots stay visible (the tracker follows the camera on them).
   matches beyond 2 players), a goal exactly at 0:00 (counted: goals on the last step score first), the opponent player still idle.
 
 ## Bots and training (session s9: bots/, sim-ffi/, train/)
-New crates and folders only; `sim`, `sim-wasm` and params.json are untouched. 1v1, no goalie. Nothing here is frozen:
-the physics is still being calibrated and match rules are landing in parallel.
+New crates and folders only (`sim`, `sim-wasm` and params.json were not changed by s9). 1v1, no goalie. Nothing here is frozen:
+the physics is still being calibrated. Since the integration merge the sim has match rules (`State.match_state`), but the
+training envs run in free play (match_state None).
 
 ### bots crate (pure Rust, deterministic, no I/O; deps sim + libm)
 - **Canonical frame** (`frame.rs`): every player sees the world as if it attacks +x. Team 0 = identity; team 1 = the world
   rotated 180° ((x, y) → (−x, −y), angles + π). The rink, nets and physics are symmetric under that rotation (a rotation,
   not a mirror, so stick spin direction is preserved), so one policy plays both sides. `rotate_swap(state)` rotates the
-  whole state and swaps teams/scores (tests).
+  whole state and swaps teams, scores and the match state's team indices (tests).
 - **Observation** (`obs.rs`, `OBS_DIM = 40`, `OBS_VERSION = 1`, f32, fixed normalization constants, not params-dependent):
   0–1 own x/30, y/20; 2–3 own v/14; 4–5 cos/sin facing; 6–7 cos/sin stick angle; 8 stick ω/14; 9 dash window/0.25 s;
   10 dash cooldown/1 s; 11–12 puck x/30, y/20; 13 puck z/2; 14–15 puck v/30; 16 puck vz/10; 17–18 (puck − own)/10;
   19–20 opponent x/30, y/20; 21–22 opponent v/14; 23–24 cos/sin opponent stick; 25 opponent ω/14; 26–27 (opponent − own)/10;
-  28 own goals/5; 29 opponent goals/5; 30 time left/300 s (**always 0** until match rules land: fill it in `observe`);
+  28 own goals/5; 29 opponent goals/5; 30 time left/300 s (**always 0**: the envs run free play; fill it from `match_state.clock_ticks` in `observe` when training on matches);
   31 dash ready (0/1); **32–39 style slot** (`STYLE_DIM = 8`, caller-supplied, zeros by default). Angles as (cos, sin) so the
   rotation is an exact sign flip. Changing any field or constant → bump `OBS_VERSION` (checkpoints refuse to load across it).
 - **Action** (`action.rs`, `ACT_DIM = 5`, canonical frame): move_x, move_y (−1..1), stick target angle (rad, canonical),
@@ -526,8 +530,9 @@ the physics is still being calibrated and match rules are landing in parallel.
 - **Scripted bots** (`scripted.rs`, trait `Bot`, enum `Scripted` by `Kind` id 0 chaser, 1 defender, 2 cautious, 3 idle):
   - shared `Striker`: picks a hitting spot beside the (predicted) puck, holds the stick cocked, and swings through the puck
     only when the swing will send it at the target. The shot model: the blade edge meets the puck asin(reach/r) before the
-    stick points at it, the push is along the blade normal, plus `SHOT_OVERTURN` 0.041 rad, from-rest speed `SHOT_SPEED`
-    19.7 m/s (both measured with `examples/shotlab.rs` at the current params; re-measure after physics changes). The swing
+    stick points at it, the push is along the blade normal, plus `SHOT_OVERTURN` 0.054 rad, from-rest speed `SHOT_SPEED`
+    18.9 m/s (both measured with `examples/shotlab.rs` on the fitted default params at the integration merge; they were
+    0.041 / 19.7 on the old placeholder physics; re-measure after physics changes). The swing
     target is only 0.6 rad past the puck so the bang-bang chase brakes and the faster blade tip does not hit it twice.
     Contact is quantized by the stick's per-substep rotation (14 rad/s → 0.058 rad per substep), so a moving player sees
     ±0.06 rad shot noise.
@@ -646,11 +651,44 @@ env at runtime (`set_reward_weights`, a vector in TERM_NAMES order).
   jitter now uses SplitMix64.
 
 ### Open (bots/training)
-- Match rules: obs field 30 (time left) is 0 and episodes end at the first goal; when the rules session lands, feed the
-  clock into `observe` and decide whether episodes become full matches (then bump OBS_VERSION if anything else changes).
+- Match rules are in the sim now, but obs field 30 (time left) is still 0 and episodes end at the first goal: decide whether
+  episodes become full matches (`State::new_match`), feed the clock into `observe` (bump OBS_VERSION if anything else changes).
 - Style-conditioned training is not started (hooks only, see "Style hooks"). Self-play has only been run in tests (3–5 updates).
 - The cautious bot is weak defensively; the scripted bots' shot constants (`SHOT_OVERTURN`, `SHOT_SPEED`) are tied to the
-  placeholder physics: re-run `shotlab` after a params change.
+  current params: re-run `shotlab` after a params change.
 - Browser side: no JS loader for the ONNX policies yet (onnxruntime-web, static files on GitHub Pages). The JS must build the
   same 40-float observation as `bots::observe` (port it, or expose `observe` through sim-wasm in a later session).
 - Windows/GPU path not run here (no GPU in the container); the commands are in README "Bots and training".
+
+## Integration of s6, s8, s9 into main (2026-11-04, Linux cloud container)
+- Merges (normal merge commits, no rebase): `0830666` origin/s6 (clean), `0e7806c` origin/s8, `fa525dd` origin/s9.
+- Conflicts: CLAUDE.md (s6/s8/s9 each appended a section: all kept, in that order); sim/tests/sim_tests.rs (main's FITTED
+  list + placeholder pin and s8's MATCH_RULES list: both kept, provenance check accepts measured-shape / fitted / rule /
+  placeholder). params.json, params.fitted.json, calib/data/params.synthetic.json auto-merged (main's values, s8's five rule
+  keys appended); params.placeholder.json (main-only) got the same five keys by hand so it still loads (`to_params` is strict).
+  params.player.json stays a separate provisional reference (not merged).
+- Fixes after the merge: `bots::rotate_swap` swaps `match_state.winner/last_goal`; the sim-ffi test now requires ≥ 75% of
+  scoring episodes to have a shot on net (with the 0.23 m puck the chaser's post-side aims sometimes go in off the post,
+  which the detector rightly does not count); bot shot constants re-measured (see below). No code builds State field by field.
+- Checks: `cargo test --workspace` 41 tests pass (sim 12 + match rules 8 + tunneling 2, calib 4, bots 9, sim-ffi 6);
+  measure tests 19 pass; train tests 9 pass (incl. ONNX parity); a fresh 30-update checkpoint on the merged physics exports
+  with onnxruntime vs PyTorch max |Δ| 2.4e-7; old checkpoints are refused by the physics stamp (`215d58e4…` → `33d0972b55efca23`).
+  All four params files load (`calib eval`). `npm run build`, `npm run verify` (VERIFY OK) and `npm run verify-match`
+  (VERIFY MATCH OK) pass.
+- **Crosscheck hashes after 100k steps (native = wasm), merged default params: free play `93105bebdd8a0d19`, match
+  `78ac344e15f2dff7`** (both changed from `b3e351…` / `22f04837…` because the default physics changed).
+- Lab in match mode with the default params (Playwright, real inputs + one physics-driven goal): `docs/integration-midmatch.png`,
+  scoreboard BLUE 1 – 02:40 – 0 ORANGE, phase playing, lab params ice_linear_drag 0.47254 / board_restitution 0.342796, no page errors.
+- Scripted bots on the fitted physics (`tournament 100 60`). Old placeholder physics (s9): chaser vs idle 14.13, vs defender
+  1.23–0.07. Fitted physics, s9 constants (before) → re-measured constants (after, SHOT_OVERTURN 0.054, SHOT_SPEED 18.9):
+
+| A | B | before: A–B goals/match (A wins/draws/B wins) | after: A–B goals/match (A wins/draws/B wins) |
+|---|---|---|---|
+| chaser | chaser | 0.50–0.44 (25/52/23) | 0.66–0.52 (27/53/20) |
+| chaser | defender | 0.30–0.01 (27/73/0) | 0.59–0.03 (39/60/1) |
+| chaser | cautious | 13.00–0.00 (100/0/0) | 13.00–0.00 (100/0/0) |
+| chaser | idle | 13.00–0.00 (100/0/0) | 13.00–0.00 (100/0/0) |
+| defender / cautious / idle pairings | 0–0 (all draws) | 0–0 (all draws) |
+
+  Scoring did not collapse (shots still reach: 18.9 m/s with k = 0.47 1/s travels up to 40 m); shotlab's systematic aim error
+  was 0.013 rad (signed with the swing) before the re-measure and 0.000 after.

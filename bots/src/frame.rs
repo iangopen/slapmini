@@ -63,7 +63,7 @@ impl Frame {
 
 /// The whole state rotated by 180° with team labels and scores swapped: what the game looks like
 /// "from the other bench". Used by the mirror test; `rotate_swap(rotate_swap(s)) ≈ s`.
-/// The goal flag `in_net` is swapped too (net 0 ↔ net 1).
+/// The goal flag `in_net` and the match state's team indices are swapped too.
 pub fn rotate_swap(s: &State) -> State {
     let f = Frame { sign: -1.0 };
     let mut out = s.clone();
@@ -75,6 +75,11 @@ pub fn rotate_swap(s: &State) -> State {
     }
     if out.score.len() >= 2 {
         out.score.swap(0, 1);
+    }
+    // Match rules: team indices inside the match state swap too.
+    if let Some(m) = out.match_state.as_mut() {
+        m.winner = m.winner.map(|t| 1 - t);
+        m.last_goal = m.last_goal.map(|t| 1 - t);
     }
     out
 }

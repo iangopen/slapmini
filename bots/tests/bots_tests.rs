@@ -199,3 +199,20 @@ fn scripted_bots_are_deterministic() {
     assert_eq!(run(), run());
     let _ = PlayerInput::default();
 }
+
+/// rotate_swap keeps match states consistent: team indices inside the match state swap with the teams.
+#[test]
+fn rotate_swap_swaps_match_teams() {
+    let p = Params::default();
+    let mut s = State::new_match(&p, 2);
+    if let Some(m) = s.match_state.as_mut() {
+        m.last_goal = Some(0);
+        m.winner = Some(1);
+    }
+    let r = rotate_swap(&s);
+    let m = r.match_state.as_ref().unwrap();
+    assert_eq!((m.last_goal, m.winner), (Some(1), Some(0)));
+    let back = rotate_swap(&r);
+    assert_eq!(back.match_state, s.match_state);
+    assert_eq!(back.score, s.score);
+}

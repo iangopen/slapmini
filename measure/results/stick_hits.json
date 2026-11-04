@@ -1,0 +1,335 @@
+{
+ "clip": "hittingpuck",
+ "m_per_px": 0.06322444678609063,
+ "hits": [
+  {
+   "frame": 584,
+   "t": 9.733333333333333,
+   "omega_rad_s": -8.605199999999993,
+   "omega_3_frames_before_rad_s": -5.247600000000006,
+   "r_c_m": 0.9588204229395213,
+   "v_head_m_s": 8.250841503479162,
+   "v_exit_m_s": 7.29346706450865,
+   "ratio": 0.8839664489292622,
+   "exit_fit_frames": 31,
+   "exit_fit_rms_px": 0.25799973726757436,
+   "dir_ref_px": [
+    0.1473911233453185,
+    -0.9890782864662458
+   ],
+   "puck_ref_px": [
+    945.106,
+    535.576
+   ],
+   "pivot_ref_px": [
+    960.004,
+    538.411
+   ],
+   "glide_rows": [
+    586,
+    616
+   ],
+   "group": "slow",
+   "exit_dir_offset_deg": -2.2984557411695454
+  },
+  {
+   "frame": 4289,
+   "t": 71.48333333333333,
+   "omega_rad_s": 9.2244,
+   "omega_3_frames_before_rad_s": 4.169400000000003,
+   "r_c_m": 0.9645653967638742,
+   "v_head_m_s": 8.897537045908681,
+   "v_exit_m_s": 6.837077506450956,
+   "ratio": 0.7684236065749028,
+   "exit_fit_frames": 31,
+   "exit_fit_rms_px": 0.1982588660415756,
+   "dir_ref_px": [
+    -0.31528788421217807,
+    0.9489960748438363
+   ],
+   "puck_ref_px": [
+    945.141,
+    535.531
+   ],
+   "pivot_ref_px": [
+    959.921,
+    539.313
+   ],
+   "glide_rows": [
+    4275,
+    4305
+   ],
+   "group": "slow",
+   "exit_dir_offset_deg": -4.024969677833181
+  },
+  {
+   "frame": 3910,
+   "t": 65.16666666666667,
+   "omega_rad_s": 10.757399999999997,
+   "omega_3_frames_before_rad_s": 7.4634,
+   "r_c_m": 1.0021532833336728,
+   "v_head_m_s": 10.780563730133649,
+   "v_exit_m_s": 17.650772466579152,
+   "ratio": 1.6372773176269078,
+   "exit_fit_frames": 31,
+   "exit_fit_rms_px": 0.3682335187182054,
+   "dir_ref_px": [
+    -0.37467936050660194,
+    0.9271544514321031
+   ],
+   "puck_ref_px": [
+    945.073,
+    535.581
+   ],
+   "pivot_ref_px": [
+    960.396,
+    539.637
+   ],
+   "glide_rows": [
+    3896,
+    3926
+   ],
+   "group": "slow",
+   "exit_dir_offset_deg": -7.178325104720861
+  },
+  {
+   "frame": 3471,
+   "t": 57.85,
+   "omega_rad_s": 20.683800000000012,
+   "omega_3_frames_before_rad_s": 11.205999999999996,
+   "r_c_m": 0.9515293629583499,
+   "v_head_m_s": 19.68124303755793,
+   "v_exit_m_s": 19.842514368292676,
+   "ratio": 1.0081941638760819,
+   "exit_fit_frames": 31,
+   "exit_fit_rms_px": 0.3575677182797985,
+   "dir_ref_px": [
+    -0.37760778173851456,
+    0.9259656382234269
+   ],
+   "puck_ref_px": [
+    945.465,
+    535.701
+   ],
+   "pivot_ref_px": [
+    960.0020000000001,
+    539.597
+   ],
+   "glide_rows": [
+    3458,
+    3488
+   ],
+   "group": "medium",
+   "exit_dir_offset_deg": -7.182556743909009
+  },
+  {
+   "frame": 861,
+   "t": 14.35,
+   "omega_rad_s": -23.648399999999995,
+   "omega_3_frames_before_rad_s": -8.120199999999999,
+   "r_c_m": 0.9647738181099503,
+   "v_head_m_s": 22.815357160191343,
+   "v_exit_m_s": 27.429565602790216,
+   "ratio": 1.2022413416630544,
+   "exit_fit_frames": 31,
+   "exit_fit_rms_px": 0.4106620943251556,
+   "dir_ref_px": [
+    0.29889173807471203,
+    -0.9542870264813821
+   ],
+   "puck_ref_px": [
+    945.139,
+    535.629
+   ],
+   "pivot_ref_px": [
+    960.1129999999999,
+    538.567
+   ],
+   "glide_rows": [
+    863,
+    893
+   ],
+   "group": "medium",
+   "exit_dir_offset_deg": 6.290247289228425
+  },
+  {
+   "frame": 3159,
+   "t": 52.65,
+   "omega_rad_s": 25.15259999999998,
+   "omega_3_frames_before_rad_s": 26.360600000000005,
+   "r_c_m": 1.0564802352660356,
+   "v_head_m_s": 26.573224765552464,
+   "v_exit_m_s": 31.437854969737632,
+   "ratio": 1.1830651058388408,
+   "exit_fit_frames": 31,
+   "exit_fit_rms_px": 0.3217326068705833,
+   "dir_ref_px": [
+    -0.32360166370867444,
+    0.9461934068915182
+   ],
+   "puck_ref_px": [
+    945.087,
+    535.674
+   ],
+   "pivot_ref_px": [
+    961.0809999999999,
+    540.513
+   ],
+   "glide_rows": [
+    3146,
+    3176
+   ],
+   "group": "medium",
+   "exit_dir_offset_deg": -2.0476379364493864
+  },
+  {
+   "frame": 280,
+   "t": 4.666666666666667,
+   "omega_rad_s": -31.3482,
+   "omega_3_frames_before_rad_s": -7.612399999999999,
+   "r_c_m": 0.9510965137778373,
+   "v_head_m_s": 29.815163733210397,
+   "v_exit_m_s": 28.596134953424745,
+   "ratio": 0.9591137989147513,
+   "exit_fit_frames": 31,
+   "exit_fit_rms_px": 0.38502342317855487,
+   "dir_ref_px": [
+    0.2168092250863149,
+    -0.9762139928916568
+   ],
+   "puck_ref_px": [
+    945.506,
+    535.691
+   ],
+   "pivot_ref_px": [
+    960.3720000000001,
+    537.993
+   ],
+   "glide_rows": [
+    282,
+    312
+   ],
+   "group": "fast",
+   "exit_dir_offset_deg": 3.7193525533130756
+  }
+ ],
+ "linear_origin": 1.0900815477957397,
+ "linear_fit": [
+  1.0572563240453061,
+  0.7160794900467985
+ ],
+ "omega_noise_sd_rad_s": 0.51293339925682,
+ "calib": {
+  "base_params": {
+   "stick_max_ang_speed": 26.172589259915693,
+   "stick_max_ang_accel": 513.9180387774325,
+   "stick_length": 1.0876,
+   "stick_inner": 0.4,
+   "stick_thickness": 0.0539,
+   "puck_mass": 0.17,
+   "puck_radius": 0.2298,
+   "stick_mass": 2.0,
+   "stick_restitution": 0.4
+  },
+  "folds": [
+   {
+    "held_out": "slow",
+    "train_n": 4,
+    "test_n": 3,
+    "stick_mass": 13089361260631.111,
+    "stick_restitution": 0.13791886627512742,
+    "test_eval_fitted": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_01                     31     1.172256e0     3.453105e0              -    5.354786e-1     6.066927e1\nhit_02                     31     1.459714e0     4.424214e0              -    4.262982e-1     8.286002e1\nhit_03                     31     1.201490e0     3.570363e0              -    8.464667e-1     1.023008e2\n",
+    "test_eval_placeholder": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_01                     31     1.288504e0     3.826859e0              -    5.371373e-1     6.987181e1\nhit_02                     31     1.585314e0     4.815685e0              -    4.293403e-1     9.288324e1\nhit_03                     31     1.121665e0     3.280159e0              -    8.104662e-1     9.421136e1\n",
+    "fit_log_tail": [
+     "hit_05                     31     3.079492e0     1.187838e0              -     3.095518e0     3.023206e1",
+     "hit_06                     31     1.976286e0     1.316341e0              -     2.002535e0     6.814787e1",
+     "hit_07                     31     2.228568e0     1.048278e0              -     2.227587e0     1.418609e1",
+     "  stick_mass: 2 -> 13089361260631.111",
+     "  stick_restitution: 0.4 -> 0.13791886627512742",
+     "wrote /home/user/slapmini/target/stick_hits_fit_slow.json"
+    ]
+   },
+   {
+    "held_out": "medium",
+    "train_n": 4,
+    "test_n": 3,
+    "stick_mass": 904839452397.7439,
+    "stick_restitution": 0.13632450546596214,
+    "test_eval_fitted": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_04                     31     1.408680e0     3.250997e0              -    9.690649e-1     1.365682e2\nhit_05                     31     3.078471e0     1.199147e0              -     3.095307e0     3.174679e1\nhit_06                     31     1.976293e0     1.345635e0              -     2.002262e0     7.028306e1\n",
+    "test_eval_placeholder": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_04                     31     1.648685e0     4.160553e0              -    9.710746e-1     1.817014e2\nhit_05                     31     3.122638e0     1.245551e0              -     3.100099e0     2.946309e1\nhit_06                     31     1.976938e0     1.208987e0              -     2.003692e0     6.004329e1\n",
+    "fit_log_tail": [
+     "hit_02                     31     1.455219e0     4.410195e0              -    4.261942e-1     8.250767e1",
+     "hit_03                     31     1.206021e0     3.586609e0              -    8.486326e-1     1.027427e2",
+     "hit_07                     31     2.228349e0     1.047905e0              -     2.227590e0     1.418393e1",
+     "  stick_mass: 2 -> 904839452397.7439",
+     "  stick_restitution: 0.4 -> 0.13632450546596214",
+     "wrote /home/user/slapmini/target/stick_hits_fit_medium.json"
+    ]
+   },
+   {
+    "held_out": "fast",
+    "train_n": 6,
+    "test_n": 1,
+    "stick_mass": 11254224899634.186,
+    "stick_restitution": 0.13786394637616603,
+    "test_eval_fitted": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_07                     31     2.228560e0     1.048245e0              -     2.227587e0     1.418128e1\n",
+    "test_eval_placeholder": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_07                     31     2.254698e0     1.420485e0              -     2.227618e0     5.669145e1\n",
+    "fit_log_tail": [
+     "hit_04                     31     1.415469e0     3.278063e0              -    9.691148e-1     1.378879e2",
+     "hit_05                     31     3.079456e0     1.188213e0              -     3.095510e0     3.028382e1",
+     "hit_06                     31     1.976285e0     1.317343e0              -     2.002525e0     6.822140e1",
+     "  stick_mass: 2 -> 11254224899634.186",
+     "  stick_restitution: 0.4 -> 0.13786394637616603",
+     "wrote /home/user/slapmini/target/stick_hits_fit_fast.json"
+    ]
+   },
+   {
+    "held_out": "all",
+    "train_n": 7,
+    "test_n": 7,
+    "stick_mass": 7360603215307.043,
+    "stick_restitution": 0.1376520087686312,
+    "test_eval_fitted": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_01                     31     1.171601e0     3.450989e0              -    5.354698e-1     6.061793e1\nhit_02                     31     1.458962e0     4.421867e0              -    4.262808e-1     8.280101e1\nhit_03                     31     1.202248e0     3.573081e0              -    8.468279e-1     1.023748e2\nhit_04                     31     1.414533e0     3.274336e0              -    9.691079e-1     1.377061e2\nhit_05                     31     3.079319e0     1.189673e0              -     3.095482e0     3.048384e1\nhit_06                     31     1.976282e0     1.321215e0              -     2.002489e0     6.850514e1\nhit_07                     31     2.228528e0     1.048132e0              -     2.227588e0     1.416585e1\n",
+    "test_eval_placeholder": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_01                     31     1.288504e0     3.826859e0              -    5.371373e-1     6.987181e1\nhit_02                     31     1.585314e0     4.815685e0              -    4.293403e-1     9.288324e1\nhit_03                     31     1.121665e0     3.280159e0              -    8.104662e-1     9.421136e1\nhit_04                     31     1.648685e0     4.160553e0              -    9.710746e-1     1.817014e2\nhit_05                     31     3.122638e0     1.245551e0              -     3.100099e0     2.946309e1\nhit_06                     31     1.976938e0     1.208987e0              -     2.003692e0     6.004329e1\nhit_07                     31     2.254698e0     1.420485e0              -     2.227618e0     5.669145e1\n",
+    "fit_log_tail": [
+     "hit_05                     31     3.079319e0     1.189673e0              -     3.095482e0     3.048384e1",
+     "hit_06                     31     1.976282e0     1.321215e0              -     2.002489e0     6.850514e1",
+     "hit_07                     31     2.228528e0     1.048132e0              -     2.227588e0     1.416585e1",
+     "  stick_mass: 2 -> 7360603215307.043",
+     "  stick_restitution: 0.4 -> 0.1376520087686312",
+     "wrote /home/user/slapmini/target/stick_hits_fit_all.json"
+    ]
+   }
+  ],
+  "one_param_folds": [
+   {
+    "held_out": "slow",
+    "stick_restitution": 0.3604883384704589,
+    "stick_mass_fixed": 2.0,
+    "test_eval_fitted": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_01                     31     1.205172e0     3.559225e0              -    5.359285e-1     6.325497e1\nhit_02                     31     1.490833e0     4.521251e0              -    4.270276e-1     8.531144e1\nhit_03                     31     1.213666e0     3.613968e0              -    8.523216e-1     1.034849e2\n",
+    "test_eval_placeholder": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_01                     31     1.288504e0     3.826859e0              -    5.371373e-1     6.987181e1\nhit_02                     31     1.585314e0     4.815685e0              -    4.293403e-1     9.288324e1\nhit_03                     31     1.121665e0     3.280159e0              -    8.104662e-1     9.421136e1\n"
+   },
+   {
+    "held_out": "medium",
+    "stick_restitution": 0.34834516704082485,
+    "stick_mass_fixed": 2.0,
+    "test_eval_fitted": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_04                     31     1.442187e0     3.383634e0              -    9.693151e-1     1.430481e2\nhit_05                     31     3.079911e0     1.183547e0              -     3.095603e0     2.963339e1\nhit_06                     31     1.994595e0     2.046934e0              -     1.998823e0     1.163711e2\n",
+    "test_eval_placeholder": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_04                     31     1.648685e0     4.160553e0              -    9.710746e-1     1.817014e2\nhit_05                     31     3.122638e0     1.245551e0              -     3.100099e0     2.946309e1\nhit_06                     31     1.976938e0     1.208987e0              -     2.003692e0     6.004329e1\n"
+   },
+   {
+    "held_out": "fast",
+    "stick_restitution": 0.3640985137224197,
+    "stick_mass_fixed": 2.0,
+    "test_eval_fitted": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_07                     31     2.231882e0     1.086259e0              -     2.227574e0     2.114647e1\n",
+    "test_eval_placeholder": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_07                     31     2.254698e0     1.420485e0              -     2.227618e0     5.669145e1\n"
+   },
+   {
+    "held_out": "all",
+    "stick_restitution": 0.3596997594833374,
+    "stick_mass_fixed": 2.0,
+    "test_eval_fitted": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_01                     31     1.203522e0     3.553911e0              -    5.359056e-1     6.312499e1\nhit_02                     31     1.488952e0     4.515387e0              -    4.269831e-1     8.516267e1\nhit_03                     31     1.215542e0     3.620672e0              -    8.532335e-1     1.036664e2\nhit_04                     31     1.485965e0     3.553662e0              -    9.696573e-1     1.514031e2\nhit_05                     31     3.086933e0     1.136144e0              -     3.096953e0     2.142314e1\nhit_06                     31     1.986292e0     1.849725e0              -     1.999638e0     1.041015e2\nhit_07                     31     2.230492e0     1.067507e0              -     2.227577e0     1.791708e1\n",
+    "test_eval_placeholder": "scenario              samples    pos_rmse(m)     speed_rmse     stick_rmse   path_rmse(m)        v2_rmse\nhit_01                     31     1.288504e0     3.826859e0              -    5.371373e-1     6.987181e1\nhit_02                     31     1.585314e0     4.815685e0              -    4.293403e-1     9.288324e1\nhit_03                     31     1.121665e0     3.280159e0              -    8.104662e-1     9.421136e1\nhit_04                     31     1.648685e0     4.160553e0              -    9.710746e-1     1.817014e2\nhit_05                     31     3.122638e0     1.245551e0              -     3.100099e0     2.946309e1\nhit_06                     31     1.976938e0     1.208987e0              -     2.003692e0     6.004329e1\nhit_07                     31     2.254698e0     1.420485e0              -     2.227618e0     5.669145e1\n"
+   }
+  ]
+ }
+}

@@ -1,0 +1,64 @@
+{
+ "centre_circle_radius_m_placeholder": {
+  "radius_m": 4.7128031341598735,
+  "sd_m": 0.0023980683959414443,
+  "n_clips": 3
+ },
+ "params_player_radius_m": 0.4557,
+ "clips": {
+  "hittingpuck": {
+   "body": {
+    "centre_px": [
+     959.989,
+     539.45
+    ],
+    "radius_px": 8.824,
+    "edge_points_kept": 332,
+    "edge_points": 360,
+    "fit_rms_px": 0.59
+   },
+   "tip_radius_px": 14.11,
+   "centre_circle_fit": null,
+   "centre_circle_radius_px": null,
+   "m_per_px_map": 0.06322444678609063,
+   "m_per_px_disc": 0.06322444678609063,
+   "m_per_px_params_player_radius": 0.05164324569356301,
+   "m_per_px": 0.06322444678609063,
+   "scale_source": "map (ice-plane, placeholder rink_length 60 m)"
+  },
+  "rotatinganddizzy": {
+   "body": {
+    "centre_px": [
+     960.196,
+     539.519
+    ],
+    "radius_px": 49.715,
+    "edge_points_kept": 342,
+    "edge_points": 360,
+    "fit_rms_px": 0.395
+   },
+   "tip_radius_px": 80.88,
+   "centre_circle_fit": {
+    "centre_px": [
+     1133.666,
+     433.992
+    ],
+    "radius_px": 314.535,
+    "points_used": 288,
+    "points_total": 298,
+    "fit_rms_px": 3.033
+   },
+   "centre_circle_radius_px": 314.535,
+   "m_per_px_disc": 0.011221814712671502,
+   "m_per_px_circle": 0.014983398140619877,
+   "body_over_circle": 0.15805872160490883,
+   "m_per_px_params_player_radius": 0.009166247611384893,
+   "m_per_px": 0.011221814712671502,
+   "scale_source": "disc: grey body radius 0.5579 m (calibrated in hittingpuck at the map scale) / 49.72 px"
+  }
+ },
+ "body_radius_m_placeholder": {
+  "value": 0.5578925184404637,
+  "from": "hittingpuck"
+ }
+}

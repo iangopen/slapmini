@@ -1,0 +1,53 @@
+{
+ "stick_length_m": 1.0876,
+ "stick_length_method": "half-max blade tip at both zooms + dolly-camera model (tip height solved): ground-plane tip radius",
+ "tip_half_max": {
+  "normal_zoom": {
+   "frames": 1479,
+   "body_r_px": 7.794,
+   "tip_half_max_px": 17.623530870914458,
+   "tip_over_body": 2.2611663934968513,
+   "blade_dir_offset_deg": 15.0,
+   "upsample": 5
+  },
+  "zoomed": {
+   "frames": 867,
+   "body_r_px": 48.97,
+   "tip_half_max_px": 80.74131478115916,
+   "tip_over_body": 1.6487913984308589,
+   "blade_dir_offset_deg": 2.5,
+   "upsample": 1
+  },
+  "ice_scale_ratio_q": 4.219633369728703,
+  "tip_ratio": 4.581449391302915,
+  "tip_height_over_zoomed_camera_height": 0.1010250270331434,
+  "tip_radius_m_normal_zoom_at_map_scale": 1.1142379897311565,
+  "tip_radius_m_zoomed_at_ice_scale": 1.2097792657632245
+ },
+ "body_camera_model": {
+  "radius_ratio": 5.6340661831369,
+  "top_height_over_zoomed_camera_height": 0.3052249919423328,
+  "ground_radius_m": 0.5175376523833146
+ },
+ "stick_length_candidates_m": {
+  "template_tip_normal_zoom_x_map_scale (under-reads: the 1.4 px blade fades)": 0.8921,
+  "template_tip_zoomed_over_body_x_body_m": 0.9076
+ },
+ "stick_thickness_m": 0.0539,
+ "stick_thickness_method": "half the blade FWHM in the zoomed clip, at the ice scale corrected for the blade height (same camera model as the tip)",
+ "blade": {
+  "frames": 359,
+  "body_r_px": 48.97,
+  "blade_fwhm_px": 8.0,
+  "blade_peak_occupancy": 1.0,
+  "blade_axis_offset_px": 2.44,
+  "white_root_px": 51.0,
+  "white_tip_px": 81.0
+ },
+ "blade_fwhm_m": 0.1078,
+ "stick_inner_m_blade_root": 0.5723,
+ "tip_from_white_px_zoomed": 81.0,
+ "m_per_px_zoomed_disc": 0.011221814712671502,
+ "m_per_px_zoomed_ice": 0.014983398140619877,
+ "body_radius_m": 0.5578925184404637
+}

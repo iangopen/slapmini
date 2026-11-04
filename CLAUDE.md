@@ -692,3 +692,102 @@ env at runtime (`set_reward_weights`, a vector in TERM_NAMES order).
 
   Scoring did not collapse (shots still reach: 18.9 m/s with k = 0.47 1/s travels up to 40 m); shotlab's systematic aim error
   was 0.013 rad (signed with the swing) before the re-measure and 0.000 after.
+
+## Stick (session s7b, 2026-11-04, Linux cloud container) – video-only stick tracker, chase and hit fits
+New files only: `measure/stick.py` (`python -m measure.stick {track,qa,scale,shape,chase,hits,params}`), `stick_scale.py`,
+`stick_shape.py`, `stick_chase.py`, `stick_hits.py`, `stick_params.py`, `stick_synth.py` + `measure/tests/test_stick.py`,
+`sim/examples/stick_step.rs` (sim stick step response; the Python chase emulation matches it to 1e-15 rad),
+`calib/data/stick/hit_01..07` (scenario + CSV per hit), **`params.stick.json`** (params.json untouched, not merged).
+
+### Clips (clip-data, all 1920x1080, 60 fps)
+- **rotatinganddizzy.mkv** (7.4 MB, 2683 frames, 44.7 s) = the **sweeps**: camera zoomed in (~4.2x on the ice), player standing on the centre
+  dot, stick turned by the mouse: slow circling, several multi-turn spins at the speed cap, stops, reversals, small wiggles at the end.
+- **hittingpuck.mkv** (11.9 MB, 4883 frames, 81.4 s) = the **hits**, at the normal zoom (whole rink, ~4% closer than the old clips: board
+  949 px, 0.06322 m/px; `measure map` + `measure track` run on it): puck put at the forehand spot (practice reset), 7 swings slow/medium/fast.
+- staticrotatingstick: not usable for the stick (pink skin, 14 px stick, camera travel; the tracker finds the body in 2.9% of frames).
+  Also new on clip-data, not used here: dashatrest, dashwhilerunning, diagonalkeypresses, whilemovingturning, wkeymovement, goalspeeds_part00-03.
+- The 2026-11 clips show the player as a **grey body** (S = 0) in a blue glow, not the pink disc; the stick is a black shaft along the
+  side of the body ending in a white blade. **The body markings turn with the body (facing), not with the stick.** With the left mouse
+  button held (green dot in the mouse-hint icon) the stick takes another pose (shaft along the blade).
+
+### Tracker
+- Pivot = centre of an ellipse fitted to the convex hull of the grey body (opened with a 0.3 body-radius disc so the shaft can't join it).
+  Angle = circular cross-correlation of a polar unwrap (black shaft inside the body; black + white outside it; each radius ring minus its
+  mean) against a template built from the clip (3 passes); features that stay put on screen are masked; direction pivot -> blade.
+  Duplicated capture frames (zero step followed by a ~2x catch-up step) are dropped; a hard stop (zero step, no catch-up) is kept.
+- Synthetic test (cap-speed spins, hard stops, reversal, slow sweep, separately turning markings, puck, screen-fixed icon, HUD, dup frame):
+  max error 0.24 deg, median 0.04 deg; tip radius and pivot within 1 px.
+- rotatinganddizzy: **100.00% (2681/2682), longest gap 0**, 1 duplicate dropped, conf median 0.93 (0.5 in the left-button pose, angle
+  still on the blade). hittingpuck: **99.80% (4870/4882), longest gap 6 frames** (2452-2457), conf median 0.75; there the angle carries a
+  constant ~15-20 deg offset from the blade (the blurry template mixes in the shaft): rotation rates are right, absolute angles are not.
+- QA (inspected): `measure/results/qa/{rotatinganddizzy,hittingpuck}.stick_sheet.png`. Fixed because of them: body markings removed from
+  the template (they turn with the body), body blob merging with the stick (10 px pivot error at frames 982-995), the 39.6 rad/s "peak"
+  was a duplicated frame, stick snaps at practice resets are not swings.
+
+### Scale
+- Disc scale (as asked): grey body radius by the same half-max edge at both zooms (8.82 px at hittingpuck = 0.558 m at its map scale;
+  49.72 px zoomed) -> 0.01122 m/px zoomed. **Cross-check with the centre circle (an ice marking, 314.5 px): 0.01498 m/px — 1.34x apart.**
+  The player model is drawn 1.34x larger relative to the ice when zoomed: the camera zooms by moving closer and the body top is raised
+  (dolly model: top at 0.305 of the zoomed camera height, ~8% magnification at the normal zoom; ground radius 0.518 m vs params
+  player_radius 0.4557 m, which is the pink skin's half-max disc). So: **ice scale for things on the ice, disc scale only for the body.**
+  params player_radius cannot set the zoomed scale (different skin): 0.009166 m/px would be 39% off. Angles need no scale.
+
+### Chase (rotatinganddizzy; step model with a free onset per event)
+- **stick_max_ang_speed = 26.17 rad/s** (hard cap: flat plateaus in every cap-limited move, 344 frames, per-frame sd 1.65 = capture
+  jitter; slow mouse-driven moves peak <= 20.7). Placeholder 14.
+- Held out by event (4 step events: +134 deg, and spins of -1971 (the fast sweep, 5.5 turns), -1480, -1021 deg): angle RMSE
+  **3.16 / 2.34 / 1.87 / 3.01 deg** vs placeholder (14, 120) **7.9 / 363 / 251 / 151 deg**.
+- **stick_max_ang_accel = 514 rad/s^2** from the 3 flick starts (rest -> cap within 2-4 frames; RMSE 3.7 deg at 400 vs 4.2 at >= 1500).
+  The joint step fit gives ~380 (biased low by mouse-limited starts: 6-11 frame ramps). **Stops are harder: flat above ~1500 rad/s^2**
+  (60 fps can't resolve more), and the real stick **overshoots the final angle by 0.7-12 deg and settles back over 2-5 frames**; the
+  sim's symmetric bang-bang braking cannot do either (stop residuals -5..-8 deg then +3..+7 deg). Placeholder 120.
+- The game kept spinning the same way for 5.5 turns while the mouse circled: the fit uses the unwrapped final angle as the target (the sim
+  wraps the target error, which is equivalent while the mouse leads by < half a turn).
+
+### Shape (measured-shape, placeholder meters)
+- **stick_length = 1.088 m** (pivot -> blade tip on the ice plane): half-max tip 17.62 px at the normal zoom (1.113 m at its scale) and 80.74 px
+  zoomed (1.210 m at the ice scale); the dolly model puts the tip at 0.10 of the zoomed camera height and gives 1.088 m on the ground.
+  Consistent with the hits (resting-puck contact radii 0.95-1.06 m, perpendicular exits). Template-threshold tips (0.89-0.91 m) under-read
+  (the 1.4 px blade fades at the normal zoom); the sim with 0.90 m hit the puck with the tip and sent it 50 deg off.
+- **stick_thickness = 0.054 m** (half the blade FWHM, 8 px zoomed, height-corrected). Placeholder 0.05.
+- Not written: stick_inner (the white blade starts at the body edge, ~0.57 m at the disc scale; the shaft crosses the body off-centre).
+- **Not measurable from top-down video: stick_z_min / stick_z_max** (the height range the stick can hit) and the shaft's real 3D shape.
+
+### Hits (hittingpuck, placeholder ice-plane scale 0.06322 m/px; w = stick angle change over the frame interval containing the contact)
+| frame | group | w rad/s | r_c m | v_head m/s | v_exit m/s | exit/head | exit dir vs perpendicular |
+|---|---|---|---|---|---|---|---|
+| 584 | slow | -8.6 | 0.959 | 8.3 | 7.3 (115 px/s) | 0.88 | -2.3 |
+| 4289 | slow | +9.2 | 0.965 | 8.9 | 6.8 (108 px/s) | 0.77 | -4.0 |
+| 3910 | slow | +10.8 | 1.002 | 10.8 | 17.7 (279 px/s) | 1.64 | -7.2 |
+| 3471 | medium | +20.7 | 0.952 | 19.7 | 19.8 (314 px/s) | 1.01 | -7.2 |
+| 861 | medium | -23.6 | 0.965 | 22.8 | 27.4 (434 px/s) | 1.20 | +6.3 |
+| 3159 | medium | +25.2 | 1.056 | 26.6 | 31.4 (497 px/s) | 1.18 | -2.0 |
+| 280 | fast | -31.3 | 0.951 | 29.8 | 28.6 (452 px/s) | 0.96 | +3.7 |
+- Exit speed: drag-model fit (k = params ice_linear_drag) over 31 rows from 2 frames after contact, extrapolated to the contact.
+- **Linear**: v_exit = 1.09 v_head through the origin (rms 3.3 m/s; with intercept 1.06 v_head + 0.7). Single-frame w noise 0.5 rad/s at rest,
+  ~3-5 rad/s while swinging (capture jitter), so the ratio scatters 0.77-1.64. **Saturation: not established** — the two fastest exits
+  are 31.4 and 28.6 m/s (ratio 1.18 and 0.96); a cap near ~30 m/s (placeholder scale) is possible but rests on 1-2 hits. Head speeds are
+  limited by the 26 rad/s cap x ~1 m, so faster swings can't be recorded at this contact radius.
+- **Exit direction is within -7..+6 deg (mean -1.8) of perpendicular to pivot->puck**, as if the stick met the puck centre-on. The sim's
+  contact (reach = puck_radius + stick_thickness = 0.28 m) touches it ~17 deg earlier and sends it ~15 deg outward: **a contact-model gap**
+  (path RMSE 0.8-3 m in every hit, for any mass/restitution). Effective game reach from the direction: ~0.05-0.12 m.
+- calib (base: params.json + chase fit + measured length/thickness, puck speed caps lifted to 200 m/s; the sim stick starts one substep
+  short of the puck at the measured w, target set so the chase law holds w): **stick_mass and stick_restitution are degenerate** — the
+  joint fit runs to a rigid stick (mass 1e12-1e13 kg, e = 0.136-0.138 in every hold-out fold): only exit/head ~1.14 is measured, i.e.
+  (1+e) / (1 + 3 m_puck r^2 / (m_stick L^2)). With **stick_mass fixed at the placeholder 2 kg: stick_restitution = 0.360** (held out by
+  swing speed: slow 0.361, medium 0.348, fast 0.364; placeholder 0.4). Held-out speed RMSE fitted / placeholder (m/s): slow 3.6/3.8,
+  4.5/4.8, 3.6/3.3; medium 3.4/4.2, 1.2/1.3, 2.0/1.2; fast 1.1/1.4 (5 of 7 better). stick_mass is NOT written (placeholder stays).
+- Not separable here: the stick's angular-speed drop at contact (it would fix the mass; 60 fps + the chase re-accelerating hide it).
+
+### params.stick.json
+stick_max_ang_speed 26.17 rad/s (fitted), stick_max_ang_accel 514 rad/s^2 (fitted), stick_length 1.088 m and stick_thickness 0.054 m
+(measured-shape, placeholder meters: rescale with the absolute scale), stick_restitution 0.360 (fitted, conditional on stick_mass 2 kg
+and puck_mass 0.17 kg, both placeholders).
+
+### Stick: still open
+- Contact model: the game's exit direction says the stick meets the puck centre-on (or pushes along the swing); the sim's 0.28 m reach
+  turns shots ~15 deg outward. Needs a sim change (out of scope here) before mass/restitution can be fitted on paths.
+- Asymmetric chase (fast stops with overshoot) is not representable with one accel; a separate brake decel + overshoot would be.
+- stick_mass needs a measurement that sees the stick slow at contact (higher fps, or hits on a heavy/stationary puck at several radii);
+  stick_inner, z range and the left-button pose's geometry are unmeasured; the hit table has only 7 hits (more fast swings at
+  different contact radii would test saturation and the puck speed cap).

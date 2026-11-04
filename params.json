@@ -52,6 +52,12 @@
     "dash_cooldown":             { "value": 1.0,   "provenance": "placeholder", "unit": "s" },
     "lift_vz_factor":            { "value": 0.25,  "provenance": "placeholder", "unit": "ratio", "note": "PLACEHOLDER LOGIC: vz = factor * horizontal speed on a lifted hit" },
     "lift_max_vz":               { "value": 6.0,   "provenance": "placeholder", "unit": "m/s" },
-    "chip_max_speed":            { "value": 12.0,  "provenance": "placeholder", "unit": "m/s", "note": "PLACEHOLDER LOGIC: dash + lift hit is capped to this (low-speed chip)" }
+    "chip_max_speed":            { "value": 12.0,  "provenance": "placeholder", "unit": "m/s", "note": "PLACEHOLDER LOGIC: dash + lift hit is capped to this (low-speed chip)" },
+
+    "blue_line_x":               { "value": 8.5,   "provenance": "placeholder", "unit": "m", "note": "DISPLAY ONLY: |x| of the blue lines" },
+    "faceoff_x":                 { "value": 20.0,  "provenance": "placeholder", "unit": "m", "note": "DISPLAY ONLY: |x| of end-zone faceoff dots" },
+    "faceoff_y":                 { "value": 7.0,   "provenance": "placeholder", "unit": "m", "note": "DISPLAY ONLY: |y| of end-zone faceoff dots" },
+    "faceoff_circle_radius":     { "value": 4.0,   "provenance": "placeholder", "unit": "m", "note": "DISPLAY ONLY" },
+    "speed_display_scale":       { "value": 1.0,   "provenance": "placeholder", "unit": "ratio", "note": "DISPLAY ONLY: real-game m/s per sim m/s, for the mph/kph readout" }
   }
 }

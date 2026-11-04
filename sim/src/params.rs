@@ -39,6 +39,7 @@ define_params!(
     stick_max_ang_accel, stick_restitution, stick_z_min, stick_z_max,
     max_puck_speed_air, max_puck_speed_ice_normal, max_puck_speed_ice_dash,
     dash_speed, dash_duration, dash_cooldown, lift_vz_factor, lift_max_vz, chip_max_speed,
+    blue_line_x, faceoff_x, faceoff_y, faceoff_circle_radius, speed_display_scale,
 );
 
 /// One entry of `params.json`.

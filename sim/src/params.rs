@@ -40,13 +40,15 @@ define_params!(
     max_puck_speed_air, max_puck_speed_ice_normal, max_puck_speed_ice_dash,
     dash_speed, dash_duration, dash_cooldown, lift_vz_factor, lift_max_vz, chip_max_speed,
     blue_line_x, faceoff_x, faceoff_y, faceoff_circle_radius, speed_display_scale,
+    // Match rules (sim/src/rules.rs). Only read when State::match_state is Some.
+    match_length_s, mercy_lead, countdown_s, goal_pause_s, player_spawn_x,
 );
 
 /// One entry of `params.json`.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ParamEntry {
     pub value: f64,
-    /// "placeholder" (invented), "fitted" (from calib), or "measured".
+    /// "placeholder" (invented), "fitted" (from calib), "measured"/"measured-shape", or "rule" (a match rule Ian set).
     pub provenance: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub unit: String,

@@ -1,4 +1,5 @@
 use crate::params::Params;
+use crate::rules::{reset_to_spawn, MatchState};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -59,6 +60,9 @@ pub struct State {
     /// Goals per team (index = team).
     #[serde(default)]
     pub score: Vec<u32>,
+    /// Match rules (phase, clock, overtime, winner). None = free play (no rules; the default).
+    #[serde(default)]
+    pub match_state: Option<MatchState>,
 }
 
 impl State {
@@ -82,7 +86,15 @@ impl State {
                 ..Default::default()
             });
         }
-        State { tick: 0, puck: Puck::default(), players, score: vec![0, 0] }
+        State { tick: 0, puck: Puck::default(), players, score: vec![0, 0], match_state: None }
+    }
+
+    /// A new match: players at their spawn points, puck at center, 0-0, full clock, opening countdown.
+    pub fn new_match(params: &Params, n_players: usize) -> Self {
+        let mut s = State::new_default(params, n_players);
+        reset_to_spawn(&mut s, params);
+        s.match_state = Some(MatchState::start(params));
+        s
     }
 
     pub fn time(&self, params: &Params) -> f64 {
@@ -107,6 +119,16 @@ impl State {
         }
         for s in &self.score {
             b.extend_from_slice(&s.to_le_bytes());
+        }
+        // Match state only when present, so free-play encodings (and their hashes) are unchanged.
+        if let Some(m) = &self.match_state {
+            b.push(0xA5);
+            b.push(m.phase.code());
+            b.extend_from_slice(&m.phase_ticks.to_le_bytes());
+            b.extend_from_slice(&m.clock_ticks.to_le_bytes());
+            b.push(m.overtime as u8);
+            b.push(m.winner.map_or(255, |t| t));
+            b.push(m.last_goal.map_or(255, |t| t));
         }
         b
     }

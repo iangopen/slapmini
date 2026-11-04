@@ -25,11 +25,25 @@ export interface Player {
   dash_prev: boolean;
 }
 
+/** sim::rules::MatchPhase (serde snake_case). */
+export type MatchPhase = "countdown" | "playing" | "goal_pause" | "finished";
+
+/** sim::rules::MatchState. Present only in match mode; null/absent = free play. */
+export interface MatchState {
+  phase: MatchPhase;
+  phase_ticks: number;
+  clock_ticks: number;
+  overtime: boolean;
+  winner: number | null;
+  last_goal: number | null;
+}
+
 export interface State {
   tick: number;
   puck: Puck;
   players: Player[];
   score: number[];
+  match_state?: MatchState | null;
 }
 
 export interface ParamEntry { value: number; provenance: string; unit?: string; note?: string }

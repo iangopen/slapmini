@@ -47,7 +47,8 @@ function sameInput(a: PlayerInput, b: PlayerInput): boolean {
   return a.move_x === b.move_x && a.move_y === b.move_y && a.stick_target_angle === b.stick_target_angle && a.dash === b.dash && a.lift === b.lift;
 }
 
-export interface Recording { scenario: Scenario; samples: Sample[] }
+/** `endHash`: sim state hash after the last recorded / replayed step (determinism check). */
+export interface Recording { scenario: Scenario; samples: Sample[]; endHash: string }
 
 export class Lab {
   sim: Sim;
@@ -101,6 +102,36 @@ export class Lab {
     const f = structuredClone(this.file);
     f.params[name].value = value;
     this.setParamFile(f);
+  }
+
+  // ---------- match mode (rules live in the sim: sim/src/rules.rs) ----------
+
+  /** Match rules are on when the state carries a match_state (free play otherwise). */
+  get inMatch(): boolean {
+    return !!this.state.match_state;
+  }
+
+  /** Start a fresh match (spawn positions, 0-0, full clock, countdown). Only in play mode, not while recording/replaying. */
+  startMatch(): boolean {
+    if (this.mode !== "play") return false;
+    this.spawnHeld = false;
+    this.sim.start_match(this.state.players.length);
+    this.state = JSON.parse(this.sim.get_state());
+    return true;
+  }
+
+  /** Back to free play: same positions, rules off, score kept. Only in play mode. */
+  endMatch(): boolean {
+    if (this.mode !== "play") return false;
+    const s = structuredClone(this.state);
+    s.match_state = null;
+    this.writeState(s);
+    return true;
+  }
+
+  /** Enter after game over: a new match. */
+  rematch(): boolean {
+    return this.state.match_state?.phase === "finished" && this.startMatch();
   }
 
   // ---------- stepping ----------
@@ -178,7 +209,7 @@ export class Lab {
       initial_state: this.recStart!,
       inputs: this.recEvents,
     };
-    this.lastRecording = { scenario, samples: this.recSamples };
+    this.lastRecording = { scenario, samples: this.recSamples, endHash: this.sim.state_hash() };
     return this.lastRecording;
   }
 
@@ -196,7 +227,7 @@ export class Lab {
 
   private finishReplay(): void {
     this.mode = "play";
-    this.lastReplay = { scenario: this.replayScenario!, samples: this.recSamples };
+    this.lastReplay = { scenario: this.replayScenario!, samples: this.recSamples, endHash: this.sim.state_hash() };
     // Keep the human's stick where the replay left it so play resumes smoothly.
     this.onReplayDone?.();
   }
@@ -205,10 +236,10 @@ export class Lab {
     return { steps: this.recSteps, total: this.mode === "replay" ? this.replayScenario!.steps : null };
   }
 
-  // ---------- practice tools (APPROXIMATE, web layer only; disabled while recording/replaying) ----------
+  // ---------- practice tools (APPROXIMATE, web layer only; disabled while recording/replaying and in match mode) ----------
 
   get toolsEnabled(): boolean {
-    return this.mode === "play";
+    return this.mode === "play" && !this.inMatch;
   }
 
   private placePuckAtSpawn(): void {
@@ -239,6 +270,7 @@ export class Lab {
 
   /** G: target marker at cursor. */
   setTarget(x: number, y: number): void {
+    if (this.inMatch) return;
     this.target = { x, y };
     this.targetBest = Infinity;
   }
@@ -269,7 +301,8 @@ export class Lab {
     this.writeState(s);
   }
 
-  /** Overwrite the state (verification hooks, loaded drills). Only outside record/replay. */
+  /** Overwrite the state (verification hooks, loaded drills). Only outside record/replay. Not a practice
+   * tool, so it also works in match mode (verify.mjs uses it to put pucks on goal). */
   setState(s: State): void {
     if (this.mode !== "play") return;
     this.writeState(structuredClone(s));

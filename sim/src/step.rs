@@ -377,7 +377,8 @@ fn player_player(a: &mut Player, b: &mut Player, p: &Params) {
     }
 }
 
-fn update_goals(state: &mut State, p: &Params) {
+/// Goal edge detection; returns the scoring team when a goal happened this step.
+fn update_goals(state: &mut State, p: &Params) -> Option<u8> {
     let pk = &mut state.puck;
     let inside = |sign: f64| {
         let x = pk.x * sign;
@@ -391,12 +392,26 @@ fn update_goals(state: &mut State, p: &Params) {
             state.score.resize(team + 1, 0);
         }
         state.score[team] += 1;
+        pk.in_net = now;
+        return Some(net);
     }
     pk.in_net = now;
+    None
 }
 
 /// Advance one fixed timestep. `inputs[i]` drives `state.players[i]`; missing inputs are idle.
+/// With `state.match_state` set, the match rules (sim/src/rules.rs) wrap the physics; without it
+/// (the default) this is free play: physics only, goals just count.
 pub fn step(state: &mut State, inputs: &[PlayerInput], p: &Params) {
+    if state.match_state.is_some() {
+        crate::rules::step_match(state, inputs, p);
+    } else {
+        physics_step(state, inputs, p);
+    }
+}
+
+/// One physics step (free play). Returns the team that scored this step, if any.
+pub(crate) fn physics_step(state: &mut State, inputs: &[PlayerInput], p: &Params) -> Option<u8> {
     let dt = p.timestep;
     let n = p.substeps_n();
     let h = dt / n as f64;
@@ -456,6 +471,7 @@ pub fn step(state: &mut State, inputs: &[PlayerInput], p: &Params) {
         }
     }
 
-    update_goals(state, p);
+    let goal = update_goals(state, p);
     state.tick += 1;
+    goal
 }

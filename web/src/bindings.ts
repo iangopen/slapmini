@@ -19,11 +19,16 @@ export const BINDINGS = {
   reset: "KeyR",
   /** Call the puck toward the stick's forehand. */
   call: "KeyQ",
+
+  // Match mode.
+  /** Start a new match after game over (rematch). */
+  rematch: "Enter",
 } as const;
 
 /** Extra codes accepted for the same action (e.g. right Shift). */
 export const ALIASES: Partial<Record<keyof typeof BINDINGS, string[]>> = {
   dash: ["ShiftRight"],
+  rematch: ["NumpadEnter"],
 };
 
 export function actionFor(code: string): keyof typeof BINDINGS | undefined {
@@ -41,4 +46,5 @@ export const KEY_HELP: [string, string][] = [
   ["G", "set puck target at cursor (approx.)"],
   ["R", "reset puck to spawn (approx.)"],
   ["Q", "call puck to stick forehand (approx.)"],
+  ["Enter", "rematch after game over (match mode)"],
 ];

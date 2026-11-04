@@ -68,6 +68,9 @@ const FITTED: [&str; 4] = ["board_restitution", "board_friction", "ice_linear_dr
 /// The pre-merge params (placeholder physics, measured shape), for tests about placeholder behaviour.
 const PLACEHOLDER_JSON: &str = include_str!("../../params.placeholder.json");
 
+/// Match rules Ian specified (provenance "rule"); the other match params are invented placeholders.
+const MATCH_RULES: [&str; 2] = ["match_length_s", "mercy_lead"];
+
 #[test]
 fn params_file_complete_and_provenance_known() {
     let f = ParamFile::from_json(DEFAULT_PARAMS_JSON).unwrap();
@@ -78,6 +81,8 @@ fn params_file_complete_and_provenance_known() {
             "measured-shape"
         } else if FITTED.contains(&k.as_str()) {
             "fitted"
+        } else if MATCH_RULES.contains(&k.as_str()) {
+            "rule"
         } else {
             "placeholder"
         };

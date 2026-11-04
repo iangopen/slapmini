@@ -1,0 +1,23 @@
+{
+  "name": "slide_stop",
+  "description": "SYNTHETIC: puck slides freely on ice until friction stops it",
+  "steps": 1200,
+  "initial_state": {
+    "tick": 0,
+    "puck": {
+      "x": -10.0,
+      "y": 0.0,
+      "z": 0.0,
+      "vx": 6.0,
+      "vy": 0.5,
+      "vz": 0.0,
+      "in_net": null
+    },
+    "players": [],
+    "score": [
+      0,
+      0
+    ]
+  },
+  "inputs": []
+}

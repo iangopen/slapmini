@@ -1,0 +1,23 @@
+{
+  "name": "wall_bounce",
+  "description": "SYNTHETIC: puck hits the side boards at an angle and rebounds",
+  "steps": 360,
+  "initial_state": {
+    "tick": 0,
+    "puck": {
+      "x": 0.0,
+      "y": -4.0,
+      "z": 0.0,
+      "vx": 3.0,
+      "vy": 14.0,
+      "vz": 0.0,
+      "in_net": null
+    },
+    "players": [],
+    "score": [
+      0,
+      0
+    ]
+  },
+  "inputs": []
+}

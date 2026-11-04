@@ -1,0 +1,11 @@
+[package]
+name = "calib"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Replay scenarios through sim, score against trajectory CSVs, fit params"
+
+[dependencies]
+sim = { path = "../sim" }
+serde.workspace = true
+serde_json.workspace = true

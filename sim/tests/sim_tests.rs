@@ -1,5 +1,19 @@
 use sim::{step, ParamFile, Params, PlayerInput, State, DEFAULT_PARAMS_JSON};
 
+#[test]
+fn fitted_default_glide_is_linear_drag() {
+    // The merged default: no constant friction, speed decays like exp(-k t).
+    let p = Params::default();
+    let mut s = State::new_default(&p, 0);
+    s.puck.vx = 5.0;
+    let steps = (1.0 / p.timestep).round() as usize;
+    for _ in 0..steps {
+        step(&mut s, &[], &p);
+    }
+    let expect = 5.0 * (-p.ice_linear_drag * steps as f64 * p.timestep).exp();
+    assert!((s.puck.vx - expect).abs() < 0.01 * expect, "vx {} vs exp decay {}", s.puck.vx, expect);
+}
+
 /// Deterministic pseudo-random inputs (LCG) so the run exercises skating, dashing, lifting and stick swings.
 fn scripted_inputs(tick: u64, n: usize) -> Vec<PlayerInput> {
     (0..n)
@@ -43,9 +57,16 @@ fn determinism_100k_steps_byte_identical() {
 }
 
 /// Params whose SHAPE (ratio to rink_length) was measured from real clips; the meter scale is still a placeholder.
-const MEASURED_SHAPE: [&str; 9] = [
+const MEASURED_SHAPE: [&str; 11] = [
     "rink_width", "rink_corner_radius", "net_width", "net_depth", "net_x", "blue_line_x", "faceoff_x", "faceoff_y", "faceoff_circle_radius",
+    "puck_radius", "player_radius",
 ];
+
+/// Scale-free puck params fitted to real clips (python -m measure holdout, merged from params.fitted.json).
+const FITTED: [&str; 4] = ["board_restitution", "board_friction", "ice_linear_drag", "ice_friction_decel"];
+
+/// The pre-merge params (placeholder physics, measured shape), for tests about placeholder behaviour.
+const PLACEHOLDER_JSON: &str = include_str!("../../params.placeholder.json");
 
 #[test]
 fn params_file_complete_and_provenance_known() {
@@ -53,14 +74,21 @@ fn params_file_complete_and_provenance_known() {
     f.to_params().unwrap();
     assert_eq!(f.params.len(), Params::NAMES.len());
     for (k, e) in &f.params {
-        let want = if MEASURED_SHAPE.contains(&k.as_str()) { "measured-shape" } else { "placeholder" };
-        assert_eq!(e.provenance, want, "{k}: unexpected provenance (only the rink shape is measured so far)");
+        let want = if MEASURED_SHAPE.contains(&k.as_str()) {
+            "measured-shape"
+        } else if FITTED.contains(&k.as_str()) {
+            "fitted"
+        } else {
+            "placeholder"
+        };
+        assert_eq!(e.provenance, want, "{k}: unexpected provenance");
     }
 }
 
 #[test]
 fn puck_slides_to_stop_on_ice() {
-    let p = Params::default();
+    // Pinned: with the fitted (pure linear drag, no constant friction) default the puck only stops asymptotically.
+    let p = Params::from_json(PLACEHOLDER_JSON).unwrap();
     let mut s = State::new_default(&p, 0);
     s.puck.vx = 5.0;
     for _ in 0..2000 {

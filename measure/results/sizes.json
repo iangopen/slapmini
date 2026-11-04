@@ -1,0 +1,80 @@
+{
+  "puck": [
+    {
+      "clip": "justpuckphysicshittingitatfixedpoint",
+      "frames": 200,
+      "center_px": [
+        970.7,
+        526.28
+      ],
+      "half_max_radius_px": 3.55,
+      "k_top": 0.010419,
+      "ground_radius_px": 3.513,
+      "radius_m": 0.23089116857290834,
+      "blob_model_radius_px": 3.764
+    },
+    {
+      "clip": "justhittingwallphysicsfixedpoint",
+      "frames": 200,
+      "center_px": [
+        964.02,
+        526.45
+      ],
+      "half_max_radius_px": 3.35,
+      "k_top": 0.010604,
+      "ground_radius_px": 3.315,
+      "radius_m": 0.21760498934073325,
+      "blob_model_radius_px": 3.753
+    },
+    {
+      "clip": "justliftedshots",
+      "frames": 200,
+      "center_px": [
+        974.21,
+        534.05
+      ],
+      "half_max_radius_px": 3.7,
+      "k_top": 0.008219,
+      "ground_radius_px": 3.67,
+      "radius_m": 0.24090837667790488,
+      "blob_model_radius_px": 3.955
+    }
+  ],
+  "player": [
+    {
+      "clip": "justpuckphysicshittingitatfixedpoint",
+      "center_px": [
+        960.22,
+        539.84
+      ],
+      "radius_px": 6.985,
+      "edge_points_kept": 143,
+      "edge_points": 144,
+      "radius_m": 0.4590666140522776
+    },
+    {
+      "clip": "justhittingwallphysicsfixedpoint",
+      "center_px": [
+        960.25,
+        539.75
+      ],
+      "radius_px": 6.971,
+      "edge_points_kept": 143,
+      "edge_points": 144,
+      "radius_m": 0.4576114521962133
+    },
+    {
+      "clip": "justliftedshots",
+      "center_px": [
+        960.26,
+        539.38
+      ],
+      "radius_px": 6.863,
+      "edge_points_kept": 142,
+      "edge_points": 144,
+      "radius_m": 0.45053020821398204
+    }
+  ],
+  "puck_radius_m": 0.2298015115305155,
+  "player_radius_m": 0.455736091487491
+}

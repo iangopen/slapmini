@@ -25,6 +25,33 @@ PP = (960.0, 540.0)  # principal point: image center (assumed)
 KEYS = ("rink_width", "rink_corner_radius", "net_width", "net_depth", "net_x", "blue_line_x", "faceoff_x", "faceoff_y", "faceoff_circle_radius")
 
 
+def set_entries(params_path: Path, entries: dict) -> None:
+    """Replace whole entries in params.json in place, keeping the file's one-line-per-param layout."""
+    text = Path(params_path).read_text()
+    for k, entry in entries.items():
+        pat = re.compile(r'^(\s*"' + k + r'":\s*)\{.*\},?$', re.M)
+        mm = pat.search(text)
+        if not mm:
+            raise RuntimeError(f"{k} not found in {params_path}")
+        comma = "," if mm.group(0).rstrip().endswith(",") else ""
+        text = text[: mm.start()] + mm.group(1) + json.dumps(entry) + comma + text[mm.end() :]
+    json.loads(text)
+    Path(params_path).write_text(text)
+
+
+FITTED = ("board_restitution", "board_friction", "ice_linear_drag", "ice_friction_decel")
+
+
+def merge_fitted(src: Path, dst: Path = PARAMS_PATH, names=FITTED) -> dict:
+    fit = json.loads(Path(src).read_text())["params"]
+    entries = {n: fit[n] for n in names}
+    for n, e in entries.items():
+        if e["provenance"] != "fitted":
+            raise RuntimeError(f"{n} in {src} is not fitted")
+    set_entries(dst, entries)
+    return entries
+
+
 def measure_shape(maps: list[dict]) -> dict:
     centered = [m for m in maps if abs(m["origin_px"][0] - PP[0]) < 40]
     offset = [m for m in maps if abs(m["origin_px"][0] - PP[0]) >= 100]
@@ -103,16 +130,6 @@ def run_params(results: Path, clips: list[str], params_path: Path = PARAMS_PATH,
         print(f"[params] {k:20s} = {s[k][0]:.4f} m  (sd {s[k][1]:.4f})")
     print(f"[params] net roof parallax k = {s['net_roof_parallax_k']:.4f}; uncorrected net depth {s['net_depth_uncorrected']:.3f} m; goal line |x| = {s['goal_line_x']:.3f} m")
     if write:
-        text = Path(params_path).read_text()
-        for k in KEYS:
-            pat = re.compile(r'^(\s*"' + k + r'":\s*)\{.*\},?$', re.M)
-            mm = pat.search(text)
-            if not mm:
-                raise RuntimeError(f"{k} not found in {params_path}")
-            comma = "," if mm.group(0).rstrip().endswith(",") else ""
-            entry = json.dumps({"value": round(s[k][0], 4), "provenance": "measured-shape", "unit": "m", "note": notes[k]})
-            text = text[: mm.start()] + mm.group(1) + entry + comma + text[mm.end() :]
-        json.loads(text)  # still valid JSON
-        Path(params_path).write_text(text)
+        set_entries(params_path, {k: {"value": round(s[k][0], 4), "provenance": "measured-shape", "unit": "m", "note": notes[k]} for k in KEYS})
         print(f"[params] wrote {len(KEYS)} entries to {params_path} with provenance measured-shape")
     return s

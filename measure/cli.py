@@ -57,6 +57,12 @@ def main(argv: list[str] | None = None) -> int:
     pc.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     pdm = sub.add_parser("dragmodel", help="held-out drag-model comparison + smoothing and synthetic-jitter checks")
     pdm.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
+    psz = sub.add_parser("sizes", help="puck and player radius from the frames -> params.json (measured-shape)")
+    psz.add_argument("clips", nargs="+", type=Path)
+    psz.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
+    psz.add_argument("--dry-run", action="store_true")
+    pmg = sub.add_parser("merge", help="copy the fitted params from params.fitted.json into params.json")
+    pmg.add_argument("--src", type=Path, default=REPO / "params.fitted.json")
     ps = sub.add_parser("synth", help="render the synthetic test video (for debugging the tests)")
     ps.add_argument("out", type=Path)
 
@@ -67,6 +73,17 @@ def main(argv: list[str] | None = None) -> int:
 
         truth = render(a.out)
         print(f"wrote {a.out} ({len(truth['frames'])} frames)")
+        return 0
+    if a.cmd == "sizes":
+        from .sizes import run_sizes
+
+        run_sizes(a.clips, a.out_dir, write=not a.dry_run)
+        return 0
+    if a.cmd == "merge":
+        from .shape_params import merge_fitted
+
+        for n, e in merge_fitted(a.src).items():
+            print(f"[merge] {n} = {e['value']} ({e['provenance']})")
         return 0
     if a.cmd == "dragmodel":
         from .dragmodel import run_dragmodel

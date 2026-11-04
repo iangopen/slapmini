@@ -324,3 +324,62 @@ Scale-free estimates (`python -m measure estimate` → `calib/data/real/estimate
   (constant term ≈ 0; −0.36 m/s² at the placeholder scale), a v² term adds nothing. Pure linear drag fits better than pure constant
   deceleration in 18 of 19 stretches. Unexplained: decel/v dips to 0.34–0.39 1/s for 50–112 px/s (≈3.3–7.4 m/s placeholder) vs ≈0.52 elsewhere.
   k (1/s) is scale-free; any constant friction term needs the meter scale.
+
+## Player (session s6, 2026-11-04, Linux cloud container) – video-only estimates
+- Code (new files only): `measure/player.py` (`python -m measure.player {track,qa,estimate}`), `measure/player_motion.py`
+  (events, estimates, params.player.json, sim check), `measure/player_synth.py` + `measure/tests/test_player.py` (synthetic video:
+  moving pink disc with a stick crossing it, pink board lights + HUD badge, camera-follow stretch, duplicated frame; tracked < 1 px),
+  `sim/examples/player_start.rs` (sim player from rest, full +x input for PUSH_S then none; prints t,speed).
+- Outputs: `measure/results/NAME.player.csv` (t,x,y; same convention/placeholder scale as the puck), `NAME.player.json` (per-frame
+  u/v ref px, raw px, camera shift, area, roundness, conf, summary), `player_estimates.json`, QA `qa/NAME.player_{overview,sheet}.png`.
+- **The game camera follows the player.** The disc stays within 1.4–1.6 px (p99) of the image center in every clip; the player's
+  motion IS the camera motion, measured on the faceoff-dot landmarks (search centered on the predicted shift, so large travel works).
+  Player position = disc centroid (ellipse fit to the convex hull of the pink blob, robust to the stick's notch) − camera shift.
+  The big blue glow is a marker on the ice at the spawn point (it stays behind when the player skates), not part of the player.
+- **Height correction: not applied, by the data.** The disc never leaves the image center, so k/2·r < 0.08 px even with k = 10× the
+  puck's; the area-vs-r model can't even be fitted (r range < 3 px). The rule (apply if the blob grows ≥ 25% with r, like the puck) is in the code.
+- Tracking: detection 100% in all 4 clips, longest gap 0 frames (puck 3962/3962 non-duplicate frames, wall 3758/3758, lifted 1653/1653,
+  staticrotatingstick 2224/2224); duplicates dropped 8/18/8/15. Rest noise (30-frame std) 0.02–0.07 px in the fixed clips, 0.3 px in
+  staticrotatingstick (the stick rotates over the disc the whole time). Landmark residual ≤ 0.57 px.
+- **staticrotatingstick was added** (the 3 "fixed-camera" clips are fixed only because the player stands still: puck and lifted clips
+  move < 2 px, the wall clip only nudges ≤ 25 px). It has no map (camera travels 134 px); it is registered against the puck clip's
+  reference frame (same camera/zoom): constant +20.1 px horizontal offset = this clip's spawn, residual ≤ 0.07 px.
+- Events: speed (local quadratic fit ±3 samples) > 8 px/s for ≥ 6 frames; **locomotion only if the camera moved ≥ 3 px** over the
+  event (21 of 30 candidates were disc wobble from the stick, camera net 0.0–0.6 px; the 9 real ones moved it 4–210 px).
+  Overlays inspected (sheets at the starts/stops/teleport); fixes from inspection: the blue glow is a static marker (pink-only
+  detection), interpolation across a teleport (wall frame 263) is now forbidden, overview labels the reference background.
+
+### Estimates (px are reference ice px; placeholder m = px × 0.0657, rink_length 60 m)
+| quantity | value | n | events |
+|---|---|---|---|
+| top speed (flat plateau ≥ 0.25 s) | **180.3 px/s = 11.84 m/s**, dead flat for ~1 s (likely a hard cap) | 1 | rotstick_04 |
+| peak speed, all locomotion | median 37.9, 25–201 px/s | 9 | |
+| acceleration from rest (10→90% ramp, normal starts) | **241 px/s² = 15.8 m/s²** (sd 44 px/s², 146–277) | 7 | wall_01/03/05/06/09/10, rotstick_01 |
+| time rest → top speed | 0.75 s extrapolated (180/241); rotstick_01 reached 144 px/s after 0.62 s; the wall taps reach their own ~35 px/s plateau in 0.12 s | | |
+| stop deceleration (v0²/2d from the stop distance) | median **396 px/s² = 26.0 m/s²** (sd 260, 29–907); stops take ~0.07–0.25 s; exp-rate view: median 20 1/s (2.3–24) | 8 | |
+- Neither constant nor exponential decay fits all stops (decel grows with speed but not proportionally). The 2 fast runs stop in
+  0.13–0.22 s from 144/180 px/s. Several runs hold a flat speed before stopping (wall taps ~0.13 s at ~35 px/s, rotstick_04 1 s at 180),
+  i.e. no visible coasting decay at all: the stops are probably **active braking**, and the real release drag may be much smaller.
+- **Dash**: no burst above a plateau (> 1.2×) was found. Two **near-instant starts** (6× the normal ramp): wall_08 (0→94 px/s in ~0.03 s,
+  gone again within ~0.1 s, 7 px hop) and rotstick_04 (0→180 px/s in 0.13 s, ~1500 px/s², then the flat 180 plateau; a 1.12× bump to
+  201 px/s for ~0.1 s just before its stop). They are dash candidates; spacing can't be measured (one per clip). No dash model was fitted.
+- Limits: inputs unknown → "pushing" = speed rising or flat near its plateau; a partial/tapped input looks like a low plateau (wall taps),
+  a brake looks like drag; top speed is n = 1; all motion is along the rink's long axis except the wall taps (directions −100…90°).
+
+### params.player.json (provenance `fitted-no-input-log`; params.json untouched)
+player_max_speed 11.84 m/s, player_accel 15.85 m/s², player_ice_drag 26.02 m/s² (placeholder scale; rescale all three with the meter scale).
+Held-out by clip (fit on the other clip, unfitted names stay placeholder; sim = `examples/player_start`, from rest, full input until the
+measured last pushing frame), speed RMSE px/s, whole event / rising phase:
+| test | held-out fit | all-clip fit | placeholder (8 / 12 / 2) |
+|---|---|---|---|
+| rotstick_01 (train wall) | 19.9 / 6.8 | 34.3 / 7.3 | 37.5 / 24.2 |
+| wall_01,03,05,06,09,10 (train rotstick) | 8.4–15.6 / 3.1–7.3 | 4.9–21.9 / 2.3–6.6 | 6.8–17.8 / 6.5–10.3 |
+| bursts wall_08 / rotstick_04 | 69 / 76 (rising 71 / 97) | 68 / 66 | 69 / 87 |
+The ramp is clearly better than the placeholder in every normal start (rising phase); whole-event errors on the wall taps are dominated
+by their unknown short inputs (the sim keeps accelerating through the measured flat ~35 px/s). The bursts can't be reproduced (no dash model).
+
+### Recording guide
+`docs/recording-guide.md`: OBS + Input Overlay (univrsal/input-overlay; NohBoard fallback), overlay over the stands, 1080p, 120 fps if
+possible; 8 clips (W start/release/brake, A/S/D, diagonal, full turn, dash from rest/at speed/repeated, stick sweeps at closer zoom
+with known angles, stick hits at several swing speeds, long coast), each with what it measures. Keep runs between the end-zone circles
+so ≥ 3 faceoff dots stay visible (the tracker follows the camera on them).

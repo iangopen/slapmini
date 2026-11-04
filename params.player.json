@@ -1,0 +1,23 @@
+{
+  "_comment": "Player params estimated from video alone (python -m measure.player estimate; see CLAUDE.md 'Player (session s6)'). Inputs were not logged: 'pushing' = speed rising or flat near its plateau. Meters at the PLACEHOLDER scale (rink_length 60 m, 0.06568 m/px); multiply by the real/placeholder scale ratio once it is measured. Only names listed here change; everything else stays in params.json.",
+  "params": {
+    "player_max_speed": {
+      "value": 11.8397,
+      "provenance": "fitted-no-input-log",
+      "unit": "m/s",
+      "note": "top speed: the one flat plateau held >= 0.25 s (rotstick_04: 180 px/s for ~1 s, dead flat, so likely a hard cap). n = 1 run; rotstick_01 peaked at 144 px/s without reaching a plateau. 180.3 px/s at 0.06568 m/px (PLACEHOLDER scale). From events rotstick_04."
+    },
+    "player_accel": {
+      "value": 15.8489,
+      "provenance": "fitted-no-input-log",
+      "unit": "m/s^2",
+      "note": "acceleration from rest: median linear ramp (10-90% of each run's own plateau) of the normal starts; the two near-instant 'burst' starts (wall_08, rotstick_04, ~1400-1600 px/s^2) are excluded as dash candidates. The wall-clip starts are short taps (plateau ~35 px/s), so this is the ramp rate, not a time-to-top-speed fit. 241.3 px/s^2 at 0.06568 m/px (PLACEHOLDER scale). From events wall_01, wall_03, wall_05, wall_06, wall_09, wall_10, rotstick_01."
+    },
+    "player_ice_drag": {
+      "value": 26.0164,
+      "provenance": "fitted-no-input-log",
+      "unit": "m/s^2",
+      "note": "deceleration when the speed falls to rest, from the stop distance (v0^2 / 2d). Without an input log a release cannot be told from active braking (opposite key): the stops take 0.07-0.25 s, and where the speed held flat for a while before the stop no decay was visible, so the real coasting drag may be much lower and this a brake. 396.1 px/s^2 at 0.06568 m/px (PLACEHOLDER scale). From events wall_01, wall_03, wall_05, wall_06, wall_09, wall_10, rotstick_01, rotstick_04."
+    }
+  }
+}

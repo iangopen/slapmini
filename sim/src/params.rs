@@ -42,6 +42,8 @@ define_params!(
     blue_line_x, faceoff_x, faceoff_y, faceoff_circle_radius, speed_display_scale,
     // Match rules (sim/src/rules.rs). Only read when State::match_state is Some.
     match_length_s, mercy_lead, countdown_s, goal_pause_s, player_spawn_x,
+    // s10: proportional coasting, set-speed dash ramp, separate stick deceleration limit.
+    player_coast_rate, dash_ramp_time, stick_max_ang_decel,
 );
 
 /// One entry of `params.json`.

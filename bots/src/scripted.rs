@@ -169,11 +169,11 @@ fn move_to(v: &View, target: V2, p: &Params, max_speed: f64) -> (f64, f64) {
     if l < 0.05 { (0.0, 0.0) } else if l > 1.0 { (m.0 / l, m.1 / l) } else { (m.0, m.1) }
 }
 
-/// Extra rotation of a swung shot beyond the blade normal at first contact (rad), measured with
+/// Extra rotation of a swung shot beyond the perpendicular to (puck − player) (rad), measured with
 /// `cargo run --release -p bots --example shotlab` at the current params (re-measure after physics changes).
-const SHOT_OVERTURN: f64 = 0.110;
+const SHOT_OVERTURN: f64 = 0.018;
 /// Launch speed of a swung shot from rest (m/s), measured the same way.
-const SHOT_SPEED: f64 = 27.2;
+const SHOT_SPEED: f64 = 27.6;
 
 /// Time for the stick to turn `theta` radians from rest under the bang-bang chase (accelerate,
 /// then cruise at the max angular speed).
@@ -239,13 +239,11 @@ impl Striker {
         } else if self.side < 0.0 && dl + 1.0 < dr {
             self.side = 1.0;
         }
-        // Stick direction at contact (player → puck). The blade's edge meets the puck
-        // asin(reach / r) before the stick points at it and pushes along the blade normal, so the
-        // stick must point at the puck rotated back by (π/2 − that) from the shot line d.
+        // Direction player → puck at contact. The sim's stick pushes the puck perpendicular to
+        // (puck − player) (s10 centre-on contact), so that line must be the shot line d rotated
+        // back by π/2 (plus the small measured SHOT_OVERTURN).
         let swing = self.side;
-        let reach = p.puck_radius + p.stick_thickness;
-        let early_r = libm::asin((reach / r).min(1.0));
-        let u_angle = d.angle() - swing * (core::f64::consts::FRAC_PI_2 - early_r + SHOT_OVERTURN);
+        let u_angle = d.angle() - swing * (core::f64::consts::FRAC_PI_2 + SHOT_OVERTURN);
         let u = V2(libm::cos(u_angle), libm::sin(u_angle));
         let spot = pk.sub(u.mul(r));
         let to_spot = spot.sub(me).len();
@@ -267,12 +265,9 @@ impl Striker {
         let t_c = swing_time(1.3 - 0.17, p);
         let pk_now = v.puck_at(t_c, p);
         let r_now = pk_now.sub(me);
-        // The blade's edge meets the puck before the stick points at it, by asin(reach / |r|), and
-        // the push is along the blade's normal at that moment.
-        let early = libm::asin((reach / r_now.len().max(reach)).min(1.0));
         // SHOT_OVERTURN: the blade keeps turning during the contact substeps, which rotates the
         // shot a little further in the swing sense (measured with `examples/shotlab.rs`).
-        let shot_angle = r_now.angle() + swing * (core::f64::consts::FRAC_PI_2 - early + SHOT_OVERTURN);
+        let shot_angle = r_now.angle() + swing * (core::f64::consts::FRAC_PI_2 + SHOT_OVERTURN);
         let to_goal = goal.sub(pk_now);
         let out = v.puck_vel().add(V2(libm::cos(shot_angle), libm::sin(shot_angle)).mul(SHOT_SPEED));
         let err = libm::fabs(wrap_angle(to_goal.angle() - out.angle()));

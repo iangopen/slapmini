@@ -415,3 +415,119 @@ env at runtime (`set_reward_weights`, a vector in TERM_NAMES order).
 - Playwright Chromium is installed with `npx playwright install chromium` (in web/). verify.mjs kills the Vite process tree with `taskkill /T` on Windows
   and the process group on POSIX. If Playwright's own browser is missing it falls back to `PW_CHROMIUM` or `/opt/pw-browsers/chromium` (cloud container).
 - measure/ runs from a venv at the repo root: `.venv\Scripts\python` on Windows, `.venv/bin/python` on macOS/Linux.
+
+## s10 models: coast, dash, stick braking, hit contact (2026-11-04, branch s10)
+Supersedes the coast / dash / stick braking / hit direction items of "Sim-model mismatches still open" above (that section
+describes the code before s10). State, PlayerInput and the public sim API are unchanged; three params were appended
+(params.json and the pinned params.placeholder.json, params.fitted.json, calib/data/params.synthetic.json; in the pinned
+files they are set to reproduce the old coast and stick chase where possible).
+
+### The four models (sim/src/step.rs)
+| model | old form | new form | params |
+|---|---|---|---|
+| coast (no move key) | constant decel player_ice_drag 6.49 m/s^2 | dv/dt = −player_coast_rate·v − player_ice_drag | **player_coast_rate 1.0815 1/s** (new, fitted); player_ice_drag is now the constant part, fitted **0** |
+| skating / cap | accel to the cap, decay above it at 2·accel (already effectively hard) | unchanged: player_accel up to the hard cap player_max_speed | player_accel **17.359** (was 17.904); cap 11.6935 (measured) |
+| dash | Shift edge: +dash_speed impulse along move (or `facing` with no key), cap raised to max + dash_speed for dash_duration | Shift edge **with a move key** opens the window and ramps the velocity toward dash_speed along the move key (along the velocity after release) at dash_speed / dash_ramp_time for dash_ramp_time (never slows a faster player); afterwards the excess above the cap fades at 2·player_accel. Shift alone does nothing. dash_timer > 0 still means "dash shot" for the puck caps | **dash_speed 15.480** (was 10.05), **dash_ramp_time 0.1163 s** (new) |
+| stick chase | bang-bang with one limit (stick_max_ang_accel) for speeding up and braking | speeding up at stick_max_ang_accel, slowing down (and the brake curve) at stick_max_ang_decel; no overshoot term | **stick_max_ang_decel 2316 rad/s^2** (new); accel 513.9 kept |
+| stick→puck impulse | along the separation normal (closest blade point → puck), at the closest blade point | **centre-on**: perpendicular to pivot → puck centre (toward the puck's side of the stick), at the stick point under the puck centre (radius = pivot → puck). Detection and the separation push are unchanged | stick_restitution 0.3597 kept, stick_mass 2 kg (placeholder) kept |
+
+### Evidence
+Tools: `python -m measure.s10_skate --old-calib <calib.exe built from the pre-s10 code>`, `python -m measure.s10_stick`,
+`cargo run --release -p sim --example hitlab -- params.json measure/results/stick_hits.json`.
+- Skating, held out by clip (fit on the other two skating clips, real meters, median per-run RMSE; `measure/results/skate/s10_fits.json`):
+
+  | held-out clip | placeholder pos | old model pos / speed | new model pos / speed |
+  |---|---|---|---|
+  | wkeymovement | 6.20 m | 0.577 m / 2.08 m/s | **0.179 m / 1.87 m/s** |
+  | diagonalkeypresses | 7.50 m | 0.650 m / 2.45 m/s | **0.276 m / 2.24 m/s** |
+  | whilemovingturning | 10.07 m | 0.827 m / 2.14 m/s | **0.746 m / 2.11 m/s** |
+
+  Folds: accel 16.46–18.02, coast rate 1.055–1.104, ice_drag 0 in all three (old model: accel 15.77–17.80, ice_drag
+  6.59–7.01). Speed RMSE is dominated by finite-difference noise of the tracked player.
+- Dash, held out by clip (fit on the other dash clip, skating params fixed):
+
+  | held-out clip | placeholder pos | old model pos / speed | new model pos / speed |
+  |---|---|---|---|
+  | dashatrest | 1.07 m | 4.99 m / 2.70 m/s | **0.143 m / 1.55 m/s** |
+  | dashwhilerunning | 3.07 m | 4.03 m / 3.15 m/s | **0.341 m / 2.19 m/s** |
+
+  Folds: dash_speed 15.47 / 14.72, ramp 0.108 / 0.133 s (old: 7.34 / 11.02 m/s, duration 0 / 0.14 s; the old fits failed both ways).
+- Stick chase, held out by event (4 cap-reaching step events of rotatinganddizzy, angle RMSE in deg; `measure/results/s10_stick_chase.json`):
+
+  | model | ev 0 | ev 1 | ev 2 | ev 3 | mean |
+  |---|---|---|---|---|---|
+  | old symmetric (one limit, fitted) | 3.71 | 2.31 | 1.95 | 3.01 | 2.75 |
+  | decel, accel fixed 513.9 (**chosen**) | 3.91 | 2.51 | 0.55 | 3.05 | 2.51 |
+  | decel + accel both fitted | 3.01 | 2.49 | 0.96 | 2.07 | 2.13 |
+  | + overshoot term, accel 513.9 | 3.93 | 2.51 | 0.70 | 3.06 | 2.55 |
+  | + overshoot term, accel fitted | 3.59 | 2.23 | 0.84 | 2.08 | 2.19 |
+
+  The overshoot term (the brake aims over·ω/ω_max past the target) does not lower the held-out error, so it is not in the sim.
+  Accel stays at the s7b flick-start value 513.9: the joint fits move it between 223 and 383 depending on the start (these 4
+  events determine it weakly; the flick starts measure it directly). Python emulation = Rust to 1.3e-15 rad. The discrete hard
+  stop still overshoots ~1–2 deg and settles in 2–3 steps (the measured 0.7–12 deg is not reproduced).
+- Hits (the 7 recorded hits; `calib/data/stick/` is now in REAL meters, ×1.0872638; the stick turns at the measured ω with
+  the chase limits off, 16 contact phases; `measure/results/s10_hits_before.csv` / `s10_hits_after.csv`). Offset = exit
+  direction − the perpendicular to pivot → resting puck (+ = ahead), deg; ratio = exit speed / (|ω|·r_c):
+
+  | hit | measured offset | measured ratio | old offset | old ratio | new offset | new ratio |
+  |---|---|---|---|---|---|---|
+  | hit_01 | −2.30 | 0.884 | −16.10 | 1.104 | 0.00 | 1.135 |
+  | hit_02 | −4.02 | 0.768 | −16.02 | 1.103 | 0.00 | 1.133 |
+  | hit_03 | −7.18 | 1.637 | −15.18 | 1.092 | 0.00 | 1.118 |
+  | hit_04 | −7.18 | 1.008 | −14.57 | 1.112 | 0.00 | 1.138 |
+  | hit_05 | +6.29 | 1.202 | −14.19 | 1.109 | 0.00 | 1.132 |
+  | hit_06 | −2.05 | 1.183 | −12.50 | 1.079 | 0.00 | 1.096 |
+  | hit_07 | +3.72 | 0.959 | −13.21 | 1.117 | 0.00 | 1.138 |
+
+  Direction RMS vs measured: old 13.5 deg, new 5.1 deg (the measured scatter itself; the measured mean −1.8 ± 1.9 deg s.e. is
+  not different from 0). The old offsets come from the blade edge touching the puck 18–21 deg before the stick points at it
+  (hitlab's contact_lead_deg). The blade-normal variant gives the same −12..−16 deg (the closest point is mid-blade), so only
+  the centre-on direction fixes it. The model has no free direction parameter, so holding out by hit changes nothing for the
+  direction. Exit-speed ratio: refitting stick_restitution with each hit held out (e 0.267–0.398) gives a held-out exit-speed
+  RMS of 4.56 m/s vs 3.88 m/s for the kept 0.3597 (sim ratio 1.10–1.14; the measured through-origin fit is 1.09). The 7 ratios
+  scatter 0.77–1.64, so the data pin the ratio only to about ±0.1, and mass vs restitution not at all.
+- **Puck speed cap**: the measured exits in real meters are 7.9, 7.4, 19.2, 21.6, 29.8, **34.2** (hit_06, head 28.9 m/s) and
+  31.1 m/s (hit_07, head 32.4 m/s, ratio 0.96). One ordinary ice shot at 34.2 m/s rules out a ~30 m/s cap for ordinary shots;
+  hit_07's low ratio hints at saturation near 31–34 m/s but is a single hit. The 88 mph goal (39 m/s) is above the 35 m/s
+  max_puck_speed_ice_normal, so either dash shots go faster (max_puck_speed_ice_dash 45, placeholder) or the normal cap is
+  higher. **Caps unchanged** (no evidence to set them).
+- Bots: SHOT_OVERTURN 0.110 → **0.018 rad**, SHOT_SPEED 27.2 → **27.6 m/s** (`examples/shotlab`: 48/48 hits, median |err|
+  0.001 rad). The striker's early-contact correction (asin(reach / r)) was removed because the push is now perpendicular to
+  player → puck (bots/src/scripted.rs; this may conflict with the parallel bots work: keep the s10 shot model).
+
+### Tests and checks (2026-11-04, Windows, GNU toolchain)
+- New `calib/tests/s10_models.rs` (5 tests): proportional coast + hard cap; Shift alone does nothing, the dash ramps to
+  dash_speed and at top speed only lifts to dash_speed; real skate/dash runs median pos RMSE < 0.6 m; the stop takes at least
+  3 steps less than the spin-up; the 7 hits leave within 1 deg of perpendicular at 1.05–1.2× head speed. Each fails with the
+  pre-s10 behaviour (by construction: each asserts a property the old model violated; not run against the old code).
+- New `sim/tests/s10_stress.rs`: **100,000-step determinism** with skating, coasting, dashing, stick spins and shots (586
+  shots in the run): hash **b19f6906467b50c1**, native = wasm (`node scripts/wasm_crosscheck.mjs`, "s10" line). Free-play
+  crosscheck **ed2b9c3b2c52da91** and match **ef5c44a7fc4de600**, native = wasm. Stick-shot tunneling: 72 targets (nets,
+  boards, corners), 36,216 swings at full and half speed, 0 tunnels, and every swing shot the puck. Old tunneling tests: 20,760
+  net + 20,304 board shots, 0 failures.
+- `cargo test --workspace` 50 tests pass (bots 9, calib 4 + 2 + 5, sim 12 + match 8 + tunneling 2 + s10 2, sim-ffi 6);
+  measure 31 and train 9 Python tests; `npm run build`, `verify`, `verify-match`, `verify-skate` OK.
+- `npm run verify-s10` (new, `web/scripts/verify_s10.mjs`, real keys and mouse in the lab): cap after 0.667 s, coast ratio
+  0.5211 per 0.6 s twice (exp(−1.0815·0.6) = 0.5226), Shift alone inert, dash from rest peaks at 15.48 m/s at 0.108 s, at top
+  speed +3.79 m/s and back at the cap in 0.35 s, flick 514 rad/s^2 up and 2316 down; `web/verify-out/s10-curves.png`, `s10-lab.png`.
+
+### Remaining gaps
+- **dash_duration 0.25 s, dash_cooldown 1 s**: placeholders, not identifiable from the clips (no two dashes within a second).
+  The window is the dash-shot window and also clips the ramp. Ian: set them from play.
+- Dash shape: the sim peaks at 15.5 m/s for an instant and fades at 2·accel (34.7 m/s^2); the game peaks at 12–13.6 m/s and,
+  from rest with the key released, drops to ~8.5 m/s within 0.15 s before coasting. At top speed the sim adds 3.8 m/s, the
+  game 0.5–3.6. The fade rate (2·accel) was not fitted, and a state-free model cannot tell the boost from the base speed.
+- Stick: the real overshoot (0.7–12 deg, settling over 2–5 frames) is not modelled; the decel is barely resolved at 60 fps.
+- stick_mass (placeholder 2 kg) and restitution are degenerate; the puck speed caps, stick_z_min / stick_z_max (height range)
+  and stick_inner are unmeasured. Contact DETECTION is still the old capsule (the puck is touched ~18 deg early); only the
+  impulse direction and point moved.
+- measure/merge_models.py and measure/skatefit.py still describe the old models (their `params` writers would put the old
+  compromise notes back); use measure/s10_skate.py for refits.
+
+### Feel checks for Ian in the lab
+1. Hold a move key from rest: top speed in ~0.67 s. Let go: a long smooth glide (speed halves in ~0.64 s), not a constant-rate stop.
+2. Tap Shift with no key: nothing. Shift + key from rest: a burst within ~0.1 s; at top speed: a small extra push.
+3. Does the dash peak feel too strong or too short? (sim 15.5 m/s briefly vs ~13 in the clips.) Try dash_duration / dash_cooldown values.
+4. Flick the mouse to the other side: the stick should whip round and stop dead, with no slow braking.
+5. Shots: the puck should leave at right angles to the line player → puck, not ~15 deg outward.

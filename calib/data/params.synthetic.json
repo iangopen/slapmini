@@ -63,6 +63,9 @@
     "mercy_lead":                { "value": 5.0,   "provenance": "rule", "unit": "goals", "note": "MATCH RULE (Ian): the match ends as soon as a team leads by this many goals (interpretation: a lead, not a total); <= 0 disables" },
     "countdown_s":               { "value": 3.0,   "provenance": "placeholder", "unit": "s", "note": "MATCH RULE, invented: frozen countdown before play at the start and after each goal" },
     "goal_pause_s":              { "value": 3.0,   "provenance": "placeholder", "unit": "s", "note": "MATCH RULE, invented: frozen pause after a goal before the reset" },
-    "player_spawn_x":            { "value": 15.0,  "provenance": "placeholder", "unit": "m", "note": "MATCH RULE, invented: |x| of the match spawn points (team 0 at -x, team 1 at +x), facing center" }
+    "player_spawn_x":            { "value": 15.0,  "provenance": "placeholder", "unit": "m", "note": "MATCH RULE, invented: |x| of the match spawn points (team 0 at -x, team 1 at +x), facing center" },
+    "player_coast_rate":         {"value": 0.0, "provenance": "placeholder", "unit": "1/s", "note": "s10: speed-proportional coast rate; 0 here keeps the old constant-deceleration coast (player_ice_drag only)"},
+    "dash_ramp_time":            {"value": 0.05, "provenance": "placeholder", "unit": "s", "note": "s10: dash ramp time to dash_speed; invented (the old additive impulse cannot be reproduced)"},
+    "stick_max_ang_decel":       {"value": 120.0, "provenance": "placeholder", "unit": "rad/s^2", "note": "s10: stick deceleration limit; equal to stick_max_ang_accel here (the old symmetric chase)"}
   }
 }

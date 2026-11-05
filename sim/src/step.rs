@@ -186,34 +186,51 @@ fn update_player_controls(pl: &mut Player, inp: &PlayerInput, p: &Params, dt: f6
     pl.dash_timer = (pl.dash_timer - dt).max(0.0);
     pl.dash_cooldown = (pl.dash_cooldown - dt).max(0.0);
 
-    // PLACEHOLDER LOGIC (dash): on press edge, add a velocity impulse along move input
-    // (or facing if idle) and open a dash-shot window. Real dash behavior is unmeasured.
-    if inp.dash && !pl.dash_prev && pl.dash_cooldown <= 0.0 {
-        let (dx, dy) = if ml > EPS { (mx, my) } else { (cos(pl.facing), sin(pl.facing)) };
-        let dl = len(dx, dy).max(EPS);
-        pl.vx += dx / dl * p.dash_speed;
-        pl.vy += dy / dl * p.dash_speed;
+    // Dash (s10): Shift does nothing without a move key. With one, the press opens the dash window
+    // (dash_timer, which the puck speed caps read as "dash shot") and starts a ramp: for the first
+    // dash_ramp_time of the window the velocity is driven toward dash_speed along the move direction
+    // (along the velocity once the key is released) at dash_speed / dash_ramp_time; it never slows
+    // a player who is already faster. The ramp is clipped by the window (dash_duration).
+    if inp.dash && !pl.dash_prev && pl.dash_cooldown <= 0.0 && ml > EPS {
         pl.dash_timer = p.dash_duration;
         pl.dash_cooldown = p.dash_cooldown;
     }
     pl.dash_prev = inp.dash;
+    let ramping = pl.dash_timer > 0.0 && p.dash_duration - pl.dash_timer < p.dash_ramp_time - 1e-12;
 
-    // Skating.
-    if ml > EPS {
+    let s0 = len(pl.vx, pl.vy);
+    if ramping {
+        let (dx, dy) = if ml > EPS {
+            (mx / ml, my / ml)
+        } else if s0 > EPS {
+            (pl.vx / s0, pl.vy / s0)
+        } else {
+            (cos(pl.facing), sin(pl.facing))
+        };
+        if s0 < p.dash_speed {
+            let (ex, ey) = (dx * p.dash_speed - pl.vx, dy * p.dash_speed - pl.vy);
+            let el = len(ex, ey);
+            let max = p.dash_speed / p.dash_ramp_time.max(dt) * dt;
+            let k = if el > max { max / el } else { 1.0 };
+            pl.vx += ex * k;
+            pl.vy += ey * k;
+        }
+    } else if ml > EPS {
+        // Skating: constant acceleration along the input, hard speed cap below.
         pl.vx += mx * p.player_accel * dt;
         pl.vy += my * p.player_accel * dt;
-    } else {
-        let s = len(pl.vx, pl.vy);
-        if s > EPS {
-            let ns = (s - p.player_ice_drag * dt).max(0.0);
-            pl.vx *= ns / s;
-            pl.vy *= ns / s;
-        }
+    } else if s0 > EPS {
+        // Coasting (s10): speed-proportional decay (player_coast_rate, 1/s) plus a constant
+        // deceleration (player_ice_drag, m/s^2) that brings the player to rest.
+        let ns = (s0 - (p.player_ice_drag + p.player_coast_rate * s0) * dt).max(0.0);
+        pl.vx *= ns / s0;
+        pl.vy *= ns / s0;
     }
-    let cap = if pl.dash_timer > 0.0 { p.player_max_speed + p.dash_speed } else { p.player_max_speed };
+    let cap = if ramping { p.player_max_speed.max(p.dash_speed) } else { p.player_max_speed };
     let s = len(pl.vx, pl.vy);
     if s > cap {
-        // Decay toward the cap instead of clamping, so a dash fades out smoothly.
+        // A skating player is held at the cap (the per-step decay exceeds player_accel); after a dash
+        // the extra speed fades at 2 x player_accel.
         let ns = (s - p.player_accel * 2.0 * dt).max(cap);
         pl.vx *= ns / s;
         pl.vy *= ns / s;
@@ -227,13 +244,33 @@ fn update_player_controls(pl: &mut Player, inp: &PlayerInput, p: &Params, dt: f6
         pl.facing = wrap_angle(pl.facing + clamp(err, -max, max));
     }
 
-    // Stick chase: bang-bang profile limited by max angular speed and acceleration,
-    // braking so it stops at the target instead of snapping or overshooting wildly.
-    let err = wrap_angle(inp.stick_target_angle - pl.stick_angle);
-    let brake_speed = sqrt(2.0 * p.stick_max_ang_accel * err.abs());
+    stick_chase(pl, inp.stick_target_angle, p, dt);
+}
+
+/// Stick chase: bang-bang profile limited by max angular speed, acceleration (speeding up) and a
+/// separate deceleration (slowing down, s10), braking so it stops at the target. (An overshoot term
+/// was tested and did not lower the held-out error: measure/s10_stick.py.)
+fn stick_chase(pl: &mut Player, target: f64, p: &Params, dt: f64) {
+    let w = pl.stick_omega;
+    let err = wrap_angle(target - pl.stick_angle);
+    let brake_speed = sqrt(2.0 * p.stick_max_ang_decel * err.abs());
     let desired = err.signum() * brake_speed.min(p.stick_max_ang_speed).min(err.abs() / dt);
-    let dw = clamp(desired - pl.stick_omega, -p.stick_max_ang_accel * dt, p.stick_max_ang_accel * dt);
-    pl.stick_omega += dw;
+    let dv = desired - w;
+    let (acc, dec) = (p.stick_max_ang_accel * dt, p.stick_max_ang_decel * dt);
+    if w == 0.0 || w * dv > 0.0 {
+        pl.stick_omega = w + clamp(dv, -acc, acc);
+    } else {
+        // Slowing down (or reversing): the deceleration limit until omega reaches 0, then the
+        // acceleration limit for the rest of the step.
+        let slow = dv.abs().min(dec);
+        if slow <= w.abs() {
+            pl.stick_omega = w - w.signum() * slow;
+        } else {
+            let left = (1.0 - w.abs() / dec).max(0.0);
+            let beyond = (dv.abs() - w.abs()).min(acc * left);
+            pl.stick_omega = dv.signum() * beyond;
+        }
+    }
 }
 
 fn integrate_puck(puck: &mut Puck, p: &Params, h: f64) {
@@ -280,18 +317,24 @@ fn stick_puck(pl: &mut Player, inp: &PlayerInput, puck: &mut Puck, p: &Params) {
     if d >= reach {
         return;
     }
-    // Normal from stick to puck; if centered on the stick, push along the stick's swing direction.
-    let (nx, ny) = if d > EPS {
-        (dx / d, dy / d)
-    } else {
-        let sgn = if pl.stick_omega >= 0.0 { 1.0 } else { -1.0 };
-        (-uy * sgn, ux * sgn)
-    };
+    let (px0, py0) = (puck.x, puck.y);
+    // Separation normal from stick to puck; if centered on the stick, push along the swing direction.
+    let side = if pl.stick_omega >= 0.0 { 1.0 } else { -1.0 };
+    let (nx, ny) = if d > EPS { (dx / d, dy / d) } else { (-uy * side, ux * side) };
     puck.x += nx * (reach - d);
     puck.y += ny * (reach - d);
 
+    // Impulse (s10, "centre-on"): perpendicular to pivot -> puck centre, toward the puck's side of the
+    // stick, at the stick point under the puck centre (radius |puck - pivot|), as if the stick had met
+    // the puck centre-on. The measured exits leave within -7..+6 deg of that line; the old impulse
+    // along the separation normal (above) left ~15 deg off it, because the blade's edge touches the
+    // puck ~18 deg before the stick points at it.
+    let sgn = if (px0 - pl.x) * -uy + (py0 - pl.y) * ux >= 0.0 { 1.0 } else { -1.0 };
+    let (rx, ry) = (px0 - pl.x, py0 - pl.y);
+    let rl = len(rx, ry).max(EPS);
+    let (nx, ny) = (-ry / rl * sgn, rx / rl * sgn);
+
     // Stick velocity at contact = player velocity + omega x r.
-    let (rx, ry) = (qx - pl.x, qy - pl.y);
     let (svx, svy) = (pl.vx - pl.stick_omega * ry, pl.vy + pl.stick_omega * rx);
     let vrel = (puck.vx - svx) * nx + (puck.vy - svy) * ny;
     if vrel >= 0.0 {

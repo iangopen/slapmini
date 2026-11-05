@@ -1,12 +1,12 @@
 {
  "name": "hit_01",
- "description": "MEASURED stick hit from hittingpuck frame 584 (slow swing, w -8.61 rad/s); placeholder meter scale; stick placed just short of the puck at the measured angular speed",
+ "description": "MEASURED stick hit from hittingpuck frame 584 (slow swing, w -8.61 rad/s); REAL METERS (x1.0872638, s10 rescale of the placeholder-meter scenario); stick placed just short of the puck at the measured angular speed",
  "steps": 66,
  "initial_state": {
   "tick": 0,
   "puck": {
-   "x": -0.014668071654371185,
-   "y": 0.29962065331928556,
+   "x": -0.015948063467846985,
+   "y": 0.32576669299196925,
    "z": 0.0,
    "vx": 0.0,
    "vy": 0.0,
@@ -16,8 +16,8 @@
   "players": [
    {
     "team": 0,
-    "x": -0.19390937829293323,
-    "y": -0.6422971548998941,
+    "x": -0.21083064937884113,
+    "y": -0.6983464515943005,
     "vx": 0.0,
     "vy": 0.0,
     "facing": 0.0,

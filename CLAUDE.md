@@ -531,3 +531,120 @@ Tools: `python -m measure.s10_skate --old-calib <calib.exe built from the pre-s1
 3. Does the dash peak feel too strong or too short? (sim 15.5 m/s briefly vs ~13 in the clips.) Try dash_duration / dash_cooldown values.
 4. Flick the mouse to the other side: the stick should whip round and stop dead, with no slow braking.
 5. Shots: the puck should leave at right angles to the line player → puck, not ~15 deg outward.
+
+## Training on the real game (session t1, 2026-11-04, branch t1, Ian's Windows machine: RTX 3070 Ti, 12 cores)
+Changes only in bots/, sim-ffi/, train/ (+ README run guide). sim/ and the params files are untouched; the scripted bots
+were not retuned. **This section supersedes the format details in "Bots and training" above** (ACT_DIM 5 → 4, OBS
+fields 28–30, INFO_DIM 10 → 14, ABI 1 → 2, 6 → 7 reward terms). Old checkpoints (act v1 / obs v1) are refused.
+
+### Action format (bots/src/action.rs, ACT_DIM 4, canonical frame)
+| idx | field |
+|---|---|
+| 0 | move index 0..8 (rounded, clamped): 0 stop, 1 +x, 2 +x+y, 3 +y, 4 −x+y, 5 −x, 6 −x−y, 7 −y, 8 +x−y (counterclockwise) |
+| 1 | stick target angle (rad, canonical, wrapped) = the mouse angle |
+| 2 | dash (> 0.5) |
+| 3 | lift (> 0.5) |
+- A diagonal is sent as (±1, ±1); the sim normalizes move vectors longer than 1, so **diagonals accelerate and top out
+  exactly like a straight key** (test `diagonal_move_reaches_the_straight_top_speed`: 4.4760 m/s after 0.25 s and
+  11.6935 m/s = the cap after 1 s, both ways).
+- The continuous-move format was dropped, not kept behind a flag (the flat buffer size is an ABI constant; not cheap).
+- Scripted bots plan with an analog move (`Scripted::wish`) and press keys through a **sigma-delta dither** (each step
+  the key combination nearest to the accumulated wish; the remainder carries over, clamped to ±1): over a few steps the keys
+  average to the wish, like a player tapping keys. Without it (plain nearest-key snapping) the chaser could not hold its
+  hitting spot and stopped scoring. No physics constant was touched.
+- Policy heads (train/ppo.py): move Categorical(9), stick 2D Gaussian direction (angle = atan2), dash and lift Bernoulli.
+
+### Observation (OBS_VERSION 2, `observe(state, me, style, params, out)`)
+Same as v1 except: **28 = (own goals − opponent goals) / 5** (mercy at ±5 → ±1), **29 = 1 in overtime**, **30 = regulation
+time left / 300 s** (1.0 at the start of a 5:00 match, 0 in overtime, 0 in free play). 32–39 style slot.
+
+### Match mode (sim-ffi env Config `mode`)
+- `"first_goal"` (default; the curriculum): jittered free-play faceoff, ends at the first goal or after 30 s (truncated).
+- `"match"`: `State::new_match`, full 5:00 match with the sim's rules (goal resets, mercy at a 5-goal lead, next-goal
+  overtime). Countdown and goal pause are **fast-forwarded inside the env** (no decision spent, no reward tracked across the
+  reset, the scripted opponent is reset). Step limit = playing sim steps, default regulation + `overtime_cap_s` 120 s
+  (truncated). **Every faceoff after a goal is jittered too** (`jitter_every_faceoff`, default true): the first match smoke
+  run without it learned to score from the one fixed post-goal faceoff (99% match wins vs the chaser in training, 95% in
+  match eval, but 5% wins from jittered first-goal starts; curve `train/results/t1_smoke_match_nojitter_curve.png`).
+- End reasons (info 0): 1 win, 2 loss (first goal / match result), 3 truncated. Info row (INFO_DIM 14): end, playing sim
+  steps, return, learner team, goals for, goals against, opponent possession s, then 7 raw reward sums.
+- Reward term `match_win` (raw ±1 at the match end, default weight 1.0); the other defaults are unchanged.
+- `final_obs` (new step argument): the learner's observation of the last state of an episode that ended (pre-reset).
+- `python -m train.ppo train --mode match` or `--curriculum-minutes M` (first_goal for M minutes, then match; a new env,
+  the rolling stats reset, the plot marks the switch). `eval` defaults to full matches (`--mode match`).
+- Scripted matches in the env (test `match_mode_endings`): chaser vs idle 5-0 **mercy** after 16.4 s of play; chaser vs
+  defender 1-0 at **300.0 s (clock end)**; chaser vs chaser on a 20 s clock (in-memory params) 0-0 → **overtime goal** at
+  63.4 s; some 0-0 games truncated at the overtime cap. Determinism (16 envs, seed 42, threads 1 vs 4): first_goal
+  `a8f2913cdf9b6aee` = `a8f2913cdf9b6aee`, match `ee5c1ae9a9229ea6` = `ee5c1ae9a9229ea6` (before the faceoff jitter;
+  the test asserts equality, not these values).
+
+### Training details
+- **Truncation**: a truncated episode adds γ·V(final_obs) to the last reward and then ends the GAE trace (a real end does
+  not bootstrap). `--no-bootstrap` = the old behaviour, for comparisons.
+- **Running observation normalization** (`--obs-norm`, off by default): mean/var of fields 0–31 (not the style slot) as
+  buffers in the policy (saved in checkpoints, baked into ONNX), updated after each PPO update from that rollout, clip ±10.
+  Test: matches numpy mean/var over 3 batches; resume keeps the statistics.
+- Checkpoints: physics stamp and obs version checks kept; also `act_version` 2 and `obs_norm`. Ctrl+C finishes the
+  update, saves latest.pt and exits. `--keep-every N` keeps `ckpts/upd_N.pt` for the ladder.
+- ONNX outputs: `move` [N] (argmax index), `move_probs` [N, 9], `stick_dir` [N, 2], `dash_prob`, `lift_prob`; team 1:
+  move k>0 → ((k−1+4) mod 8)+1, negate stick_dir. Parity vs PyTorch on 2000 random obs: 3.3e-6 (3.8e-6 with obs norm), move
+  index identical.
+
+### Throughput (profiled with `--profile`, 64 envs × 128 steps, update on the GPU; `train/results/t1_profile_*.md`)
+| section | before (old layout: GPU actor, rayon all, no chunks), µs/decision | after (defaults), µs/decision |
+|---|---|---|
+| env step in Rust (sim + bot + reward + obs) | 4.79 | 3.57 |
+| ctypes + wrapper | 0.74 | 0.40 |
+| obs → device | 2.27 | 0.14 |
+| policy forward + sampling | **49.92** | 8.27 |
+| actions → host | 2.20 | 0.40 |
+| bookkeeping (buffers, dones) | 10.94 | 1.25 |
+| GAE | 1.18 | 0.56 |
+| update H2D | 0.01 | 0.24 |
+| PPO update | 13.52 | 9.35 |
+| total | 85.93 (11.6k dec/s, synced) | 24.53 (40.8k dec/s, synced) |
+Rust CPU split: sim ~48%, scripted opponent ~42%, reward ~5.5%, observe ~5%. Unprofiled training rate (metrics.csv,
+first update excluded): **origin/main 12.3k decisions/s (18.6k with --device cpu) → t1 42.9k** (3.5×, same learning setup);
+match mode 47.5k; with 50% pool self-play 24.5k (each frozen snapshot runs separately). More envs: 128 → 72k, 256 → 110–117k,
+512 → 157–176k (bigger batch per update = a learning-behaviour change; the README run guide uses 512 + 8 minibatches).
+Fixes: rollouts act with a CPU copy of the policy (synced each update); sampling/log-prob/entropy by hand (same
+distributions; tested against torch.distributions; ~3× less per-call overhead); thread defaults rayon 1 for ≤ 128 envs
+(else min(8, cores)) and torch 4 (idle rayon workers spinning slowed torch); rayon tasks of ≥ 16 envs (`chunk`; 64-env
+rayon step 217k → 356k dec/s in the Rust bench); the reward tracker no longer clones the State each sim step; PPO stats
+stay on the device. Learning behaviour unchanged except the RNG stream of the samples.
+What limits it now: Python per-step overhead (≈ 8 µs/decision inference at 64 envs, mostly fixed per call) and the
+GPU update's per-minibatch launches; both shrink per decision with more envs. The Rust env alone does 350k–1.3M dec/s.
+
+### Styles (sim-ffi/src/reward.rs `style_weights`, env `style_mode` off | fixed | sample)
+| style entry | meaning | reward weight |
+|---|---|---|
+| s0 | aggression | puck_progress × (1 + s0) |
+| s1 | shot-taking | shot_on_net × (1 + s1) |
+| s2 | possession | possession × (1 + s2) |
+| s3 | defense | defensive_position + 0.03 × max(s3, 0) |
+goal_for, goal_against, match_win never change. `sample` draws s0..s3 uniform in [−1, 1) per episode (rest 0) and writes it
+into obs 32–35; `train.ppo --styles`. **Style zero reproduces the default env exactly** (tests: Rust and Python, both
+modes, e.g. first_goal hash `7194c031fce744d1` = `7194c031fce744d1`). Self-play opponents see a zero style.
+
+### Ladder (`python -m train.league`)
+Checkpoints vs scripted bots (env opponent) and vs each other (external opponent), full matches by default, win 1 / draw
+0.5; Bradley-Terry fit on the Elo scale with one virtual draw per pairing, anchor chaser = 1000; per-style stats vs
+`--style-opponent` (wins, goals for/against, shots per match, possession share = learner / (learner + opponent)
+possession seconds). JSON output.
+
+### Smoke runs (CPU only, `--device cpu --envs 128`, 9 min each vs the chaser; curves inspected)
+- first_goal (`train/results/t1_smoke_firstgoal_curve.png`): win 0 → 0.21–0.23, goal diff −1.00 → −0.30, return −1.20 →
+  −0.15, 19.7M decisions. Eval vs chaser (64 eps): first-goal 23% win / 42% loss; full matches 16% win.
+- match (`t1_smoke_match_curve.png`, with faceoff jitter): goal diff per match −5.0 → −2.95, loss 1.00 → 0.84, return −7.0 → −4.2
+  (slower, sparse; the curriculum is the intended route).
+- Ladder (`train/results/t1_league_smoke.json`, 8 matches per pairing): chaser 1000, first_goal latest 719, defender 698,
+  upd_1000 694, idle 690, match latest 688, upd_600 683, upd_200 668 (first-goal checkpoints rise in order). Style rows
+  show only noise: these policies were trained without `--styles`.
+
+### Open (t1)
+- No long run yet (the README "Long run" guide is for Ian's machine). The style-conditioned policy is untested beyond the
+  smoke test; possession share reads only 1–2% for these early policies (the chaser is closer to the puck almost always).
+- Pool opponents run one snapshot at a time (batching them would lift self-play throughput); self-play opponents get no style.
+- Faceoff jitter after goals is a training choice; the real game resets exactly (a fixed-faceoff trick may work in the real game).
+- When the s10 physics lands: rebuild, re-run `cargo test` (bot tests), and expect old checkpoints to be refused (physics stamp).
+- Browser loader for the ONNX policies (port `bots::observe` to JS, or expose it in sim-wasm) is still not built.

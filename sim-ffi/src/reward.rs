@@ -11,14 +11,32 @@
 //! | 3 | shot_on_net | 1 when a learner contact sends the puck on a line into the opponent net mouth at ≥ 5 m/s |
 //! | 4 | possession | seconds the learner is the closest player and has the puck within stick reach |
 //! | 5 | defensive_position | seconds the learner is goal-side: between the puck and its own net (≤ 1.5 m off that line) |
+//! | 6 | match_win | match mode only: +1 when the learner's team wins the match, −1 when it loses (0 otherwise) |
+//!
+//! Style mapping (`RewardWeights::style_weights`): a style vector s (the first STYLE_USED entries
+//! of the style slot, each clamped to [−1, 1]) scales the SHAPING terms of a base weight vector.
+//! The win terms (goal_for, goal_against, match_win) never change, so every style still plays to
+//! win, and s = 0 gives the base weights exactly:
+//!
+//! | style | meaning | weight |
+//! |---|---|---|
+//! | s0 | aggression (push the puck up the ice) | puck_progress × (1 + s0) |
+//! | s1 | shot-taking | shot_on_net × (1 + s1) |
+//! | s2 | possession (keep the puck on the stick) | possession × (1 + s2) |
+//! | s3 | defense (stay goal-side) | defensive_position + DEF_WEIGHT × max(s3, 0) |
 
 use bots::frame::Frame;
 use serde::{Deserialize, Serialize};
-use sim::{Params, State};
+use sim::{Params, Puck, State};
 
-pub const N_TERMS: usize = 6;
+pub const N_TERMS: usize = 7;
 pub const TERM_NAMES: [&str; N_TERMS] =
-    ["goal_for", "goal_against", "puck_progress", "shot_on_net", "possession", "defensive_position"];
+    ["goal_for", "goal_against", "puck_progress", "shot_on_net", "possession", "defensive_position", "match_win"];
+
+/// Number of style entries the reward mapping reads (the rest of the style slot is unused).
+pub const STYLE_USED: usize = 4;
+/// defensive_position weight added at full defensive style (s3 = 1).
+pub const DEF_WEIGHT: f32 = 0.03;
 
 /// Weights per raw term. Missing JSON keys take these defaults.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -30,6 +48,7 @@ pub struct RewardWeights {
     pub shot_on_net: f32,
     pub possession: f32,
     pub defensive_position: f32,
+    pub match_win: f32,
 }
 
 impl Default for RewardWeights {
@@ -41,13 +60,14 @@ impl Default for RewardWeights {
             shot_on_net: 0.05,
             possession: 0.02,
             defensive_position: 0.0,
+            match_win: 1.0,
         }
     }
 }
 
 impl RewardWeights {
     pub fn to_array(&self) -> [f32; N_TERMS] {
-        [self.goal_for, self.goal_against, self.puck_progress, self.shot_on_net, self.possession, self.defensive_position]
+        [self.goal_for, self.goal_against, self.puck_progress, self.shot_on_net, self.possession, self.defensive_position, self.match_win]
     }
     pub fn from_slice(w: &[f32]) -> Self {
         let g = |i: usize| w.get(i).copied().unwrap_or(0.0);
@@ -58,10 +78,22 @@ impl RewardWeights {
             shot_on_net: g(3),
             possession: g(4),
             defensive_position: g(5),
+            match_win: g(6),
         }
     }
     pub fn reward(&self, raw: &[f32; N_TERMS]) -> f32 {
         self.to_array().iter().zip(raw).map(|(w, r)| w * r).sum()
+    }
+
+    /// The style mapping (module docs). Style entries are clamped to [−1, 1]; zeros return `self`.
+    pub fn style_weights(&self, style: &[f32]) -> Self {
+        let s = |i: usize| style.get(i).copied().unwrap_or(0.0).clamp(-1.0, 1.0);
+        let mut w = *self;
+        w.puck_progress = self.puck_progress * (1.0 + s(0));
+        w.shot_on_net = self.shot_on_net * (1.0 + s(1));
+        w.possession = self.possession * (1.0 + s(2));
+        w.defensive_position = self.defensive_position + DEF_WEIGHT * s(3).max(0.0);
+        w
     }
 }
 
@@ -73,16 +105,19 @@ pub struct Tracker {
 }
 
 impl Tracker {
-    /// Accumulate the raw terms of one sim step into `raw`. `before`/`after` are the states around
-    /// the step, `me` the learner's slot.
-    pub fn sim_step(&mut self, before: &State, after: &State, me: usize, p: &Params, raw: &mut [f32; N_TERMS]) {
+    /// Accumulate the raw terms of one sim step into `raw`. `before` is the puck and the score
+    /// before the step (not a full state clone, which allocated every sim step), `after` the state
+    /// after it, `me` the learner's slot. Returns the seconds the OPPONENT had possession during
+    /// this step (statistics only, not a reward term).
+    pub fn sim_step(&mut self, before: &(Puck, [u32; 2]), after: &State, me: usize, p: &Params, raw: &mut [f32; N_TERMS]) -> f32 {
         let team = after.players[me].team as usize;
         let f = Frame::for_team(team as u8);
-        let gs = |s: &State, t: usize| s.score.get(t).copied().unwrap_or(0);
-        raw[0] += (gs(after, team) - gs(before, team)) as f32;
-        raw[1] += (gs(after, 1 - team) - gs(before, 1 - team)) as f32;
+        let gs = |t: usize| after.score.get(t).copied().unwrap_or(0);
+        raw[0] += (gs(team) - before.1[team]) as f32;
+        raw[1] += (gs(1 - team) - before.1[1 - team]) as f32;
+        let bp = &before.0;
 
-        let (bx, _) = f.vec(before.puck.x, before.puck.y);
+        let (bx, _) = f.vec(bp.x, bp.y);
         let (ax, ay) = f.vec(after.puck.x, after.puck.y);
         raw[2] += ((ax - bx) / p.net_x) as f32;
 
@@ -96,14 +131,15 @@ impl Tracker {
                 ((ax - ox).powi(2) + (ay - oy).powi(2)).sqrt() >= d_me
             }
         });
-        let in_reach = d_me < p.stick_length + p.puck_radius + 0.2 && after.puck.z <= p.stick_z_max;
+        let reach = p.stick_length + p.puck_radius + 0.2;
+        let in_reach = d_me < reach && after.puck.z <= p.stick_z_max;
 
         // Shot on net: a sudden puck velocity change near the learner (who is the closest player)
         // that leaves the puck heading into the opponent net mouth.
         if self.shot_cooldown > 0 {
             self.shot_cooldown -= 1;
         }
-        let (bvx, bvy) = f.vec(before.puck.vx, before.puck.vy);
+        let (bvx, bvy) = f.vec(bp.vx, bp.vy);
         let (avx, avy) = f.vec(after.puck.vx, after.puck.vy);
         let dv = ((avx - bvx).powi(2) + (avy - bvy).powi(2)).sqrt();
         let speed = (avx * avx + avy * avy).sqrt();
@@ -129,5 +165,18 @@ impl Tracker {
         if mx < ax && off < 1.5 {
             raw[5] += dt;
         }
+
+        // Opponent possession by the same rule (strictly closer than the learner, puck in reach).
+        let mut opp = 0.0;
+        for (j, o) in after.players.iter().enumerate() {
+            if j != me && o.team as usize != team {
+                let (ox, oy) = f.vec(o.x, o.y);
+                let d = ((ax - ox).powi(2) + (ay - oy).powi(2)).sqrt();
+                if d < d_me && d < reach && after.puck.z <= p.stick_z_max {
+                    opp = dt;
+                }
+            }
+        }
+        opp
     }
 }

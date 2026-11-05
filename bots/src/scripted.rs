@@ -7,7 +7,7 @@
 //! - `Cautious`: waits in its own half on the puck's line; attacks only once the puck comes to it.
 //! - `Idle`: does nothing (stick held forward). A baseline for tests.
 
-use crate::action::Action;
+use crate::action::{Action, MOVE_DIRS};
 use crate::frame::{wrap_angle, Frame};
 use libm::{atan2, sqrt};
 use sim::{Params, Player, Puck, State};
@@ -45,41 +45,90 @@ impl Kind {
     }
 }
 
-/// A scripted bot of any kind, by value (no boxing, cheap to clone per environment).
 #[derive(Clone, Debug)]
-pub enum Scripted {
+enum Inner {
     Chaser(Chaser),
     Defender(Defender),
     Cautious(Cautious),
     Idle(Idle),
 }
 
+/// What a bot wants this step, with an ANALOG move (length ≤ 1). `Scripted` turns it into keys.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Wish {
+    pub mx: f64,
+    pub my: f64,
+    pub stick: f64,
+}
+
+/// A scripted bot of any kind, by value (no boxing, cheap to clone per environment).
+///
+/// The bots plan with an analog move, but act through the same 9-way digital move a human has:
+/// a sigma-delta modulator (`acc`) emits, each step, the key combination nearest to the
+/// accumulated wish and subtracts it, so over a few steps the pressed keys average to the wish
+/// (like a player tapping a key to hold a spot). Deterministic; reset with the bot.
+#[derive(Clone, Debug)]
+pub struct Scripted {
+    inner: Inner,
+    acc: (f64, f64),
+}
+
 impl Scripted {
     pub fn new(kind: Kind) -> Self {
-        match kind {
-            Kind::Chaser => Scripted::Chaser(Chaser::default()),
-            Kind::Defender => Scripted::Defender(Defender::default()),
-            Kind::Cautious => Scripted::Cautious(Cautious::default()),
-            Kind::Idle => Scripted::Idle(Idle),
-        }
+        let inner = match kind {
+            Kind::Chaser => Inner::Chaser(Chaser::default()),
+            Kind::Defender => Inner::Defender(Defender::default()),
+            Kind::Cautious => Inner::Cautious(Cautious::default()),
+            Kind::Idle => Inner::Idle(Idle),
+        };
+        Scripted { inner, acc: (0.0, 0.0) }
     }
     /// True while the bot is in a committed stick swing (for diagnostics).
     pub fn swinging(&self) -> bool {
-        match self {
-            Scripted::Chaser(b) => b.striker.swing_left > 0,
-            Scripted::Defender(b) => b.striker.swing_left > 0,
-            Scripted::Cautious(b) => b.striker.swing_left > 0,
-            Scripted::Idle(_) => false,
+        match &self.inner {
+            Inner::Chaser(b) => b.striker.swing_left > 0,
+            Inner::Defender(b) => b.striker.swing_left > 0,
+            Inner::Cautious(b) => b.striker.swing_left > 0,
+            Inner::Idle(_) => false,
         }
     }
     pub fn kind(&self) -> Kind {
-        match self {
-            Scripted::Chaser(_) => Kind::Chaser,
-            Scripted::Defender(_) => Kind::Defender,
-            Scripted::Cautious(_) => Kind::Cautious,
-            Scripted::Idle(_) => Kind::Idle,
+        match self.inner {
+            Inner::Chaser(_) => Kind::Chaser,
+            Inner::Defender(_) => Kind::Defender,
+            Inner::Cautious(_) => Kind::Cautious,
+            Inner::Idle(_) => Kind::Idle,
         }
     }
+    /// The bot's analog wish (no key quantization).
+    pub fn wish(&mut self, s: &State, me: usize, p: &Params) -> Wish {
+        match &mut self.inner {
+            Inner::Chaser(b) => b.wish(s, me, p),
+            Inner::Defender(b) => b.wish(s, me, p),
+            Inner::Cautious(b) => b.wish(s, me, p),
+            Inner::Idle(b) => b.wish(s, me, p),
+        }
+    }
+}
+
+/// Sigma-delta step: add the wish, emit the nearest key combination (stop included), keep the rest.
+fn dither(acc: &mut (f64, f64), mx: f64, my: f64) -> u8 {
+    let (mx, my) = if mx.is_finite() && my.is_finite() { (mx, my) } else { (0.0, 0.0) };
+    let (ax, ay) = (acc.0 + mx, acc.1 + my);
+    let mut best = (0usize, f64::INFINITY);
+    for (i, d) in MOVE_DIRS.iter().enumerate() {
+        // Keys are compared as the sim applies them: diagonals are normalized to length 1.
+        let l = if i == 0 { 1.0 } else { sqrt(d.0 * d.0 + d.1 * d.1) };
+        let e = (ax - d.0 / l).powi(2) + (ay - d.1 / l).powi(2);
+        if e < best.1 - 1e-12 {
+            best = (i, e);
+        }
+    }
+    let d = MOVE_DIRS[best.0];
+    let l = if best.0 == 0 { 1.0 } else { sqrt(d.0 * d.0 + d.1 * d.1) };
+    // Bounded memory: a wish the keys can't follow (e.g. a sudden reversal) does not pile up.
+    *acc = ((ax - d.0 / l).clamp(-1.0, 1.0), (ay - d.1 / l).clamp(-1.0, 1.0));
+    best.0 as u8
 }
 
 impl Bot for Scripted {
@@ -87,20 +136,17 @@ impl Bot for Scripted {
         self.kind().name()
     }
     fn act(&mut self, s: &State, me: usize, p: &Params) -> Action {
-        match self {
-            Scripted::Chaser(b) => b.act(s, me, p),
-            Scripted::Defender(b) => b.act(s, me, p),
-            Scripted::Cautious(b) => b.act(s, me, p),
-            Scripted::Idle(b) => b.act(s, me, p),
-        }
+        let w = self.wish(s, me, p);
+        Action { move_dir: dither(&mut self.acc, w.mx, w.my), stick_angle: w.stick, dash: false, lift: false }
     }
     fn reset(&mut self) {
-        match self {
-            Scripted::Chaser(b) => b.reset(),
-            Scripted::Defender(b) => b.reset(),
-            Scripted::Cautious(b) => b.reset(),
-            Scripted::Idle(b) => b.reset(),
+        match &mut self.inner {
+            Inner::Chaser(b) => b.reset(),
+            Inner::Defender(b) => b.reset(),
+            Inner::Cautious(b) => b.reset(),
+            Inner::Idle(_) => {}
         }
+        self.acc = (0.0, 0.0);
     }
 }
 
@@ -201,7 +247,7 @@ struct Striker {
 
 impl Striker {
     /// `loose`: any direction within ~0.5 rad of `goal` will do (clears), so swing early and on the move.
-    fn act(&mut self, v: &View, goal: V2, p: &Params, loose: bool) -> Action {
+    fn act(&mut self, v: &View, goal: V2, p: &Params, loose: bool) -> Wish {
         let me = v.pos();
         let dist = v.puck_pos().sub(me).len();
         let lead = (dist / p.player_max_speed).min(0.8);
@@ -223,7 +269,7 @@ impl Striker {
             let target = clamp_to_rink(target, p, p.player_radius + 0.05);
             let to = target.sub(me).norm();
             let (mx, my) = (to.0, to.1);
-            return Action { move_x: mx, move_y: my, stick_angle: d_out.angle(), dash: false, lift: false };
+            return Wish { mx, my, stick: d_out.angle() };
         }
         let d = d_out.mul(SHOT_SPEED).sub(v.puck_vel()).norm();
         let r = hit_radius(p);
@@ -298,7 +344,7 @@ impl Striker {
                 && to_puck.abs() < delta.abs() + 0.3;
             if crosses { cur - delta.signum() * 1.5 } else { cocked }
         };
-        Action { move_x: mx, move_y: my, stick_angle: wrap_angle(stick), dash: false, lift: false }
+        Wish { mx, my, stick: wrap_angle(stick) }
     }
 }
 
@@ -341,9 +387,8 @@ pub struct Chaser {
     striker: Striker,
 }
 
-impl Bot for Chaser {
-    fn name(&self) -> &'static str { "chaser" }
-    fn act(&mut self, s: &State, me: usize, p: &Params) -> Action {
+impl Chaser {
+    fn wish(&mut self, s: &State, me: usize, p: &Params) -> Wish {
         let v = View::new(s, me);
         self.striker.act(&v, attack_target(&v, p), p, false)
     }
@@ -356,9 +401,8 @@ pub struct Defender {
     clearing: bool,
 }
 
-impl Bot for Defender {
-    fn name(&self) -> &'static str { "defender" }
-    fn act(&mut self, s: &State, me: usize, p: &Params) -> Action {
+impl Defender {
+    fn wish(&mut self, s: &State, me: usize, p: &Params) -> Wish {
         let v = View::new(s, me);
         let net = V2(-p.net_x, 0.0);
         let pk = v.puck_pos();
@@ -404,7 +448,7 @@ impl Bot for Defender {
         }
         let guard = clamp_to_rink(guard, p, p.player_radius + 0.05);
         let (mx, my) = move_to(&v, guard, p, p.player_max_speed);
-        Action { move_x: mx, move_y: my, stick_angle: stick, dash: false, lift: false }
+        Wish { mx, my, stick: stick }
     }
     fn reset(&mut self) { *self = Self::default(); }
 }
@@ -415,9 +459,8 @@ pub struct Cautious {
     engaged: bool,
 }
 
-impl Bot for Cautious {
-    fn name(&self) -> &'static str { "cautious" }
-    fn act(&mut self, s: &State, me: usize, p: &Params) -> Action {
+impl Cautious {
+    fn wish(&mut self, s: &State, me: usize, p: &Params) -> Wish {
         let v = View::new(s, me);
         let pk = v.puck_pos();
         let me_p = v.pos();
@@ -437,7 +480,7 @@ impl Bot for Cautious {
         let home = V2(hx, y.clamp(-0.25 * p.rink_width, 0.25 * p.rink_width));
         let (mx, my) = move_to(&v, home, p, p.player_max_speed * 0.6);
         let stick = pk.sub(me_p).angle();
-        Action { move_x: mx, move_y: my, stick_angle: stick, dash: false, lift: false }
+        Wish { mx, my, stick: stick }
     }
     fn reset(&mut self) { *self = Self::default(); }
 }
@@ -445,9 +488,8 @@ impl Bot for Cautious {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Idle;
 
-impl Bot for Idle {
-    fn name(&self) -> &'static str { "idle" }
-    fn act(&mut self, _s: &State, _me: usize, _p: &Params) -> Action {
-        Action::default()
+impl Idle {
+    fn wish(&mut self, _s: &State, _me: usize, _p: &Params) -> Wish {
+        Wish::default()
     }
 }

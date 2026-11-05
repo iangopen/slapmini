@@ -44,8 +44,8 @@ fn observation_of_team1_mirrors_team0_under_rotation() {
         let r = rotate_swap(&s);
         for i in 0..2 {
             let (mut a, mut b) = ([0f32; OBS_DIM], [0f32; OBS_DIM]);
-            observe(&s, i, &style, &mut a);
-            observe(&r, i, &style, &mut b);
+            observe(&s, i, &style, &p, &mut a);
+            observe(&r, i, &style, &p, &mut b);
             assert_ne!(s.players[i].team, r.players[i].team);
             for k in 0..OBS_DIM {
                 assert!((a[k] - b[k]).abs() < 1e-6, "field {k}: {} vs {}", a[k], b[k]);
@@ -53,28 +53,71 @@ fn observation_of_team1_mirrors_team0_under_rotation() {
         }
         // The two players' observations are genuinely different views (not a trivial pass).
         let (mut o0, mut o1) = ([0f32; OBS_DIM], [0f32; OBS_DIM]);
-        observe(&s, 0, &[], &mut o0);
-        observe(&s, 1, &[], &mut o1);
+        observe(&s, 0, &[], &p, &mut o0);
+        observe(&s, 1, &[], &p, &mut o1);
         assert_ne!(o0, o1);
-        assert_eq!(o0[28] * 5.0, 2.0);
-        assert_eq!(o1[28] * 5.0, 5.0);
+        // Score difference (own − opponent) / 5; free play: no clock, no overtime.
+        assert_eq!(o0[28] * 5.0, -3.0);
+        assert_eq!(o1[28] * 5.0, 3.0);
+        assert_eq!((o0[29], o0[30]), (0.0, 0.0));
     }
 }
 
 #[test]
+fn observation_carries_the_match_clock() {
+    let p = Params::default();
+    let mut s = State::new_match(&p, 2);
+    let mut o = [0f32; OBS_DIM];
+    observe(&s, 0, &[], &p, &mut o);
+    assert!((o[30] as f64 - p.match_length_s / 300.0).abs() < 1e-6, "time left {}", o[30]);
+    assert_eq!(o[29], 0.0);
+    let m = s.match_state.as_mut().unwrap();
+    m.clock_ticks = 0;
+    m.overtime = true;
+    observe(&s, 1, &[], &p, &mut o);
+    assert_eq!((o[29], o[30]), (1.0, 0.0));
+}
+
+#[test]
 fn action_maps_with_inverse_rotation() {
-    let a = Action { move_x: 0.6, move_y: -0.3, stick_angle: 0.4, dash: true, lift: false };
+    let a = Action { move_dir: 8, stick_angle: 0.4, dash: true, lift: false }; // +x −y
     let i0 = a.to_input(0);
     let i1 = a.to_input(1);
-    assert_eq!((i0.move_x, i0.move_y, i0.stick_target_angle), (0.6, -0.3, 0.4));
-    assert_eq!((i1.move_x, i1.move_y), (-0.6, 0.3));
+    assert_eq!((i0.move_x, i0.move_y, i0.stick_target_angle), (1.0, -1.0, 0.4));
+    assert_eq!((i1.move_x, i1.move_y), (-1.0, 1.0));
     assert!((i1.stick_target_angle - (0.4 - std::f64::consts::PI)).abs() < 1e-12);
     assert!(i1.dash && !i1.lift);
     // Round trip through the flat format.
-    let mut buf = [0f32; 5];
+    let mut buf = [0f32; bots::ACT_DIM];
     a.write(&mut buf);
     let b = Action::from_slice(&buf);
-    assert!((b.move_x - 0.6).abs() < 1e-6 && b.dash && !b.lift);
+    assert!(b.move_dir == 8 && b.dash && !b.lift);
+}
+
+/// WASD diagonals: the sim normalizes (±1, ±1), so a diagonal accelerates as fast as a straight key
+/// and reaches the same top speed.
+#[test]
+fn diagonal_move_reaches_the_straight_top_speed() {
+    let p = Params::default();
+    let run = |dir: u8| {
+        let mut s = State::new_default(&p, 1);
+        s.players[0].x = -20.0;
+        s.players[0].y = -10.0;
+        let a = Action { move_dir: dir, ..Default::default() }.to_input(0);
+        let mut at_half = 0.0;
+        for k in 0..120 {
+            sim::step(&mut s, &[a], &p);
+            if k == 29 {
+                at_half = s.players[0].vx.hypot(s.players[0].vy);
+            }
+        }
+        (at_half, s.players[0].vx.hypot(s.players[0].vy))
+    };
+    let (straight_mid, straight) = run(1);
+    let (diag_mid, diag) = run(2);
+    eprintln!("after 0.25 s / 1 s: straight {straight_mid:.4} / {straight:.4} m/s, diagonal {diag_mid:.4} / {diag:.4} m/s (cap {})", p.player_max_speed);
+    assert!((straight - p.player_max_speed).abs() < 1e-9 && (diag - straight).abs() < 1e-9);
+    assert!((diag_mid - straight_mid).abs() < 1e-9);
 }
 
 /// The physics is symmetric under the rotation: a game played from a state and the same game

@@ -8,10 +8,11 @@
 //!
 //! | buffer | shape |
 //! |---|---|
-//! | obs, opp_obs | n × slap_obs_dim() |
+//! | obs, opp_obs, final_obs | n × slap_obs_dim() |
 //! | actions, opp_actions | n × slap_act_dim() (format: bots::action) |
 //! | rewards | n |
-//! | dones | n (u8: 1 = episode ended this step; the env was reset and obs is the new episode's first) |
+//! | dones | n (u8: 1 = episode ended this step; the env was reset and obs is the new episode's first;
+//! |  | final_obs holds the learner's observation of the final state, info[0] says win / loss / truncated) |
 //! | info | n × slap_info_dim() (see env::INFO_DIM) |
 
 pub mod env;
@@ -25,7 +26,8 @@ pub use bots::{ACT_DIM, OBS_DIM, OBS_VERSION, STYLE_DIM};
 pub use reward::{RewardWeights, N_TERMS, TERM_NAMES};
 
 /// Bump when any exported signature or buffer layout changes.
-pub const ABI_VERSION: u32 = 1;
+/// v2: 4-float action (9-way move), final_obs in slap_batch_step, INFO_DIM 14, 7 reward terms.
+pub const ABI_VERSION: u32 = 2;
 
 thread_local! {
     static LAST_ERROR: RefCell<CString> = RefCell::new(CString::new("").unwrap());
@@ -106,7 +108,7 @@ pub extern "C" fn slap_reward_terms() -> u32 {
 #[no_mangle]
 pub extern "C" fn slap_reward_term_name(i: u32) -> *const c_char {
     const NAMES: [&CStr; N_TERMS] =
-        [c"goal_for", c"goal_against", c"puck_progress", c"shot_on_net", c"possession", c"defensive_position"];
+        [c"goal_for", c"goal_against", c"puck_progress", c"shot_on_net", c"possession", c"defensive_position", c"match_win"];
     NAMES.get(i as usize).map_or(std::ptr::null(), |s| s.as_ptr())
 }
 
@@ -173,7 +175,8 @@ pub unsafe extern "C" fn slap_batch_reset(h: *mut Batch, obs: *mut f32, opp_obs:
 }
 
 /// Step every env by one decision (config.action_repeat sim steps). `opp_actions` (used by envs
-/// whose opponent is external) and `opp_obs` may be null.
+/// whose opponent is external), `opp_obs` and `final_obs` may be null. `final_obs` rows are only
+/// written for envs that finished this step (the observation before the auto-reset).
 ///
 /// # Safety
 /// Buffers must have the documented sizes.
@@ -184,6 +187,7 @@ pub unsafe extern "C" fn slap_batch_step(
     opp_actions: *const f32,
     obs: *mut f32,
     opp_obs: *mut f32,
+    final_obs: *mut f32,
     rewards: *mut f32,
     dones: *mut u8,
     info: *mut f32,
@@ -199,10 +203,11 @@ pub unsafe extern "C" fn slap_batch_step(
             let oa = (!opp_actions.is_null()).then(|| std::slice::from_raw_parts(opp_actions, n * ACT_DIM));
             let o = std::slice::from_raw_parts_mut(obs, n * OBS_DIM);
             let oo = (!opp_obs.is_null()).then(|| std::slice::from_raw_parts_mut(opp_obs, n * OBS_DIM));
+            let fo = (!final_obs.is_null()).then(|| std::slice::from_raw_parts_mut(final_obs, n * OBS_DIM));
             let r = std::slice::from_raw_parts_mut(rewards, n);
             let d = std::slice::from_raw_parts_mut(dones, n);
             let inf = std::slice::from_raw_parts_mut(info, n * INFO_DIM);
-            b.step(a, oa, o, oo, r, d, inf);
+            b.step(a, oa, o, oo, fo, r, d, inf);
             Ok(())
         })())
     })
@@ -250,7 +255,8 @@ pub unsafe extern "C" fn slap_opponent_id(name: *const c_char) -> i32 {
 }
 
 /// Style vector of env `env` (u32::MAX = all), `n` floats (padded with 0 / truncated to STYLE_DIM).
-/// Visible in the observation from the next step.
+/// Visible in the observation from the next step; with style_mode "fixed" it also re-derives the
+/// env's reward weights (style mapping, reward.rs). With "sample" the next reset draws a new one.
 ///
 /// # Safety
 /// `style` must point to `n` floats.
@@ -260,17 +266,13 @@ pub unsafe extern "C" fn slap_batch_set_style(h: *mut Batch, env: u32, style: *c
         ret((|| {
             let b = batch(h)?;
             let s = if style.is_null() { &[][..] } else { std::slice::from_raw_parts(style, n as usize) };
-            each_env(b, env, |b, i| {
-                let dst = &mut b.envs[i].style;
-                for (k, d) in dst.iter_mut().enumerate() {
-                    *d = s.get(k).copied().unwrap_or(0.0);
-                }
-            })
+            each_env(b, env, |b, i| b.set_style(i, s))
         })())
     })
 }
 
-/// Reward weights of env `env` (u32::MAX = all), `n` floats in TERM_NAMES order (missing = 0).
+/// BASE reward weights of env `env` (u32::MAX = all), `n` floats in TERM_NAMES order (missing = 0).
+/// The style mapping applies on top unless style_mode is "off".
 ///
 /// # Safety
 /// `w` must point to `n` floats.
@@ -281,7 +283,7 @@ pub unsafe extern "C" fn slap_batch_set_reward_weights(h: *mut Batch, env: u32, 
             let b = batch(h)?;
             let s = if w.is_null() { &[][..] } else { std::slice::from_raw_parts(w, n as usize) };
             let rw = RewardWeights::from_slice(s);
-            each_env(b, env, |b, i| b.envs[i].weights = rw)
+            each_env(b, env, |b, i| b.set_reward_weights(i, rw))
         })())
     })
 }
@@ -293,6 +295,25 @@ pub unsafe extern "C" fn slap_batch_set_reward_weights(h: *mut Batch, env: u32, 
 #[no_mangle]
 pub unsafe extern "C" fn slap_batch_hash(h: *mut Batch) -> u64 {
     h.as_ref().map_or(0, |b| b.hash())
+}
+
+/// Timing counters: writes 5 u64 into `out`: wall ns spent inside slap_batch_step (always on), then
+/// CPU ns summed over envs for sim / reward / opponent bot / observe+reset (config `profile: true`).
+///
+/// # Safety
+/// `out` must point to 5 writable u64.
+#[no_mangle]
+pub unsafe extern "C" fn slap_batch_profile(h: *mut Batch, out: *mut u64) -> i32 {
+    guard(-1, || {
+        ret((|| {
+            let b = batch(h)?;
+            if out.is_null() {
+                return Err("null out".into());
+            }
+            std::slice::from_raw_parts_mut(out, 5).copy_from_slice(&b.profile());
+            Ok(())
+        })())
+    })
 }
 
 /// sim::State::hash of one env.

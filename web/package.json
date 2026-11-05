@@ -12,7 +12,9 @@
     "verify-match": "node scripts/verify_match.mjs",
     "verify-skate": "node scripts/verify_skate.mjs",
     "verify-s10": "node scripts/verify_s10.mjs",
-    "verify-game": "node scripts/verify_game.mjs"
+    "verify-game": "node scripts/verify_game.mjs",
+    "verify-w2": "node scripts/verify_w2.mjs",
+    "verify-space": "node scripts/diag_space.mjs"
   },
   "devDependencies": {
     "playwright": "^1.50.0",

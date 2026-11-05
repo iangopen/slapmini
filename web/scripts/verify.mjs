@@ -12,9 +12,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const webDir = path.resolve(here, "..");
 const out = path.join(webDir, "verify-out");
 mkdirSync(out, { recursive: true });
-const URL_ = "http://localhost:5173/lab.html";
+const PORT = Number(process.env.VERIFY_PORT) || 5173;
+// ?mouse=cursor: these checks aim the stick by pointing the cursor at world points (the old mouse model).
+const URL_ = `http://localhost:${PORT}/lab.html?mouse=cursor`;
 
-const server = spawn("npx vite --port 5173 --strictPort", {
+const server = spawn(`npx vite --port ${PORT} --strictPort`, {
   cwd: webDir,
   shell: true,
   stdio: ["ignore", "pipe", "pipe"],

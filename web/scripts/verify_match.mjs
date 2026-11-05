@@ -88,7 +88,8 @@ try {
   // Inputs ignored during the countdown (hold D), practice keys do nothing (F/Q/R).
   const p0 = await ev(() => ({ ...window.lab.lab.state.players[0] }));
   const pk0 = await ev(() => ({ ...window.lab.lab.state.puck }));
-  await page.keyboard.down("KeyD");
+  const plusX = (await ev(() => window.lab.view.rot)) ? "KeyW" : "KeyD"; // the key that moves toward +x in this view
+  await page.keyboard.down(plusX);
   await page.mouse.move(900, 200);
   await page.keyboard.press("KeyF");
   await page.keyboard.press("KeyQ");
@@ -103,7 +104,7 @@ try {
   await page.waitForTimeout(300);
   const p2 = await ev(() => window.lab.lab.state.players[0]);
   check(p2.x !== p0.x, `inputs act once playing (player x ${p0.x} → ${p2.x.toFixed(2)})`);
-  await page.keyboard.up("KeyD");
+  await page.keyboard.up(plusX);
   await setSpeed(20);
   for (let g = 1; g <= 5; g++) {
     await shoot(0);

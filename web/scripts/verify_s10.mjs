@@ -40,7 +40,7 @@ try {
   browser = await launch();
   const page = await browser.newPage({ viewport: { width: 1400, height: 760 } });
   page.on("pageerror", (e) => { console.log("PAGE ERROR", e.message); failed = true; });
-  await page.goto("http://localhost:5176/lab.html");
+  await page.goto("http://localhost:5176/lab.html?mouse=cursor"); // aims the stick with the cursor
   await page.waitForSelector("body[data-ready='1']");
   const ev = (fn, arg) => page.evaluate(fn, arg);
   const P = await ev(() => window.lab.lab.p);

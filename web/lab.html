@@ -8,6 +8,7 @@
   </head>
   <body>
     <canvas id="rink"></canvas>
+    <div id="lock-hint" class="lock-hint" hidden>Click the rink to capture the mouse · left/right turns the stick · Esc releases it</div>
     <aside id="panel">
       <h1><a href="./index.html" class="back">← menu</a> feel lab</h1>
       <section id="readout"></section>
@@ -32,7 +33,18 @@
       </section>
       <section>
         <h2>View</h2>
-        <div class="row"><label><input id="game-view" type="checkbox" /> Game view (nets top/bottom, +x up)</label></div>
+        <div class="row"><label><input id="game-view" type="checkbox" checked /> Rink vertical (BLUE attacks the top net; off = the old horizontal view)</label></div>
+      </section>
+      <section>
+        <h2>Mouse</h2>
+        <div class="row">
+          <select id="mouse-mode">
+            <option value="relative">Relative (click the rink to capture; left/right turns the stick)</option>
+            <option value="cursor">Cursor aim (the stick points at the cursor)</option>
+          </select>
+        </div>
+        <div class="row"><input id="sensitivity" type="range" /> <span id="sens-value" class="muted"></span></div>
+        <div class="muted">Esc releases the mouse. While captured, F/G use the last cursor position.</div>
       </section>
       <section>
         <h2>Ghost</h2>

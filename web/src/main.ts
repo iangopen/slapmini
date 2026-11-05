@@ -6,27 +6,41 @@ import { actionFor, BINDINGS, KEY_HELP } from "./bindings";
 import { Lab, parseCsv, toCsv, type Recording } from "./lab";
 import { FixedStepLoop } from "./loop";
 import { buildParamPanel, download } from "./panel";
-import { draw, drawMatchHud, fitView, formatClock, toScreen, toWorld, TEAM_NAMES, type View } from "./render";
+import { draw, drawMatchHud, fitView, formatClock, keysToMove, toScreen, toWorld, TEAM_NAMES, type View } from "./render";
+import { loadSettings, PointerCapture, saveSettings, SENS_MAX, SENS_MIN, SENS_STEP, StickAim } from "./stick";
 import type { ParamFile, Sample, Scenario } from "./types";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+const qs = new URLSearchParams(location.search);
 
 await init();
 const ORIGINAL = paramsFile as ParamFile;
 const lab = new Lab(Sim, ORIGINAL, 2);
 
+// ---------- mouse model (stick.ts; settings shared with the game through localStorage) ----------
+const mouseSettings = loadSettings();
+// `?mouse=cursor` / `?mouse=relative` override the stored mode for this page load (the verify scripts use cursor aim).
+const mouseParam = qs.get("mouse");
+if (mouseParam === "cursor" || mouseParam === "relative") mouseSettings.mode = mouseParam;
+const aim = new StickAim(mouseSettings);
+
 // ---------- canvas / view ----------
+// "Rink vertical" (default on, like the real game's camera and the game page: +x up, BLUE attacks the top
+// net, +y left). Off = the old horizontal view (`?view=horizontal`), kept for old recordings and scripts.
+// The transform itself lives in render.ts (toScreen / toWorld and the direction helpers).
 const canvas = $<HTMLCanvasElement>("rink");
 const ctx = canvas.getContext("2d")!;
-// Game view: rotated like the real game's camera (nets top and bottom, +x up, +y left).
 const gameView = $<HTMLInputElement>("game-view");
-gameView.checked = new URLSearchParams(location.search).get("view") === "game";
+gameView.checked = qs.get("view") !== "horizontal" && qs.get("view") !== "lab";
 let view: View = fitView(1, 1, lab.p, gameView.checked);
+aim.reset(view, 0); // forward = +x
 function resize(): void {
   const r = canvas.getBoundingClientRect();
   canvas.width = Math.max(1, Math.round(r.width));
   canvas.height = Math.max(1, Math.round(r.height));
+  const world = aim.worldAngle(view);
   view = fitView(canvas.width, canvas.height, lab.p, gameView.checked);
+  aim.reset(view, world); // the stick keeps pointing the same way in the world when the view turns
 }
 gameView.addEventListener("change", resize);
 new ResizeObserver(resize).observe(canvas);
@@ -40,9 +54,50 @@ canvas.addEventListener("mousemove", (e) => {
   const r = canvas.getBoundingClientRect();
   mouse = { x: e.clientX - r.left, y: e.clientY - r.top };
 });
+// Relative aim: the first click on the rink captures the pointer (not during a replay). While captured,
+// the practice tools (F, G) use the last cursor position from before the capture.
+const wantLock = () => mouseSettings.mode === "relative" && lab.mode !== "replay";
+const capture = new PointerCapture(canvas, wantLock, (dx, dy) => aim.move(dx, dy), () => updateLockHint());
+function updateLockHint(): void {
+  $("lock-hint").hidden = !(wantLock() && !capture.locked);
+}
+canvas.addEventListener("mousedown", () => (document.activeElement as HTMLElement | null)?.blur?.());
+const mouseMode = $<HTMLSelectElement>("mouse-mode");
+const sens = $<HTMLInputElement>("sensitivity");
+sens.min = String(SENS_MIN);
+sens.max = String(SENS_MAX);
+sens.step = String(SENS_STEP);
+function refreshMouse(): void {
+  mouseMode.value = mouseSettings.mode;
+  sens.value = String(mouseSettings.sensitivity);
+  $("sens-value").textContent = `${mouseSettings.sensitivity.toFixed(4)} rad/unit`;
+  updateLockHint();
+}
+mouseMode.addEventListener("change", () => {
+  mouseSettings.mode = mouseMode.value === "cursor" ? "cursor" : "relative";
+  if (mouseSettings.mode === "cursor") capture.release();
+  saveSettings(mouseSettings);
+  refreshMouse();
+});
+sens.addEventListener("input", () => {
+  mouseSettings.sensitivity = +sens.value;
+  saveSettings(mouseSettings);
+  refreshMouse();
+});
+refreshMouse();
 
+/** Text-entry fields keep their keys; checkboxes, sliders, selects and buttons do not get game keys.
+ * (Before w2 any focused <input> swallowed every key: after clicking a panel checkbox, Space toggled
+ * the checkbox instead of lifting.) */
+function typing(t: EventTarget | null): boolean {
+  const el = t as HTMLElement | null;
+  if (!el) return false;
+  if (el.tagName === "TEXTAREA" || el.isContentEditable) return true;
+  return el.tagName === "INPUT" && ["text", "number", "search", "email", "password", "url"].includes((el as HTMLInputElement).type);
+}
 function onKey(e: KeyboardEvent, down: boolean): void {
-  if ((e.target as HTMLElement)?.tagName === "INPUT") return;
+  if (typing(e.target)) return;
+  if (down && e.code === "Escape" && capture.locked) return void capture.release(); // the browser does this too
   const act = actionFor(e.code);
   if (!act) return;
   e.preventDefault();
@@ -64,21 +119,18 @@ window.addEventListener("blur", () => {
   lab.spawnRelease();
 });
 
-/** Human input for player 0: WASD + angle from player to mouse (world frame). */
+/** Human input for player 0: WASD (screen-relative, through the view transform) + the stick aim. */
 function readHumanInput(): void {
   const pl = lab.state.players[0];
   if (!pl) return;
-  const [wx, wy] = mouseWorld();
-  // WASD is screen-relative: right/up on screen, mapped into world axes for the current view.
-  const sr = (held.has("right") ? 1 : 0) - (held.has("left") ? 1 : 0);
-  const su = (held.has("up") ? 1 : 0) - (held.has("down") ? 1 : 0);
-  lab.inputs[0] = {
-    move_x: view.rot ? su : sr,
-    move_y: view.rot ? -sr : su,
-    stick_target_angle: Math.atan2(wy - pl.y, wx - pl.x),
-    dash: held.has("dash"),
-    lift: held.has("lift"),
-  };
+  const [mx, my] = keysToMove(view, held.has("up"), held.has("down"), held.has("left"), held.has("right"));
+  let stick: number;
+  if (mouseSettings.mode === "relative") stick = aim.worldAngle(view);
+  else {
+    const [wx, wy] = mouseWorld();
+    stick = Math.atan2(wy - pl.y, wx - pl.x);
+  }
+  lab.inputs[0] = { move_x: mx, move_y: my, stick_target_angle: stick, dash: held.has("dash"), lift: held.has("lift") };
 }
 
 // ---------- fixed-step loop ----------
@@ -267,6 +319,17 @@ window.lab = {
   },
   formatClock,
   BINDINGS,
+  get aim() {
+    return { mode: mouseSettings.mode, sensitivity: mouseSettings.sensitivity, screenAngle: aim.screenAngle, worldAngle: aim.worldAngle(view), locked: capture.locked, hint: !$("lock-hint").hidden };
+  },
+  /** Test hook: the same handler pointer-locked mousemove events call. */
+  mouseDelta(dx: number, dy: number) {
+    aim.move(dx, dy);
+  },
+  setMouseMode(m: "relative" | "cursor") {
+    mouseMode.value = m;
+    mouseMode.dispatchEvent(new Event("change"));
+  },
   get view() {
     return view;
   },

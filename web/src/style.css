@@ -34,3 +34,7 @@ button.on { background: #6b2430; border-color: #a33; }
 #readout { font-variant-numeric: tabular-nums; }
 #readout .big { font-size: 18px; }
 #ghost-scrub { flex: 1; }
+/* Mouse-capture hint (game and lab): shown while relative mouse mode is on and the pointer is not captured. */
+.lock-hint { position: fixed; left: 16px; bottom: 16px; background: rgba(22, 28, 35, 0.92); color: var(--text);
+  border: 1px solid var(--accent); border-radius: 6px; padding: 8px 14px; font-size: 14px; z-index: 4; pointer-events: none; }
+.lock-hint[hidden] { display: none; }

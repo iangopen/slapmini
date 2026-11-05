@@ -35,7 +35,7 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
   - Rendering: rink from params (blue lines, faceoff spots and the speed scale are DISPLAY ONLY params).
     The puck goes blue → red as z goes from 0 to 2 m, and its shadow grows and offsets with z. The puck is drawn at a 6 px minimum radius (display only).
     The stick is drawn at its actual angle, with a faint dashed line at the target angle.
-    "Game view" checkbox (or `?view=game`) rotates the display like the real camera: +x up (net 0 at the top), +y left. WASD stays screen-relative.
+    "Rink vertical" checkbox (default on, like the real camera and the game page): +x up (net 0 at the top), +y left; off (or `?view=horizontal`) = the old horizontal view. WASD stays screen-relative. Mouse: relative (default) or cursor aim (`?mouse=cursor`). See "View, mouse and Space (w2)".
     The ghost path breaks at time gaps and at jumps faster than 3× the largest speed cap (teleports in measured tracks).
   - Record: snapshots `initial_state` and logs an input event whenever a player's input changes. Samples t,x,y,z,stick_angle each step in the calib CSV format.
     Replay: `reset(scenario)` and then feeds the events. Keyboard and mouse are ignored during replay.
@@ -78,7 +78,8 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
 ## Coordinate convention (all measure/ outputs; matches the sim)
 - Meters. Origin = the center dot (center ice). +x along the rink's long axis, toward the net at the TOP of the game screen.
   +y such that x then y turns counterclockwise as seen on screen, i.e. +y = screen LEFT. This is the sim's frame
-  (+x = net 0, team 0 attacks +x); the lab's default view is this rotated 90° clockwise, and its game view shows it as the game does.
+  (+x = net 0, team 0 attacks +x); the game and the lab draw it vertically by default (+x up, +y left, as the game shows it);
+  the lab's old horizontal view (+x right) is this rotated 90° clockwise.
 - Pixel mapping: x = m_per_px · (v0 − v), y = m_per_px · (u0 − u), with (u0, v0) the center dot and v pointing down.
 - **Scale**: m_per_px = params.json `rink_length` / measured inner board length in pixels; rink_length is now 65.2358 m, the
   ESTIMATED real length (see "Absolute scale"). Every output records this as `scale_source`. Outputs written before the rescale
@@ -606,7 +607,8 @@ free play `ed2b9c3b2c52da91`, match `ef5c44a7fc4de600`, s10 `b19f6906467b50c1`).
   ArrowUp/Down and Tab move, Enter activates, Esc leaves Controls.
 - **Match**: `Sim.start_match(2)`, the sim's rules (5:00, mercy at a 5-goal lead, next-goal overtime) and the lab's canvas
   scoreboard/countdown/banners (`drawMatchHud`). The human is BLUE (player 0, team 0) with WASD (screen-relative) and the mouse
-  (stick toward the cursor), drawn in the game view (BLUE attacks the top net). Esc returns to the menu.
+  (relative stick control since w2), drawn with the rink vertical (BLUE attacks the top net). Esc releases a captured mouse;
+  Esc again returns to the menu.
 - **Game over**: "You win!" / "<bot> wins", the score and how it ended (mercy / clock / overtime), Rematch (Enter) and Menu (Esc).
 - `?speed=N` and `window.game` (summary, bot stats, frame stats, `setSpeed`, `setScore` test hook) for verification.
 
@@ -680,3 +682,69 @@ check the physics stamp; it is in the sidecar for reference).
 - Repo is not yet public and Pages is not on (see Deployment); the footage cleanup is Ian's decision.
 - The onnxruntime wasm is 14.8 MB (3.8 MB gzipped by Pages): first load of a policy bot costs that download; scripted bots
   don't need it (verify-game checks that it is not downloaded before a policy bot is chosen).
+
+## View, mouse and Space (session w2, 2026-11-05, branch w2)
+Web only (web/src, web/*.html, web/scripts, scripts/lift_demo.mjs). sim/, params and bots untouched: crosscheck hashes
+unchanged (free play `ed2b9c3b2c52da91`, match `ef5c44a7fc4de600`, s10 `b19f6906467b50c1`, native = wasm).
+
+### The view transform (one place: `web/src/render.ts`)
+- `toScreen` / `toWorld` plus `screenDirToWorld`, `screenAngleToWorld`, `worldAngleToScreen`, `keysToMove` (all derived
+  from toScreen/toWorld). `View.rot = true` = rink vertical: +x up (BLUE attacks the top net, defends the bottom one), +y left;
+  `rot = false` = the old horizontal view. The sim never sees it (+x stays along the rink length).
+- WHO MUST USE IT: everything that converts between screen and world: the canvas drawing (rink, players, sticks, the stick
+  target line, ghost, spawn and target markers), `fitView` (camera/zoom), WASD (`keysToMove`: W = up the screen), the mouse aim
+  (relative and cursor), practice-tool cursor positions (F, G, Q via `toWorld`), and the verify hooks (`worldToClient`).
+  The scoreboard (`drawMatchHud`) is screen-space and orientation-free. Never branch on `view.rot` elsewhere.
+- Game: always vertical. Lab: "Rink vertical" checkbox, default on; `?view=horizontal` (or `?view=lab`) = the old view,
+  for earlier recordings and scripts (recordings store world inputs, so they replay identically in either view).
+- `fitView` now never returns a scale ≤ 0: the 1×1 placeholder canvas before the first layout gave a negative scale, which
+  flipped the transform and started the lab's relative aim pointing backwards (found in w2, fixed).
+
+### Mouse model (`web/src/stick.ts`, shared by the game and the lab)
+- **Relative (default)**: the first click on the rink (in a match, or anywhere in the lab) captures the pointer (Pointer Lock
+  API). Only `movementX` turns the stick: right = clockwise on screen (the stick swings right), left = counterclockwise;
+  `movementY` is ignored. The angle is kept in SCREEN radians, starts forward (toward the opponent's net: up), is never clamped,
+  and goes to the sim as `stick_target_angle` in world radians via `screenAngleToWorld`. The stick still turns only as fast as
+  the sim's chase limits (26.17 rad/s, 513.9 up / 2316 down rad/s²).
+- **Cursor aim**: the old model (stick toward the cursor). Lab option and `?mouse=cursor`; the older verify scripts use it.
+- Settings (Controls screen in the game, Mouse section in the lab): mode and sensitivity, default 0.005 rad per mouse unit
+  (100 units ≈ 28.6°), range 0.001–0.02; stored in localStorage `slapmini.mouse.v1` inside try/catch (blocked storage =
+  defaults for the page). A "Click the rink to capture the mouse" hint shows whenever relative mode is on and the pointer is
+  free. Esc releases the pointer (the page also calls exitPointerLock); in a match the match goes on, and a second Esc
+  returns to the menu. Game over releases it. In the lab, while captured, F/G use the last cursor position.
+- The game resets the aim to forward at every match start (not at goal resets: unknown what the real game does).
+- Recording/replay log `stick_target_angle`, not mouse events: a relative-mouse recording replays byte-identically.
+
+### Space (lift): root cause
+- Diagnosis (`web/scripts/diag_space.mjs`, real UI, prints the PlayerInput the sim receives each step):
+  - GAME: Space always reached the sim (`lift: true` every step while held), whether the match was started with the mouse
+    or with Enter; it did not restart the match, scroll, or press a button. Lift is the sim's placeholder that only acts AT
+    STICK CONTACT (vz set at the hit), so holding Space without a hit has no visible effect, and the game showed no feedback.
+  - LAB (the real bug): the key handler ignored every key whose target was an `<input>`. After clicking any panel checkbox or
+    slider, Space was swallowed (`lift=false`) AND toggled the focused checkbox (e.g. Match mode turned off).
+- Fix: the lab only skips keys in text-entry fields (`typing()`), game keys get preventDefault on keydown and keyup in both
+  pages, focused controls are blurred when a match starts / the rink is clicked, and the game shows a "LIFT" badge while held.
+  After: lift reaches the sim in every case and the focused checkbox no longer changes.
+- Sim check (`node scripts/lift_demo.mjs`, the wasm build): puck at rest 1 m out, stick swung through it: with lift held the
+  puck rises to z = 1.822 m (exit 30.0 m/s); without, z stays 0.000 (exit 30.1 m/s).
+
+### Verified (w2, Windows, headless Chromium)
+- `cargo test --workspace` 59 passed; train 16 (after `cargo build --release -p sim-ffi` in the new worktree) and measure 31
+  Python tests OK; `npm run build`; `verify`, `verify-match`, `verify-skate`, `verify-s10`, `verify-game`, new `verify-w2` OK.
+- `npm run verify-w2`: BLUE's goal at the bottom (client y 651 vs 109); W/A/S/D push the player up/left/down/right on screen
+  (on-screen velocity change ≈ (0,−60), (−63,0), (0,60), (60,0) px/s; world (+5.5,0), (0,+5.8), (−5.5,0), (0,−5.5) m/s);
+  REAL pointer lock in headless Chromium: right 100 → −28.65° on screen, left 100 → +28.65°, vertical 0°, sensitivity
+  0.01 → 57.30°, sim target = world angle (−28.65° = toward −y); Esc releases (match goes on), Esc again → menu; lab F at
+  client (480, 260) → spawn (10.995, 4.581) → back to (480.00, 260.00), old view too; lab relative-mouse record → replay
+  sha256 758269fc… identical. Screenshots inspected: `web/verify-out/w2-menu.png`, `w2-midmatch.png`, `w2-lab-vertical.png`,
+  `w2-lab-horizontal.png`.
+- Verify-script changes (only where they depended on the old view or the cursor aim): `verify.mjs` and `verify_s10.mjs`
+  open the lab with `?mouse=cursor`; `verify_match.mjs` presses the +x key of the current view (W when vertical) instead of
+  D; `verify.mjs` takes `VERIFY_PORT` (port 5173 was held by another dev server on this machine).
+
+### Open (w2, for Ian's feel check)
+- Stick angle limits: none (the real game's are unknown; the angle is never clamped).
+- True sensitivity: 0.005 rad per mouse unit is a guess; mouse units depend on the OS pointer speed and DPI.
+- Whether the real game turns the stick relative to the screen (as here) or relative to the player's facing; and whether it
+  re-centres the aim at faceoffs.
+- Lift and dash bindings are still unverified guesses; lift is still the sim's contact-only placeholder.

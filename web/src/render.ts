@@ -3,16 +3,22 @@
 import type { P, Sample, State } from "./types";
 
 /**
+ * THE view transform (world ↔ screen). Every screen↔world conversion in the game and the lab goes through
+ * toScreen / toWorld or the direction/angle helpers below (drawing, stick lines, ghost, practice-tool
+ * cursor positions, WASD directions, mouse aim). The sim never sees it: its +x stays along the rink length.
  * s = pixels per meter, (cx, cy) = screen position of center ice.
- * rot = false: x right, y up (lab default). rot = true: "game view", the real game's camera: +x up
- * (toward the net at the top), +y left, i.e. the default view rotated 90 deg counterclockwise. Both keep
- * x then y counterclockwise on screen, which is the measure/ coordinate convention.
+ * rot = true ("rink vertical", the default in the game and the lab, like the real game's camera): +x up
+ * (BLUE attacks the top net, defends the bottom one), +y left. rot = false (the old horizontal view, lab
+ * option "Rink vertical" off, `?view=horizontal`): +x right, +y up. Both keep x then y counterclockwise on
+ * screen (the measure/ coordinate convention); rot is a 90 deg rotation of the old view.
  */
 export interface View { s: number; cx: number; cy: number; rot: boolean }
 
 export function fitView(canvasW: number, canvasH: number, p: P, rot = false, marginPx = 24): View {
   const [along, across] = rot ? [canvasH, canvasW] : [canvasW, canvasH];
-  const s = Math.min((along - 2 * marginPx) / p.rink_length, (across - 2 * marginPx) / p.rink_width);
+  // Never ≤ 0: a canvas smaller than the margins (e.g. the 1×1 placeholder before the first layout) would
+  // otherwise flip the transform and break the angle helpers (the stick aim started backwards in the lab).
+  const s = Math.max(1e-3, Math.min((along - 2 * marginPx) / p.rink_length, (across - 2 * marginPx) / p.rink_width));
   return { s, cx: canvasW / 2, cy: canvasH / 2, rot };
 }
 
@@ -20,6 +26,30 @@ export const toScreen = (v: View, x: number, y: number): [number, number] =>
   v.rot ? [v.cx - y * v.s, v.cy - x * v.s] : [v.cx + x * v.s, v.cy - y * v.s];
 export const toWorld = (v: View, sx: number, sy: number): [number, number] =>
   v.rot ? [(v.cy - sy) / v.s, (v.cx - sx) / v.s] : [(sx - v.cx) / v.s, -(sy - v.cy) / v.s];
+
+/** A screen direction (right, up; any length) → the world direction (same length in meters per pixel units),
+ * through toWorld. Used for WASD (W = screen up) and the mouse aim. */
+export function screenDirToWorld(v: View, right: number, up: number): [number, number] {
+  const [ox, oy] = toWorld(v, v.cx, v.cy);
+  const [px, py] = toWorld(v, v.cx + right * v.s, v.cy - up * v.s);
+  return [px - ox, py - oy];
+}
+/** A screen angle (radians, counterclockwise from screen-right, screen up = π/2) → a world angle. */
+export function screenAngleToWorld(v: View, a: number): number {
+  const [x, y] = screenDirToWorld(v, Math.cos(a), Math.sin(a));
+  return Math.atan2(y, x);
+}
+/** A world angle → the screen angle (inverse of screenAngleToWorld), through toScreen. */
+export function worldAngleToScreen(v: View, a: number): number {
+  const [ox, oy] = toScreen(v, 0, 0);
+  const [px, py] = toScreen(v, Math.cos(a), Math.sin(a));
+  return Math.atan2(-(py - oy), px - ox);
+}
+/** WASD held keys (screen-relative) → the world move vector for PlayerInput. */
+export function keysToMove(v: View, up: boolean, down: boolean, left: boolean, right: boolean): [number, number] {
+  const [mx, my] = screenDirToWorld(v, (right ? 1 : 0) - (left ? 1 : 0), (up ? 1 : 0) - (down ? 1 : 0));
+  return [Math.round(mx), Math.round(my)]; // exact −1/0/1 (the 90° rotation only permutes and negates)
+}
 
 /** Minimum on-screen puck radius in pixels (display only; physics radius is unchanged). */
 const PUCK_MIN_PX = 6;

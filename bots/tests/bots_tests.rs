@@ -179,7 +179,7 @@ fn cautious_waits_then_scores() {
     assert!(s.players[0].x < -10.0, "cautious left home: x = {}", s.players[0].x);
     // Puck sliding into its zone: it engages and scores.
     let mut s = faceoff(&p);
-    s.puck.x = 5.0;
+    s.puck.x = s.players[0].x + 20.0; // relative to the spawn (rink_length / 4), not a fixed x
     s.puck.vx = -7.0;
     s.puck.vy = 1.0;
     let (mut c, mut i) = (Scripted::new(Kind::Cautious), Scripted::new(Kind::Idle));

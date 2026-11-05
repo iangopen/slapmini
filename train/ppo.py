@@ -41,6 +41,7 @@ from train.slapenv import (DEFAULT_PARAMS, END_LOSS, END_TRUNCATED, END_WIN, I_E
                            I_RET, I_STEPS, N_MOVES, OPPONENTS, SCRIPTED, VecEnv, dims, params_values, physics_stamp)
 
 RAW_DIM = 5      # sampled action: move index, stick_x, stick_y, dash, lift
+_HALF_LOG_2PI = 0.5 * math.log(2 * math.pi)
 BASE_DIM = 32    # observation fields before the style slot (bots::BASE_DIM); only these are normalized
 
 
@@ -108,6 +109,8 @@ class Policy(nn.Module):
         return out[:, :N_MOVES], out[:, N_MOVES:N_MOVES + 2], out[:, N_MOVES + 2], out[:, N_MOVES + 3]
 
     def dist(self, obs):
+        """The action distribution as torch.distributions objects (reference / tests; the hot paths
+        below compute the same log-probabilities and entropies by hand, ~3x faster per call)."""
         ml, sm, dl, ll = self.heads(obs)
         std = self.log_std.clamp(-3.0, 1.0).exp().expand_as(sm)
         return (torch.distributions.Categorical(logits=ml), torch.distributions.Normal(sm, std),
@@ -116,28 +119,47 @@ class Policy(nn.Module):
     def value(self, obs):
         return self.vf(self.prep(obs)).squeeze(-1)
 
+    def _forward(self, obs):
+        o = self.prep(obs)
+        out = self.pi(o)
+        return (out[:, :N_MOVES], out[:, N_MOVES:N_MOVES + 2], out[:, N_MOVES + 2], out[:, N_MOVES + 3],
+                self.vf(o).squeeze(-1))
+
+    def _logp_ent(self, ml, sm, dl, ll, raw, want_ent: bool):
+        lsm = torch.log_softmax(ml, -1)
+        log_std = self.log_std.clamp(-3.0, 1.0)
+        z = (raw[:, 1:3] - sm) / log_std.exp()
+        lp_stick = (-0.5 * z * z - log_std - _HALF_LOG_2PI).sum(-1)
+        # Bernoulli(logits l): log p(x) = x*l - softplus(l)
+        lp = (lsm.gather(1, raw[:, 0:1].long()).squeeze(1) + lp_stick
+              + raw[:, 3] * dl - nn.functional.softplus(dl) + raw[:, 4] * ll - nn.functional.softplus(ll))
+        if not want_ent:
+            return lp, None
+        ent_move = -(lsm.exp() * lsm).sum(-1)
+        ent_stick = (0.5 + _HALF_LOG_2PI + log_std).sum()
+        ent_b = lambda l: nn.functional.softplus(l) - l * torch.sigmoid(l)
+        return lp, ent_move + ent_stick + ent_b(dl) + ent_b(ll)
+
     @torch.no_grad()
     def act(self, obs, deterministic=False):
         """Returns (raw [N, 5], logp [N], value [N])."""
-        mv, g, d, l = self.dist(obs)
+        ml, sm, dl, ll, v = self._forward(obs)
         if deterministic:
-            m = mv.probs.argmax(-1).float()
-            st = g.mean
-            dash, lift = (d.probs > 0.5).float(), (l.probs > 0.5).float()
+            m = ml.argmax(-1).float()
+            st = sm
+            dash, lift = (dl > 0).float(), (ll > 0).float()
         else:
-            m, st, dash, lift = mv.sample().float(), g.sample(), d.sample(), l.sample()
+            m = torch.multinomial(torch.softmax(ml, -1), 1).squeeze(1).float()
+            st = sm + self.log_std.clamp(-3.0, 1.0).exp() * torch.randn_like(sm)
+            u = torch.rand((obs.shape[0], 2), device=obs.device)
+            dash, lift = (u[:, 0] < torch.sigmoid(dl)).float(), (u[:, 1] < torch.sigmoid(ll)).float()
         raw = torch.cat([m[:, None], st, dash[:, None], lift[:, None]], dim=1)
-        return raw, self.logp(mv, g, d, l, raw), self.value(obs)
-
-    @staticmethod
-    def logp(mv, g, d, l, raw):
-        return (mv.log_prob(raw[:, 0].long()) + g.log_prob(raw[:, 1:3]).sum(-1) + d.log_prob(raw[:, 3])
-                + l.log_prob(raw[:, 4]))
+        return raw, self._logp_ent(ml, sm, dl, ll, raw, False)[0], v
 
     def evaluate(self, obs, raw):
-        mv, g, d, l = self.dist(obs)
-        ent = mv.entropy() + g.entropy().sum(-1) + d.entropy() + l.entropy()
-        return self.logp(mv, g, d, l, raw), ent, self.value(obs)
+        ml, sm, dl, ll, v = self._forward(obs)
+        lp, ent = self._logp_ent(ml, sm, dl, ll, raw, True)
+        return lp, ent, v
 
 
 def to_env_actions(raw: np.ndarray) -> np.ndarray:
@@ -402,7 +424,14 @@ def ckpt_state(args, update, global_steps, t0, t_offset, stamp, d, env_cfg):
 def train(args):
     device = pick_device(args.device)
     rdev = device if args.rollout_device == "same" else pick_device(args.rollout_device)
-    if args.torch_threads:
+    # Measured on a 12-core machine (CLAUDE.md "Training throughput"): with 64 envs a rayon step is
+    # ~0.2 ms and parallelism costs more than it saves; idle rayon workers spinning also slow the
+    # torch threads that act next. 4 torch threads are the sweet spot for a 256-wide MLP on CPU.
+    if args.threads < 0:
+        args.threads = 1 if args.envs <= 128 else min(8, os.cpu_count() or 1)
+    if args.torch_threads < 0:
+        args.torch_threads = 4 if rdev.type == "cpu" else 0
+    if args.torch_threads > 0:
         torch.set_num_threads(args.torch_threads)
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -759,10 +788,12 @@ def main(argv=None):
     t.add_argument("--device", default="auto", help="PPO update device (auto = cuda if available)")
     t.add_argument("--rollout-device", default="cpu",
                    help="device that acts during rollouts: cpu (default, fastest for small batches), cuda, or 'same'")
-    t.add_argument("--torch-threads", type=int, default=0, help="torch CPU threads (0 = torch default)")
+    t.add_argument("--torch-threads", type=int, default=-1,
+                   help="torch CPU threads (-1 = auto: 4 when rollouts act on the CPU, else torch default; 0 = torch default)")
     t.add_argument("--seed", type=int, default=1)
     t.add_argument("--envs", type=int, default=64)
-    t.add_argument("--threads", type=int, default=0, help="rayon threads in the env (0 = all cores)")
+    t.add_argument("--threads", type=int, default=-1,
+                   help="rayon threads in the env (-1 = auto: 1 for <= 128 envs, else min(8, cores); 0 = all cores)")
     t.add_argument("--chunk", type=int, default=16, help="envs per rayon task")
     t.add_argument("--steps", type=int, default=128, help="rollout length per env per update")
     t.add_argument("--minutes", type=float, default=0, help="wall-clock budget (0 = unlimited)")

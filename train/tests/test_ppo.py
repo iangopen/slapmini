@@ -24,6 +24,30 @@ class Ppo(unittest.TestCase):
         # Near-uniform start: the move entropy is close to log 9.
         self.assertGreater(float(ent.mean()), np.log(9))
 
+    def test_hand_written_logp_matches_torch_distributions(self):
+        torch.manual_seed(3)
+        pol = ppo.Policy(dims()["obs"], 64)
+        with torch.no_grad():
+            pol.pi[-1].weight.normal_(0, 0.5)
+            pol.pi[-1].bias.normal_(0, 0.5)
+            pol.log_std.copy_(torch.tensor([-0.2, 0.3]))
+        obs = torch.randn(500, dims()["obs"])
+        raw, logp, _ = pol.act(obs)
+        mv, g, d, l = pol.dist(obs)
+        want = mv.log_prob(raw[:, 0].long()) + g.log_prob(raw[:, 1:3]).sum(-1) + d.log_prob(raw[:, 3]) + l.log_prob(raw[:, 4])
+        want_ent = mv.entropy() + g.entropy().sum(-1) + d.entropy() + l.entropy()
+        lp, ent, _ = pol.evaluate(obs, raw)
+        self.assertTrue(torch.allclose(logp, want, atol=1e-5))
+        self.assertTrue(torch.allclose(lp, want, atol=1e-5))
+        self.assertTrue(torch.allclose(ent, want_ent, atol=1e-5))
+        # Sampled moves follow the categorical distribution (chi-square-ish check on one state).
+        one = obs[:1].repeat(20000, 1)
+        r, _, _ = pol.act(one)
+        freq = np.bincount(r[:, 0].long().numpy(), minlength=9) / 20000
+        p = torch.softmax(pol.heads(obs[:1])[0], -1)[0].detach().numpy()
+        self.assertLess(np.abs(freq - p).max(), 0.015)
+        self.assertAlmostEqual(float(r[:, 3].mean()), float(torch.sigmoid(pol.heads(obs[:1])[2])[0]), delta=0.015)
+
     def test_running_obs_norm(self):
         torch.manual_seed(0)
         n = ppo.RunningNorm(40, 32)

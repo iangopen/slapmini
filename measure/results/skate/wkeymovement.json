@@ -1,0 +1,151 @@
+{
+ "clip": "wkeymovement",
+ "fps": 60.0,
+ "frames": 2146,
+ "frame_size": [
+  1920,
+  1080
+ ],
+ "calibration": {
+  "ice_bgr": [
+   58.0,
+   54.0,
+   46.0
+  ],
+  "board_width_px": 646.5622863769531,
+  "s_px_per_m": 16.953152415854415,
+  "board_width_dev_px": {
+   "median": 0.034,
+   "p95": 0.169,
+   "max": 0.254
+  },
+  "u_c_range_px": [
+   1132.16,
+   1132.34
+  ]
+ },
+ "scale_source": "px per meter from the painted line spacing; meters at the PLACEHOLDER scale (params.json, rink_length 60 m)",
+ "registration": {
+  "anchored_frames": 2146,
+  "odometry_frames": 0,
+  "unregistered_frames": 0,
+  "residual_px": {
+   "median": 0.113,
+   "p95": 0.204,
+   "max": 1.42
+  },
+  "lines_per_anchored_frame": {
+   "3": 347,
+   "4": 1324,
+   "5": 475
+  },
+  "odometry_drift_vs_anchors": {
+   "1": {
+    "median_px": 0.065,
+    "p95_px": 0.482,
+    "n": 2142
+   },
+   "5": {
+    "median_px": 0.3,
+    "p95_px": 2.364,
+    "n": 2126
+   },
+   "15": {
+    "median_px": 0.863,
+    "p95_px": 7.049,
+    "n": 2086
+   },
+   "30": {
+    "median_px": 1.823,
+    "p95_px": 14.177,
+    "n": 2026
+   },
+   "60": {
+    "median_px": 4.407,
+    "p95_px": 26.609,
+    "n": 1906
+   },
+   "120": {
+    "median_px": 9.178,
+    "p95_px": 42.827,
+    "n": 1666
+   }
+  }
+ },
+ "detection": {
+  "player_frames": 2074,
+  "puck_frames": 1722
+ },
+ "key_events": [
+  {
+   "frame": 42,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 231,
+   "key": "W",
+   "down": false
+  },
+  {
+   "frame": 525,
+   "key": "R",
+   "down": true
+  },
+  {
+   "frame": 528,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 531,
+   "key": "R",
+   "down": false
+  },
+  {
+   "frame": 765,
+   "key": "W",
+   "down": false
+  },
+  {
+   "frame": 1047,
+   "key": "R",
+   "down": true
+  },
+  {
+   "frame": 1053,
+   "key": "R",
+   "down": false
+  },
+  {
+   "frame": 1082,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 1313,
+   "key": "W",
+   "down": false
+  },
+  {
+   "frame": 1563,
+   "key": "R",
+   "down": true
+  },
+  {
+   "frame": 1570,
+   "key": "R",
+   "down": false
+  },
+  {
+   "frame": 1616,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 1814,
+   "key": "W",
+   "down": false
+  }
+ ]
+}

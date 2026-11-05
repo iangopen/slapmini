@@ -692,3 +692,134 @@ env at runtime (`set_reward_weights`, a vector in TERM_NAMES order).
 
   Scoring did not collapse (shots still reach: 18.9 m/s with k = 0.47 1/s travels up to 40 m); shotlab's systematic aim error
   was 0.013 rad (signed with the swing) before the re-measure and 0.000 after.
+
+## Session s7: skating clips with a key display, moving-camera registration, player/dash fits, absolute scale (2026-11-04)
+New files only (`measure/camreg.py`, `keys.py`, `skate.py`, `skatefit.py`, `goalscale.py`, `pan_synth.py`,
+`key_templates.json`, `tests/test_camreg.py`, `calib/tests/player_track.rs`, `calib/data/skate/`, `measure/results/skate/`,
+`measure/results/scale.json`) plus one additive calib change: a scenario may set `"track": "player0"` (default: the puck) so
+replay/eval/fit compare player 0's path. params.json is untouched; player values go to params.player.json.
+
+### Clips (clip-data; 1920x1080, 60 fps, decoded frame counts)
+| clip | MB | frames | what it shows (checked on frames) |
+|---|---|---|---|
+| wkeymovement | 38.5 | 2146 | 4 standing starts holding W 3.15-3.95 s (R reset before each), coast to rest |
+| diagonalkeypresses | 80.8 | 3764 | W+D (3x), W+A (3x) held 2.3-3.6 s from rest, one S tap |
+| whilemovingturning | 58.1 | 2394 | W to top speed, then D added (turn to the diagonal at speed), 5 runs |
+| dashatrest | 28.4 | 2137 | Shift alone 3x (no motion), then W+Shift tapped together from rest 6x (R between) |
+| dashwhilerunning | 46.8 | 2736 | W to top speed, Shift (+ W release), 4-5 runs; one dash from 2.6 m/s |
+| goalspeeds_part00-03 | 66.6/57.6/64.9/7.3 | 1681/1412/1441/126 | one match recording (4660 frames, stream-copied parts, joined in order); 6 goals with "SHOT SPEED: xx.xx MPH" under the goal banner; no goal is cut at a part boundary |
+| hittingpuck, rotatinganddizzy | | | stick clips: skipped (parallel session) |
+The s7 clips use a new arena look (dark ice) and a closer zoom than the s6 clips (board-to-board 646 px vs 581). The player is a
+grey disc (~19 px) with a red team rim and a black stick; the puck is green (on ice) and drawn above a white ground ring when
+airborne. A Keyviz-style key display sits bottom right; an "Alt" cap is held through all of wkeymovement (a stuck key in the
+display, ignored).
+
+### Camera registration (`measure/camreg.py`)
+- **The camera follows the player in both axes** (the disc stays at the screen centre, ~(959.5, 541) +- 0.6 px, except where the
+  camera stops at the rink ends) and looks straight down: line spacing is constant across the image and frames (center to blue
+  line 136.5 px, center to goal line 386.8 px, ratio 2.835 vs params 2.834), board-to-board width constant (646.6 +- 0.2 px), so
+  the ice moves by a pure translation.
+- Per frame: **u** from the inner side-board edges (ice-colour mask, subpixel threshold crossing, median over the rows whose run
+  is board-to-board wide; the side boards are always in view); **v** from the five full-width painted lines (per-row median
+  "non-ice" profile over the ice columns, subpixel centroid), identified by their spacing and the blue center line, fitted as one
+  translation (the anchor). Fallback when < 2 lines are identified: template-matching odometry (phase correlation was dropped:
+  it returned a spurious 0.5 px horizontal shift between near-identical frames). px per placeholder meter s from the line spacing
+  over the clip: **16.951-16.953 (skating clips), 16.940 (goal arena)**. World: x = (v_c - v)/s, y = (u_c - u)/s.
+- Real clips: **every frame anchored** (0 odometry frames). Line-fit residual median 0.11-0.15 px, p95 0.20-0.21 px, max 0.26-2.13 px;
+  3-5 lines per frame; board-width deviation median <= 0.35 px. Odometry alone vs the anchors (how error would grow without
+  landmarks), median / p95 px after n frames: 1: 0.05-0.11 / 0.25-0.48; 15: 0.72-1.66 / 3.1-7.0; 30: 1.5-3.5 / 5.4-14; 120: 6.6-14 /
+  15-43 (it underestimates motion near the screen-fixed HUD).
+- Synthetic panning test (`measure/pan_synth.py`, exact area-coverage rendering, camera following in both axes, HUD box, stick
+  over the disc): registration error max 0.078 px (u) / 0.028 px (v), player world error max 0.40 px, puck 0.27 px (< 1 px required).
+- Player disc: neutral-grey fill as the seed (saturation < 24; ice ~53, painted lines ~33), centre and radius from 72 rays to the
+  outer edge of fill+red rim and a robust circle fit (drops rays stopped by the stick or running into the red end board at the
+  spawn), radius ~9.3 px. Candidates must lie inside the rink (0.3 m margin), outside the net boxes (+1.2 m; the nets and corner
+  mesh structures look like discs); acquired nearest the screen centre, then followed. Detected in 97-99% of frames. Puck: green
+  blob 20-160 px, not the green center dot, not behind/beside a net (a static green ornament sits on the net mesh).
+- Limits: no height correction for the player disc or an airborne puck (the camera keeps the player near the image centre, so
+  parallax is small for the player); a lifted puck is drawn displaced above its ground ring. Frames with the darkened ice of a
+  goal celebration are not registered. QA: `measure/results/skate/qa/{diagonalkeypresses,whilemovingturning}.path.png` (the
+  registered world path projected back into frames through each frame's own registration; inspected: the path passes through
+  the detections and stays put on the ice while the camera pans, the origin marker sits on the painted center dot).
+
+### Key display (`measure/keys.py`)
+- Each press adds a white keycap at the right end of a row (region y 760-900, x 900-1800 at 1080p). Verified frame by frame: a
+  new cap appears RAISED (face top y = 29 in the region), sinks FLAT (y = 37) within 3-4 frames while held, rises back to raised
+  on release and stays ~1.0-1.1 s before it disappears; a re-press while it lingers adds a new cap. So held = from the frame a
+  cap appears (or starts sinking again) to the frame it starts rising. Labels from glyph templates (24x24 dark-pixel maps of 15
+  reference caps, `REFS`): W A S D Shift R Alt Ctrl C 4 5 CapsLock (no Space: lift was never pressed). Unit test on a scripted
+  cap sequence (press, hold, release, linger, re-press).
+- Readings vs the protocol: wkeymovement W held 3.15 / 3.95 / 3.85 / 3.30 s (protocol "W ~4 s"), each after an R reset
+  (0.10-0.12 s taps); dashatrest: Shift alone 0.42 / 0.23 / 0.88 s (no motion), then W+Shift pressed within 1 frame of each other
+  for 4-7 frames, 6x; diagonal: D/A and W pressed within 1 frame, held 2.25-3.55 s. Checked on frames (W 528-765, Shift 80-105,
+  W+Shift 161-168).
+- **Key -> motion lag: 0.000 s median** (mean -0.009 s, sd 0.031 s, n = 12 standing starts; fit 0.5 a (t - L)^2 to the first
+  0.35 s): the display and the game agree to within capture timing. Scenarios use the median (0).
+- Mapping: move_x = W - S, move_y = A - D (screen up = +x, left = +y), dash = Shift **only with a move key** (Shift alone does
+  nothing in the game; the sim would dash along `facing`), stick target constant, initial state = measured position, v = 0
+  (runs start at rest), puck parked in a far corner. 25 runs (`measure/results/skate/runs.json`, `calib/data/skate/`).
+
+### Player fit (`python -m measure.skatefit fit`; calib Nelder-Mead, time objective; params.player.json, provenance `fitted`)
+Hold-out by clip: fit on the other two skating clips, test on the held-out one. pos_rmse median per run (m) / speed_rmse (m/s);
+placeholder = params.json (accel 12, max 8, drag 2), s6 = video-only (15.85 / 11.84 / 26.02).
+| test clip (runs) | fitted on the others: accel / max / drag | placeholder | s6 video-only | held-out fit | all-clip fit |
+|---|---|---|---|---|---|
+| wkeymovement (4) | 16.51 / 10.65 / 6.04 | 5.69 / 2.73 | 2.45 / 2.69 | **0.48 / 1.91** | 0.46 / 1.91 |
+| diagonalkeypresses (6) | 18.02 / 10.53 / 5.93 | 5.23 / 2.79 | 2.69 / 2.95 | **0.53 / 2.23** | 0.51 / 2.24 |
+| whilemovingturning (5) | 14.55 / 10.75 / 6.04 | 7.28 / 3.34 | 2.64 / 2.89 | **0.75 / 1.97** | 0.51 / 1.98 |
+Final (all three clips), placeholder-scale m and px at s = 16.951 px/m (real-scale m = x 1.087, see scale):
+| param | s7 fitted | px | real-scale estimate | placeholder | s6 video-only |
+|---|---|---|---|---|---|
+| player_accel | **16.47 m/s^2** | 279.1 px/s^2 | 17.9 m/s^2 | 12 | 15.85 |
+| player_max_speed | **10.62 m/s** (model-free plateau 10.755, sd 0.035, n = 15, dead flat) | 180.0 px/s | 11.5 m/s | 8 | 11.84 |
+| player_ice_drag | **5.97 m/s^2** | 101.2 px/s^2 | 6.5 m/s^2 | 2 | 26.02 |
+| dash_speed | **9.25 m/s (compromise)** | 156.7 px/s | 10.1 m/s | 6 | - |
+- Speed RMSE (~1.9-2.2 m/s) is dominated by frame-difference noise (capture jitter, as for the puck); position RMSE is the
+  meaningful number. Curves: `measure/results/skate/qa/player_speed_fits.png` (inspected).
+- Diagonal input has the same top speed as a single key (normalized, like the sim). Turning at speed (W -> W+D): the speed stays
+  at the cap while the velocity rotates over ~0.5-1 s, which the sim's direct acceleration reproduces (held-out 0.75 m on the
+  turning clip); no separate turn parameter was fitted (player_turn_rate only rotates `facing`, which is not observed).
+- **Coasting is not a constant deceleration**: after release the speed decays roughly in proportion to speed (rate 0.52-1.34 1/s,
+  median ~0.85; better than a constant in all 11 coasts, coast ~3 s from 10 m/s). The sim's constant player_ice_drag (5.97) is a
+  compromise; the s6 value 26 m/s^2 (stops in 0.07-0.25 s) must have been active braking.
+- **Dash = a speed boost to ~12 m/s, not an impulse**: W+Shift from rest peaks at 11.0-12.5 m/s within 0.12-0.22 s (10-90% rise
+  0.07-0.15 s), from top speed it adds only 0.45-3.3 m/s (peak 12.2-13.3), from 2.6 m/s it reaches 11.5 (fits.json `dash_bursts`).
+  The sim's additive impulse can only compromise (dash_speed 9.25 on both clips; held out it fails both ways: fitted on
+  dashwhilerunning (6.41) it gives 4.71 m on dashatrest vs 5.19 for the placeholder, fitted on dashatrest (9.82) it gives 3.35 m on
+  dashwhilerunning vs 2.61 for the placeholder). dash_duration fits to 0 (the sim's raised-cap window doesn't match) and
+  no clip has two dashes within a second, so neither dash_duration nor dash_cooldown is written (placeholders stay).
+
+### Absolute scale (`python -m measure.goalscale scale` -> measure/results/scale.json)
+Readouts read from the banner text: 13.42, 65.63, 67.14, 35.94, 11.24, 88.05 mph. The banner appears in the frame the puck
+crosses the goal line. Puck speed (px/s, camera motion removed) over the last <= 0.2 s of the flight before the line; flight
+start = earliest frame from which the track still fits a free puck under linear drag (k = 0.4725). Goal-clip scale: 16.940 px
+per placeholder m (placeholder m_per_px 0.05903).
+| goal (mph) | ground/air | flight s | px/s at goal | m/px at goal | px/s at hit (drag-corrected) | m/px at hit |
+|---|---|---|---|---|---|---|
+| 13.42 | ground | 1.37 | 94.2 | 0.06368 | 171.4 | 0.03500 |
+| 65.63 | airborne | 0.50 | 501.1 | (0.05855) | 605.4 | (0.04846) |
+| 67.14 | airborne | 0.38 | 515.9 | (0.05818) | 589.8 | (0.05089) |
+| 35.94 | ground | 0.60 | 252.0 | 0.06375 | 319.2 | 0.05034 |
+| 11.24 | ground | 1.37 | 77.8 | 0.06462 | 141.5 | 0.03551 |
+| 88.05 | ground | 0.08 | 585.7 | 0.06721 | 597.3 | 0.06590 |
+- **Estimate: 0.06418 m/px (median of the 4 ground goals; mean 0.06481, sd 0.00165, CV 2.5%) = 1.087 x the placeholder scale**
+  (implied rink_length 65.2 m). Corrected back to the hit with the fitted drag the same goals scatter by 31% (0.035-0.066), so the
+  readout most likely measures the puck speed **at the goal line**, not at the hit, despite the "SHOT SPEED" label. Airborne goals
+  are excluded (the drawn puck is displaced by height; they read 0.058).
+- ASSUMPTION: the readout is in real units (mph of the game's own world). If it is, the real/placeholder factor is 1.087 for every
+  length, speed and acceleration (times and rates unchanged). params.json is NOT rescaled (the next integration step applies it
+  to everything at once).
+
+### Verified (s7, Linux cloud container)
+- `python -m unittest discover -s measure/tests -t .` 23 tests (incl. the synthetic panning test and the key-tracker test),
+  `cargo test --workspace` 43 tests (incl. 2 new calib player-track tests: replay samples the player, the fitter recovers
+  player_accel 9.0 from 13.0), `npm run build` pass.
+
+### Open (s7)
+- Apply the scale (1.087) together with the rink size; then rescale params.player.json and the puck numbers in one step.
+- Sim model gaps found: coasting is speed-proportional (the sim: constant), the dash is a speed boost to ~12 m/s (the sim:
+  additive impulse + raised cap), Shift without a move key does nothing (the sim dashes along `facing`). Changing these is a
+  sim change for a later session; then refit dash and coast from these runs (`calib/data/skate/`).
+- Not measured: dash cooldown (record repeated Shift presses 0.2-1.0 s apart while holding W), braking with the opposite key at
+  speed (record W -> S at top speed), backward/sideways speed differences, player height parallax.
+- More goals on the ice (not lifted), with long flights, would pin down what the readout measures beyond 4 goals.

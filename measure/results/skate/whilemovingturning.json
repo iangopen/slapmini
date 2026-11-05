@@ -1,0 +1,261 @@
+{
+ "clip": "whilemovingturning",
+ "fps": 60.0,
+ "frames": 2394,
+ "frame_size": [
+  1920,
+  1080
+ ],
+ "calibration": {
+  "ice_bgr": [
+   58.0,
+   54.0,
+   46.0
+  ],
+  "board_width_px": 645.3075561523438,
+  "s_px_per_m": 16.95124499563013,
+  "board_width_dev_px": {
+   "median": 0.056,
+   "p95": 1.521,
+   "max": 1.922
+  },
+  "u_c_range_px": [
+   706.93,
+   1136.46
+  ]
+ },
+ "scale_source": "px per meter from the painted line spacing; meters at the PLACEHOLDER scale (params.json, rink_length 60 m)",
+ "registration": {
+  "anchored_frames": 2394,
+  "odometry_frames": 0,
+  "unregistered_frames": 0,
+  "residual_px": {
+   "median": 0.117,
+   "p95": 0.198,
+   "max": 0.951
+  },
+  "lines_per_anchored_frame": {
+   "3": 457,
+   "4": 1279,
+   "5": 658
+  },
+  "odometry_drift_vs_anchors": {
+   "1": {
+    "median_px": 0.105,
+    "p95_px": 0.398,
+    "n": 2388
+   },
+   "5": {
+    "median_px": 0.521,
+    "p95_px": 1.823,
+    "n": 2364
+   },
+   "15": {
+    "median_px": 1.664,
+    "p95_px": 5.303,
+    "n": 2304
+   },
+   "30": {
+    "median_px": 3.547,
+    "p95_px": 10.18,
+    "n": 2214
+   },
+   "60": {
+    "median_px": 7.412,
+    "p95_px": 19.517,
+    "n": 2034
+   },
+   "120": {
+    "median_px": 14.031,
+    "p95_px": 35.067,
+    "n": 1674
+   }
+  }
+ },
+ "detection": {
+  "player_frames": 2143,
+  "puck_frames": 1809
+ },
+ "key_events": [
+  {
+   "frame": 25,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 130,
+   "key": "D",
+   "down": true
+  },
+  {
+   "frame": 311,
+   "key": "D",
+   "down": false
+  },
+  {
+   "frame": 312,
+   "key": "W",
+   "down": false
+  },
+  {
+   "frame": 438,
+   "key": "R",
+   "down": true
+  },
+  {
+   "frame": 445,
+   "key": "R",
+   "down": false
+  },
+  {
+   "frame": 466,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 574,
+   "key": "D",
+   "down": true
+  },
+  {
+   "frame": 805,
+   "key": "D",
+   "down": false
+  },
+  {
+   "frame": 807,
+   "key": "W",
+   "down": false
+  },
+  {
+   "frame": 825,
+   "key": "R",
+   "down": true
+  },
+  {
+   "frame": 834,
+   "key": "R",
+   "down": false
+  },
+  {
+   "frame": 885,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 992,
+   "key": "D",
+   "down": true
+  },
+  {
+   "frame": 1094,
+   "key": "D",
+   "down": false
+  },
+  {
+   "frame": 1241,
+   "key": "W",
+   "down": false
+  },
+  {
+   "frame": 1258,
+   "key": "R",
+   "down": true
+  },
+  {
+   "frame": 1266,
+   "key": "R",
+   "down": false
+  },
+  {
+   "frame": 1308,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 1346,
+   "key": "D",
+   "down": true
+  },
+  {
+   "frame": 1402,
+   "key": "D",
+   "down": false
+  },
+  {
+   "frame": 1451,
+   "key": "D",
+   "down": true
+  },
+  {
+   "frame": 1508,
+   "key": "D",
+   "down": false
+  },
+  {
+   "frame": 1554,
+   "key": "D",
+   "down": true
+  },
+  {
+   "frame": 1600,
+   "key": "D",
+   "down": false
+  },
+  {
+   "frame": 1646,
+   "key": "R",
+   "down": true
+  },
+  {
+   "frame": 1654,
+   "key": "R",
+   "down": false
+  },
+  {
+   "frame": 1691,
+   "key": "D",
+   "down": true
+  },
+  {
+   "frame": 1744,
+   "key": "D",
+   "down": false
+  },
+  {
+   "frame": 1941,
+   "key": "W",
+   "down": false
+  },
+  {
+   "frame": 1954,
+   "key": "R",
+   "down": true
+  },
+  {
+   "frame": 1962,
+   "key": "R",
+   "down": false
+  },
+  {
+   "frame": 1993,
+   "key": "W",
+   "down": true
+  },
+  {
+   "frame": 2041,
+   "key": "D",
+   "down": true
+  },
+  {
+   "frame": 2186,
+   "key": "D",
+   "down": false
+  },
+  {
+   "frame": 2360,
+   "key": "W",
+   "down": false
+  }
+ ]
+}

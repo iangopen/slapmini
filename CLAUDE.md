@@ -133,11 +133,12 @@ Provenance tags: `measured` (model-free measurement), `measured-shape` (geometry
 | player_radius | 0.495466 m | measured-shape, **UNCERTAIN** | the OLD pink skin; the new grey body reads ~0.52–0.56 m (placeholder scale) |
 | board_restitution / board_friction | 0.342796 / 0 | fitted | s5/s6 wall bounces, held out by clip |
 | ice_linear_drag / ice_friction_decel | 0.47254 1/s / 0 m/s^2 | fitted | glides; decel refit in real m/s^2 (below) |
-| player_accel | 17.904 m/s^2 | fitted | s7 key-display skating runs (16.467 placeholder) |
+| player_accel | 17.3594 m/s^2 | fitted | s10 refit of the s7 key-display skating runs with the proportional coast |
 | player_max_speed | 11.6935 m/s | **measured** | model-free hard cap 10.755 (sd 0.035, n = 15) × 1.0873; the fit's 10.62 not used |
-| player_ice_drag | 6.4931 m/s^2 | fitted, **COMPROMISE** | constant decel vs the game's speed-proportional coast |
-| dash_speed | 10.0522 m/s | fitted, **COMPROMISE** | additive impulse vs the game's set-speed boost |
-| stick_max_ang_speed / stick_max_ang_accel | 26.173 rad/s / 513.9 rad/s^2 | fitted | s7b sweeps (cap plateau; flick starts) |
+| player_coast_rate / player_ice_drag | 1.08146 1/s / 0 m/s^2 | fitted | s10 coast dv/dt = −rate·v − ice_drag (held out by clip) |
+| dash_speed / dash_ramp_time | 15.4803 m/s / 0.11631 s | fitted | s10 set-speed dash ramp (held out by clip) |
+| dash_duration / dash_cooldown | 0.25 s / 1 s | **placeholder** | not identifiable from the clips |
+| stick_max_ang_speed / accel / decel | 26.173 rad/s / 513.9 / 2316.1 rad/s^2 | fitted | s7b sweeps (cap plateau; flick starts); s10 stop decel |
 | stick_length / stick_thickness | 1.1825 / 0.058604 m | measured-shape | s7b, dolly-camera corrected; thickness = collision half-width |
 | stick_restitution | 0.3597 | fitted, **conditional** | 7 hits, holds only for stick_mass 2 kg (placeholder) |
 | match_length_s / mercy_lead | 300 s / 5 | rule | Ian |
@@ -149,23 +150,17 @@ Provenance tags: `measured` (model-free measurement), `measured-shape` (geometry
 - Real segments after the rescale (`calib eval`, default params): puck_02 pos 0.0567 → 0.0616 m, path 0.0166 → 0.0181 m;
   wall_03 0.366 → 0.398 m, 0.142 → 0.155 m; puck_08 0.820 → 0.891 m, 0.183 → 0.199 m (all × 1.087: same fit, bigger meters).
 
-## Sim-model mismatches still open (sim code unchanged; the next session changes the models)
-- **Coast**: the game's free skating speed decays ∝ speed (rate 0.52–1.34 1/s, median ~0.85; better than a constant in all 11
-  coasts, ~3 s from top speed); the sim has a constant player_ice_drag (compromise 6.49 m/s^2). Refit from `calib/data/skate/`.
-- **Dash**: the game SETS the speed to ~12 m/s placeholder (≈13 m/s real; 11.0–12.5 from rest within 0.12–0.22 s, 12.2–13.3 from
-  top speed); the sim ADDS dash_speed and raises the cap for dash_duration. Shift without a move key does nothing in the game
-  (the sim dashes along `facing`). Held-out dash fits fail both ways; dash_speed 10.05 is a compromise.
-- **Stick braking and overshoot**: stops are faster than starts (flat above ~1500 rad/s^2 at 60 fps) and the real stick
-  overshoots the target by 0.7–12 deg and settles back over 2–5 frames; the sim's symmetric bang-bang can do neither.
-- **Hit direction**: real exits leave within −7..+6 deg (mean −1.8) of perpendicular to pivot→puck (as if met centre-on); the
-  sim's contact reach (puck_radius + stick_thickness) touches ~17 deg earlier and sends the puck ~15 deg outward.
-  Until the contact model changes, stick_mass/restitution can't be fitted on paths.
+## Sim-model mismatches still open
+- The player coast, the dash, the stick stop and the hit direction now follow the s10 models (see "Sim models (s10)"); their
+  remaining gaps (dash peak/fade shape, stick overshoot, contact detection still ~18 deg early) are listed there.
 - Puck: decel/v is not constant (≈0.50–0.55 1/s above ~8 m/s, 0.33–0.39 at 3–7 m/s placeholder speeds); one linear k is a
   compromise. Board friction: a Coulomb term did not help (docs/experiments/board_coulomb_friction.patch, not in the sim).
 - Other model simplifications: infinitely tall boards, no net top bar, no puck spin, no stick-on-stick or stick-on-player
   collision, facing follows velocity.
 
 ## What the clips could not give (still placeholder or unknown)
+**Still placeholder, by name: stick_mass (2 kg), the three puck speed caps (max_puck_speed_air 30, _ice_normal 35, _ice_dash 45
+m/s), the stick height range (stick_z_min 0 / stick_z_max 0.25 m), dash_duration (0.25 s) and dash_cooldown (1 s).**
 - **stick_mass** (degenerate with stick_restitution; needs the stick's slowdown at contact: higher fps or a heavy target),
   **stick_inner**, **stick_z_min / stick_z_max** (height range; not visible top-down), the left-button stick pose.
 - **dash_duration, dash_cooldown** (no two dashes within a second in any clip; the fit drives duration to 0).
@@ -179,29 +174,9 @@ Provenance tags: `measured` (model-free measurement), `measured-shape` (geometry
   fast swings at several contact radii (`docs/recording-guide.md`).
 
 ## Other open items
-- Model changes for coast, dash, stick braking/overshoot and the hit contact (next session), then refit from `calib/data/skate/`
-  and `calib/data/stick/` (the stick hit scenarios are still in placeholder meters: rescale them with the same factor, or regenerate).
 - `params.fitted.json` (old puck holdout output) still has placeholder-meter shape values; `measure holdout` would rewrite it.
 - Menu; the opponent player is idle in the lab; panel edits keep the provenance tag; practice-tool actions are not recordable.
-- Real RL training runs have not started (see "Bots and training").
-
-## Verified (2026-11-04, s7/s7b integration, Windows, GNU toolchain)
-- Merges: `7786d33` origin/s7, `49c760f` origin/s7b (normal merge commits). Conflicts: CLAUDE.md only (both appended a section; both kept).
-- `cargo test --workspace` 43 tests pass (bots 9, calib 4 + 2, sim 12 + match 8 + tunneling 2, sim-ffi 6). Tunneling against
-  the rescaled rink and nets: **20,760 net shots + 20,304 board shots (92 targets), 0 failures**.
-- `python -m unittest discover -s measure/tests -t .` 31 tests (incl. 5 rescale tests); `-s train/tests` 9 tests. (The Windows
-  venv needed `pip install -r measure/requirements.txt` for cv2.)
-- `npm run build`, `npm run verify` (VERIFY OK; real ghost 3956/3956 inside the 65.24 × 41.53 m rink), `npm run verify-match`
-  (VERIFY MATCH OK), **`npm run verify-skate`** (new: hold W from rest → 11.6935 m/s after 0.650 s, max/accel = 0.653 s; never above
-  the cap; screenshot `web/verify-out/skate-top-speed.png`, inspected).
-- **Crosscheck after 100k steps, native = wasm: free play `5691242ec49d47d0`, match `a01098b205fd1aca`** (were `93105beb…` /
-  `78ac344e…`; the default params changed, sim code unchanged).
-- Bot shot constants re-measured with `examples/shotlab` on the new defaults: **SHOT_SPEED 27.2 m/s, SHOT_OVERTURN 0.110 rad**
-  (were 18.9 / 0.054; 47/48 starts hit with 0.000 rad error, 1 is an approach bump from the 2 m start). `cautious_waits_then_scores`
-  now places the puck relative to the spawn (rink_length/4 moved it 1.3 m out of the 6 m engage range).
-- Tournament (`tournament 100 60`), before → after, A–B goals/match (A wins/draws/B wins): chaser–chaser 0.66–0.52 (27/53/20) →
-  0.52–0.29 (27/62/11); chaser–defender 0.59–0.03 (39/60/1) → 0.33–0.00 (27/73/0); chaser–cautious and chaser–idle 13.00 → 17.00
-  (100/0/0); all defender/cautious/idle pairings 0–0.
+- Real RL training runs have not started: the long run in README "Long run on Ian's machine" is next (see "Bots and training").
 
 ## Figures (measure/results/fits/, `python -m measure figures`)
 - Drawn on the SIM's own rink from params.json (game orientation, +x up), no game footage / logos / HUD; dots every 0.25 s;
@@ -254,8 +229,8 @@ Provenance tags: `measured` (model-free measurement), `measured-shape` (geometry
   `countdown_s` 3, `goal_pause_s` 3, `player_spawn_x` 15 m are **`placeholder`** (invented; the spawn x matches
   `new_default`'s rink_length/4). `rule` shows as a purple badge in the panel.
 - **Sim** (`sim/src/rules.rs`, opt-in): `State.match_state: Option<MatchState>` (serde `match_state`, default null).
-  `None` = free play, exactly the old behaviour (all old tests, calib, lab play mode; free-play `to_bytes`/hash unchanged:
-  crosscheck still `b3e351378683a6f4`). `State::new_match(p, n)` turns the rules on. `step`'s signature is unchanged; it calls
+  `None` = free play, exactly the old behaviour (all old tests, calib, lab play mode; free-play `to_bytes`/hash unchanged by
+  the rules). `State::new_match(p, n)` turns the rules on. `step`'s signature is unchanged; it calls
   `rules::step_match` when a match state is present, which wraps `physics_step` (the old step body; `update_goals` now also
   returns the scoring team).
   - `MatchState { phase: countdown|playing|goal_pause|finished, phase_ticks, clock_ticks, overtime, winner, last_goal }`,
@@ -287,128 +262,100 @@ Provenance tags: `measured` (model-free measurement), `measured-shape` (geometry
 - Offside/icing or any other real-game rule, faceoff mechanics, team sizes above 1v1 (the code supports any count, untested in
   matches beyond 2 players), a goal exactly at 0:00 (counted: goals on the last step score first), the opponent player still idle.
 
-## Bots and training (session s9: bots/, sim-ffi/, train/)
-New crates and folders only (`sim`, `sim-wasm` and params.json were not changed by s9). 1v1, no goalie. Nothing here is frozen:
-the physics is still being calibrated. Since the integration merge the sim has match rules (`State.match_state`), but the
-training envs run in free play (match_state None).
+## Bots and training (bots/, sim-ffi/, train/)
+1v1, no goalie. Formats are versioned: ACT v2, OBS_VERSION 2, ABI_VERSION 2; checkpoints record the physics stamp (sha256 of
+the params.json values), the obs version and the act version, and refuse to load across any change (old checkpoints from
+before the s10 + t1 integration are refused by the physics stamp: intended, do not resume them).
 
 ### bots crate (pure Rust, deterministic, no I/O; deps sim + libm)
 - **Canonical frame** (`frame.rs`): every player sees the world as if it attacks +x. Team 0 = identity; team 1 = the world
-  rotated 180° ((x, y) → (−x, −y), angles + π). The rink, nets and physics are symmetric under that rotation (a rotation,
-  not a mirror, so stick spin direction is preserved), so one policy plays both sides. `rotate_swap(state)` rotates the
-  whole state and swaps teams, scores and the match state's team indices (tests).
-- **Observation** (`obs.rs`, `OBS_DIM = 40`, `OBS_VERSION = 1`, f32, fixed normalization constants, not params-dependent):
+  rotated 180° ((x, y) → (−x, −y), angles + π); a rotation, not a mirror, so one policy plays both sides.
+  `rotate_swap(state)` rotates the whole state and swaps teams, scores and the match state's team indices (tests).
+- **Observation** (`obs.rs`, OBS_DIM 40, OBS_VERSION 2, f32, fixed normalization constants, `observe(state, me, style, params, out)`):
   0–1 own x/30, y/20; 2–3 own v/14; 4–5 cos/sin facing; 6–7 cos/sin stick angle; 8 stick ω/14; 9 dash window/0.25 s;
   10 dash cooldown/1 s; 11–12 puck x/30, y/20; 13 puck z/2; 14–15 puck v/30; 16 puck vz/10; 17–18 (puck − own)/10;
   19–20 opponent x/30, y/20; 21–22 opponent v/14; 23–24 cos/sin opponent stick; 25 opponent ω/14; 26–27 (opponent − own)/10;
-  28 own goals/5; 29 opponent goals/5; 30 time left/300 s (**always 0**: the envs run free play; fill it from `match_state.clock_ticks` in `observe` when training on matches);
-  31 dash ready (0/1); **32–39 style slot** (`STYLE_DIM = 8`, caller-supplied, zeros by default). Angles as (cos, sin) so the
-  rotation is an exact sign flip. Changing any field or constant → bump `OBS_VERSION` (checkpoints refuse to load across it).
-- **Action** (`action.rs`, `ACT_DIM = 5`, canonical frame): move_x, move_y (−1..1), stick target angle (rad, canonical),
-  dash (> 0.5), lift (> 0.5). `Action::to_input(team)` applies the inverse rotation → `PlayerInput`.
-- **Scripted bots** (`scripted.rs`, trait `Bot`, enum `Scripted` by `Kind` id 0 chaser, 1 defender, 2 cautious, 3 idle):
-  - shared `Striker`: picks a hitting spot beside the (predicted) puck, holds the stick cocked, and swings through the puck
-    only when the swing will send it at the target. The shot model: the blade edge meets the puck asin(reach/r) before the
-    stick points at it, the push is along the blade normal, plus `SHOT_OVERTURN` 0.110 rad, from-rest speed `SHOT_SPEED`
-    27.2 m/s (both measured with `examples/shotlab.rs` on the current defaults: fitted stick + real meters; history:
-    0.041 / 19.7 placeholder physics, 0.054 / 18.9 fitted puck physics; re-measure after physics changes). The swing
-    target is only 0.6 rad past the puck so the bang-bang chase brakes and the faster blade tip does not hit it twice.
-    Contact is quantized by the stick's per-substep rotation (26.17 rad/s → 0.109 rad per substep), so a moving player sees
-    ±0.1 rad shot noise.
-  - chaser: striker toward the opponent net, aiming at the net center or the post side the opponent's body does not block.
-  - defender: guards the own net→puck line (0.4 × distance, 2–9 m out) with the stick across the line, steps onto a shot's
-    path; clears (skates through the puck toward the boards) only if it wins the race and the puck is within 11 m of its goal line.
-  - cautious: waits at x = −15 m (canonical) on the puck→own-net line, engages only when the puck comes within 6 m, lets go past 9 m.
-- `game.rs`: `faceoff`, `play`, `play_with_faceoffs` (scripted matches, used by tests/examples).
-- Examples: `tournament` (round robin), `shotlab` (shot accuracy), `trace` (debug print of one game).
+  **28 (own − opponent goals)/5; 29 overtime flag; 30 regulation time left/300 s** (0 in free play); 31 dash ready (0/1);
+  32–39 style slot (STYLE_DIM 8). Change any field or constant → bump OBS_VERSION.
+- **Action**: the 9-way WASD format, see "Action format" in "Training on the real game" below.
+- **Scripted bots** (`scripted.rs`, trait `Bot`, `Scripted` by `Kind` id 0 chaser, 1 defender, 2 cautious, 3 idle). Each bot
+  plans an analog `Wish` (move, stick); `Scripted::act` turns the move into 9-way key presses with a sigma-delta dither (t1).
+  - shared `Striker`: picks a hitting spot beside the (predicted) puck, holds the stick cocked and swings through the puck
+    only when the swing sends it at the target. Shot model for the s10 centre-on contact: the puck leaves perpendicular to
+    player → puck, plus `SHOT_OVERTURN` **0.018 rad**, from-rest speed `SHOT_SPEED` **27.6 m/s** (shotlab on the merged code:
+    48/48 hits, median |err| 0.001 rad, median speed 27.7 m/s; history 0.041/19.7 → 0.054/18.9 → 0.110/27.2 → 0.018/27.6).
+    The bots are 120 Hz controllers: driven through the env at 30 decisions/s they can stall with the puck (sim-ffi test drives
+    them at action_repeat 1).
+  - chaser: striker toward the opponent net (net center or the post side the opponent's body does not block).
+  - defender: guards the own net→puck line (0.4 × distance, 2–9 m out), steps onto a shot's path; clears when it wins the race.
+  - cautious: waits at x = −rink_length/4 on the puck→own-net line, engages within 6 m, lets go past 9 m.
+- `game.rs`: `faceoff`, `play`, `play_with_faceoffs`. Examples: `tournament`, `shotlab`, `trace`.
 
 ### sim-ffi crate (cdylib + rlib; deps sim, bots, serde, rayon)
-- `Batch` of N envs (`env.rs`); each env: State, SplitMix64 RNG (seed ^ index-mix; used only at resets), learner slot,
-  opponent (scripted or external), reward weights, style. Envs are stepped with rayon (`par_iter_mut` over disjoint output
-  chunks; sequential if `threads = 1` or < 4 envs); results do not depend on the thread count (checked).
-- Episode: faceoff with jitter (puck ±jitter_puck, players ±jitter_player per axis), learner team random per episode
-  (`learner_team: -1`) or fixed. Ends on a goal (either side) or `max_steps` sim steps; auto-reset, the returned obs is the new
-  episode's first. Time-limit ends are reported as done (PPO treats them as terminal; no bootstrapping).
-- **Config JSON** (all optional): `max_steps` 3600 (30 s), `action_repeat` 4 (30 decisions/s), `learner_team` −1,
-  `jitter_puck` 1.5, `jitter_player` 1.0, `opponent` "chaser"|"defender"|"cautious"|"idle"|"external", `reward` {weights},
-  `style` [floats], `threads` 0 (rayon default). Unknown keys are rejected.
-- **C ABI** (`lib.rs`): `slap_batch_new(params_json, config_json, n, seed)`, `slap_batch_free`, `slap_batch_reset(obs, opp_obs)`,
-  `slap_batch_step(actions, opp_actions, obs, opp_obs, rewards, dones, info)`, `slap_batch_set_opponent(env|u32::MAX, kind)`,
-  `slap_batch_set_style`, `slap_batch_set_reward_weights`, `slap_batch_hash` (all states + RNGs + counters),
-  `slap_batch_env_hash`, `slap_batch_get_state/set_state` (State JSON), dims/version getters, `slap_last_error`.
-  Buffers are caller-owned f32 (dones u8); errors return −1, panics are caught. info row (`INFO_DIM = 10`): end reason
-  (0 running, 1 goal for, 2 goal against, 3 step limit), episode sim steps, episode return, learner team, raw term sums.
-  `ABI_VERSION = 1`.
-- The opponent observation (`opp_obs`) is the opponent's own canonical view (style zeros), so a frozen policy can drive it.
+- `Batch` of N envs (`env.rs`): State, SplitMix64 RNG (resets and style sampling only), learner slot, opponent (scripted or
+  external), base + effective reward weights, style. Stepped with rayon in tasks of ≥ `chunk` envs; results do not depend on
+  the thread count (tests). Auto-reset: the returned obs is the next episode's first; `final_obs` holds the pre-reset one.
+- **Config JSON** (all optional, unknown keys rejected): `mode` "first_goal" | "match", `max_steps` (0 = auto: 30 s / match
+  + `overtime_cap_s` 120), `action_repeat` 4, `learner_team` −1, `jitter_puck` 1.5, `jitter_player` 1.0,
+  `jitter_every_faceoff` true, `opponent`, `reward` {weights}, `style` [floats], `style_mode` "off" | "fixed" | "sample",
+  `threads` 0, `chunk` 16, `profile` false.
+- **C ABI v2** (`lib.rs`): `slap_batch_new`, `_free`, `_reset(obs, opp_obs)`, `_step(actions, opp_actions, obs, opp_obs,
+  final_obs, rewards, dones, info)`, `_set_opponent`, `_set_style`, `_set_reward_weights` (base weights), `_hash`, `_env_hash`,
+  `_get_state/_set_state`, `_profile`, dims/version getters, `slap_last_error`. Info row (INFO_DIM 14): end (0 running, 1 win,
+  2 loss, 3 truncated), playing sim steps, return, learner team, goals for, goals against, opponent possession s, 7 raw sums.
 
-### Reward (configuration, `reward.rs`)
-Raw terms measured every sim step for the learner (canonical frame), summed per decision; reward = Σ weight × raw.
+### Reward (`reward.rs`; reward = Σ weight × raw, per decision)
 | term | raw value | default weight |
 |---|---|---|
 | goal_for | goals scored (0/1) | 1.0 |
 | goal_against | goals conceded (0/1) | −1.0 |
-| puck_progress | Δ puck x / net_x (episode sum = net puck advance) | 0.2 |
-| shot_on_net | 1 per learner contact (dv > 2 m/s, learner closest and within reach) leaving the puck at ≥ 5 m/s on a line into the opponent mouth; 0.5 s cooldown | 0.05 |
+| puck_progress | Δ puck x / net_x | 0.2 |
+| shot_on_net | 1 per learner contact leaving the puck at ≥ 5 m/s on a line into the opponent mouth (0.5 s cooldown) | 0.05 |
 | possession | seconds the learner is the closest player with the puck within stick reach (+0.2 m) | 0.02 |
-| defensive_position | seconds goal-side: behind the puck and ≤ 1.5 m off the own-net→puck line | 0.0 |
-JSON: `{"reward": {"goal_for": 1, "goal_against": -1, ...}}` in the env config, or `--reward file.json` in the trainer, or per
-env at runtime (`set_reward_weights`, a vector in TERM_NAMES order).
+| defensive_position | seconds goal-side, ≤ 1.5 m off the own-net→puck line | 0.0 |
+| match_win | match mode: +1 win / −1 loss at the end | 1.0 |
 
-### Style hooks (built, unused so far)
-- Every env has a style vector (8 floats) that is appended to the learner's observation (obs 32–39), and its own reward
-  weights; both can be set per env at any time (`VecEnv.set_style(i, v)`, `VecEnv.set_reward_weights(i, w)`).
-- **How the next session would use them** (style-conditioned policy): at every episode start, sample a weight vector per env
-  around the "win" core (goal_for/goal_against fixed at ±1; shaping terms drawn from ranges, e.g. puck_progress 0–0.5,
-  shot_on_net 0–0.3, possession 0–0.1, defensive_position 0–0.1, plus new terms for tricks such as lifts, dash shots, board
-  passes, which need new raw terms in reward.rs), write the same vector (scaled to ~[−1, 1]) into that env's style slot, and
-  train as usual (the PPO code is unchanged: the policy simply sees the style). At play time, choosing a style vector picks a
-  play style; self-play opponents get random styles too. Keep the win terms dominant so every style still tries to win, and
-  log win rate per style bucket. `train/ppo.py` currently sets neither (all styles 0, config weights).
+### train/ (Python 3, numpy, torch; ctypes)
+- `slapenv.py` (VecEnv; returns views of its buffers), `ppo.py` (PPO, self-play pool, eval, plot), `league.py` (ladder),
+  `export_onnx.py`. Details, defaults and numbers: "Training on the real game" below; run guide: README.
+- Tests: `python -m unittest discover -s train/tests -t .` (16).
 
-### train/ (Python 3, numpy, torch; ctypes, no PyO3/maturin)
-- `slapenv.py`: finds `target/release/{sim_ffi.dll|libsim_ffi.so|libsim_ffi.dylib}` (or `$SLAPMINI_FFI_LIB`), `VecEnv`
-  (reset/step/set_opponent/set_style/set_reward_weights/hash/get_state/set_state), `physics_stamp(params.json)` = sha256 of the
-  sorted name→value map (16 hex; notes, provenance, whitespace, CRLF don't matter).
-- `ppo.py` (single file): MLP 2×256 tanh, separate value net. Heads: move 2D Gaussian (env clips), stick 2D Gaussian
-  direction → atan2 → stick angle (no ±π wrap), dash and lift Bernoulli; state-independent log-std. GAE (γ 0.995, λ 0.95),
-  clip 0.2, 4 epochs × 4 minibatches, 64 envs × 128 steps per update, lr 3e-4, entropy 0.003. Device auto (CUDA else CPU).
-  Training starts are more spread than eval (`--jitter-puck 6 --jitter-player 2`; eval uses the env default 1.5/1.0).
-  Checkpoint `runs/NAME/latest.pt`: weights, optimizer, counters, args, env config, **physics_stamp** and **obs_version**;
-  resume refuses a different physics stamp unless `--allow-physics-change` (and never loads across an obs layout change).
-  Self-play: `--opponents "chaser:0.2,defender:0.1,cautious:0.1,pool:0.6"`; each env draws its opponent at every episode
-  start; `pool` = a frozen snapshot (policy copy) added every `--snapshot-every` updates (kept: newest 20, on disk in
-  runs/NAME/pool/); up to 4 snapshots (the newest + random) are loaded at a time and act on `opp_obs` (sampled actions).
-  metrics.csv per update (rolling 400 episodes: win/loss/draw, goal diff per episode, episode length, return, losses);
-  `plot` → learning_curve.png. `eval` plays N episodes (equal count per env, so short episodes aren't oversampled).
-- `export_onnx.py`: deterministic policy → ONNX (opset 17, TorchScript exporter): input `obs` [N, 40]; outputs `move` [N, 2]
-  (clamped), `stick_dir` [N, 2] (angle = atan2), `dash_prob`, `lift_prob` [N]; sidecar `.json` (obs version, physics stamp).
-  Checks onnxruntime against PyTorch on 1000 random observations. For team 1 in the browser: negate move and stick_dir.
-- Tests: `python -m unittest discover -s train/tests -t .` (env determinism across thread counts, state round trip,
-  reward/style config, physics stamp, short self-play run + resume + physics guard, eval, ONNX parity).
-
-### Default choices made in s9 (all easy to change)
-- 30 decisions/s (`action_repeat` 4), episodes of 30 s, end on the first goal; the learner's team is random per episode.
-- Time-limit ends are treated as terminal by PPO (no value bootstrap; the env auto-resets and does not return the final obs).
-- Fixed observation normalization constants (independent of params); no running obs normalization (keeps the ONNX graph
-  self-contained); stick action as a 2D direction; continuous move (the real game's WASD is digital; a 9-way discrete
-  move head is an option later).
-- Default reward: goal ±1, puck_progress 0.2, shot_on_net 0.05, possession 0.02/s, defensive_position 0.
-- Training starts are spread (puck ±6 m, players ±2 m) while eval and the env default use ±1.5 / ±1 m.
-- Physics stamp = hash of param values only (display-only params included, so a marking edit also changes it).
-- ONNX: deterministic policy only, opset 17, legacy TorchScript exporter (single file, no external data).
-
-### Open (bots/training)
-- Match rules are in the sim now, but obs field 30 (time left) is still 0 and episodes end at the first goal: decide whether
-  episodes become full matches (`State::new_match`), feed the clock into `observe` (bump OBS_VERSION if anything else changes).
-- Style-conditioned training is not started (hooks only, see "Style hooks"). Self-play has only been run in tests (3–5 updates).
-- The cautious bot is weak defensively; the scripted bots' shot constants (`SHOT_OVERTURN`, `SHOT_SPEED`) are tied to the
-  current params: re-run `shotlab` after a params change.
-- Browser side: no JS loader for the ONNX policies yet (onnxruntime-web, static files on GitHub Pages). The JS must build the
-  same 40-float observation as `bots::observe` (port it, or expose `observe` through sim-wasm in a later session).
-- Windows/GPU path not run here (no GPU in the container); the commands are in README "Bots and training".
-
+## Verified (s10 + t1 integration, 2026-11-04, Windows, GNU toolchain, RTX 3070 Ti / 12 cores)
+- Merges into main: `b007b16` origin/s10, `3dfe02e` origin/t1 (normal merge commits). Conflicts: **CLAUDE.md** (both appended
+  a section; both kept, then restructured into these current-state sections; superseded parts moved to docs/history.md);
+  **bots/src/scripted.rs** merged without a textual conflict and keeps both intents: t1's analog `Wish` + key dither and
+  s10's centre-on striker model and constants (checked by reading the merged file).
+- Shot constants re-measured on the merged sim (`examples/shotlab`): 48/48 hits, median signed aim error 0.001 rad (range
+  −0.018..0.003), median speed 27.7 m/s against SHOT_OVERTURN 0.018 / SHOT_SPEED 27.6: **kept**.
+- Fixed after the merge: sim-ffi `goal_ends_episode_with_reward` drove the scripted chaser at 30 decisions/s; one episode held
+  the puck 12.6 s without a swing and hit the 30 s limit. It now drives the bot at its 120 Hz design rate (action_repeat 1).
+- `cargo test --workspace` **59 passed**; train **16** and measure **31** Python tests OK; `npm run build`, `verify`,
+  `verify-match`, `verify-skate`, `verify-s10` all OK.
+- **Crosscheck after 100k steps, native = wasm: free play `ed2b9c3b2c52da91`, match `ef5c44a7fc4de600`, s10 shot run
+  `b19f6906467b50c1`** (575 shots, score [2, 10]; same as s10: t1 changed nothing in sim/).
+- Env (sim-ffi tests, 16 envs, seed 42, threads 1 vs 4): first_goal `267aba83ad2eb3bc` = `267aba83ad2eb3bc`, match
+  `a5b3f62c490033a7` = `a5b3f62c490033a7`. Style zero = default: Rust first_goal `843149a4b070f86d` both, match
+  `73366b9e91258d9f` both; Python first_goal `17ee57e5d15ca7ec` both, match `f5ffc1f33c3e39f1` both. Scripted match endings in
+  the env: mercy 5-0 after 16.8 s, clock end 1-0 / 3-0 / 4-0 at 300.0 s, overtime goal 1-0 after 22.3 s (20 s test clock).
+- ONNX with the 9-way heads: test parity 3.3e-6 (3.8e-6 with obs norm), move index identical; export of the merged match smoke
+  policy 7.2e-7.
+- Profiled training (64 envs × 128 steps, update on the GPU, `train/results/merged_profile.md`), µs per decision:
+  env Rust 3.64, ctypes 0.41, obs→device 0.14, forward + sampling 8.61, actions→host 0.42, opponent policy 0.17,
+  bookkeeping 1.30, GAE 0.54, update H2D 0.17, PPO update 11.13, other 0.20; **total 26.72 = 37.4k decisions/s (synced)**
+  (t1 branch: 24.53 = 40.8k; the s10 models do not change the Rust split: sim 49%, opponent bot 41%, reward 6%, observe 4%).
+- Smoke runs (CPU, 128 envs, 9 min each vs the chaser; curves inspected, `train/results/merged_smoke_*_curve.png`):
+  first_goal win 0 → 0.39–0.42, goal diff −1.0 → +0.10; match goal diff per match −5.0 → −1.75, wins 0 → 0.14, return
+  −7.0 → −2.1 (with faceoff jitter; no exploit). Ladder (`train/results/merged_league_smoke.json`, 8 matches per pairing,
+  noisy): chaser 1000, match latest 808, first_goal latest 791, defender 782, upd_300 767, idle 762, upd_900 762.
+- Tournament (`tournament 100 60`), before → after the merge, A–B goals/match (A wins/draws/B wins): chaser–chaser 0.52–0.29
+  (27/62/11) → 0.53–0.35 (27/61/12); **chaser–defender 0.33–0.00 (27/73/0) → 0.50–0.02 (42/56/2)**; chaser–cautious 17.00 →
+  16.98, chaser–idle 17.00 → 17.00 (100/0/0); all defender/cautious/idle pairings 0–0. The centre-on contact makes the
+  chaser's shots more accurate against a goalkeeping defender; nothing else moved beyond noise.
+- Old checkpoints are refused by the physics stamp (intended; nobody should resume one).
 
 ## Environment notes
+- Several sessions have run in parallel on this machine: use a separate `git worktree` per session (e.g.
+  `git worktree add ..\slapmini-NAME main`, then `rustup override set stable-x86_64-pc-windows-gnu` in it) instead of a shared folder.
 - On Ian's Windows machine the MSVC toolchain can't link (no Windows SDK), so the repo has a local `rustup override set stable-x86_64-pc-windows-gnu`. That override lives in rustup settings, not the repo.
   The minimal GNU toolchain has no `dlltool`, so wasm-pack came from npm (`npm i -g wasm-pack`).
 - Run cargo from PowerShell. In Git Bash, GNU `/usr/bin/link` shadows MSVC `link.exe`.
@@ -416,9 +363,8 @@ env at runtime (`set_reward_weights`, a vector in TERM_NAMES order).
   and the process group on POSIX. If Playwright's own browser is missing it falls back to `PW_CHROMIUM` or `/opt/pw-browsers/chromium` (cloud container).
 - measure/ runs from a venv at the repo root: `.venv\Scripts\python` on Windows, `.venv/bin/python` on macOS/Linux.
 
-## s10 models: coast, dash, stick braking, hit contact (2026-11-04, branch s10)
-Supersedes the coast / dash / stick braking / hit direction items of "Sim-model mismatches still open" above (that section
-describes the code before s10). State, PlayerInput and the public sim API are unchanged; three params were appended
+## Sim models (s10): coast, dash, stick braking, hit contact (2026-11-04)
+State, PlayerInput and the public sim API are unchanged; three params were appended
 (params.json and the pinned params.placeholder.json, params.fitted.json, calib/data/params.synthetic.json; in the pinned
 files they are set to reproduce the old coast and stick chase where possible).
 
@@ -494,7 +440,7 @@ Tools: `python -m measure.s10_skate --old-calib <calib.exe built from the pre-s1
   higher. **Caps unchanged** (no evidence to set them).
 - Bots: SHOT_OVERTURN 0.110 → **0.018 rad**, SHOT_SPEED 27.2 → **27.6 m/s** (`examples/shotlab`: 48/48 hits, median |err|
   0.001 rad). The striker's early-contact correction (asin(reach / r)) was removed because the push is now perpendicular to
-  player → puck (bots/src/scripted.rs; this may conflict with the parallel bots work: keep the s10 shot model).
+  player → puck (bots/src/scripted.rs; kept in the s10 + t1 merge together with t1's key dither).
 
 ### Tests and checks (2026-11-04, Windows, GNU toolchain)
 - New `calib/tests/s10_models.rs` (5 tests): proportional coast + hard cap; Shift alone does nothing, the dash ramps to
@@ -531,11 +477,13 @@ Tools: `python -m measure.s10_skate --old-calib <calib.exe built from the pre-s1
 3. Does the dash peak feel too strong or too short? (sim 15.5 m/s briefly vs ~13 in the clips.) Try dash_duration / dash_cooldown values.
 4. Flick the mouse to the other side: the stick should whip round and stop dead, with no slow braking.
 5. Shots: the puck should leave at right angles to the line player → puck, not ~15 deg outward.
+6. Diagonals (W+D etc.): same top speed as a single key.
+7. Match mode in the lab (`?mode=match`): does the 3 s countdown / 3 s goal pause and the spawn at rink_length/4 match the real
+   game? (placeholders; the training env skips the frozen phases and jitters every faceoff).
+8. Not yet in the lab: playing against a trained bot (no ONNX loader in the browser yet).
 
-## Training on the real game (session t1, 2026-11-04, branch t1, Ian's Windows machine: RTX 3070 Ti, 12 cores)
-Changes only in bots/, sim-ffi/, train/ (+ README run guide). sim/ and the params files are untouched; the scripted bots
-were not retuned. **This section supersedes the format details in "Bots and training" above** (ACT_DIM 5 → 4, OBS
-fields 28–30, INFO_DIM 10 → 14, ABI 1 → 2, 6 → 7 reward terms). Old checkpoints (act v1 / obs v1) are refused.
+## Training on the real game (session t1, 2026-11-04; Ian's Windows machine: RTX 3070 Ti, 12 cores)
+Measured on the t1 branch (before the s10 physics); the merged numbers are in "Verified (s10 + t1 integration)".
 
 ### Action format (bots/src/action.rs, ACT_DIM 4, canonical frame)
 | idx | field |
@@ -572,11 +520,9 @@ time left / 300 s** (1.0 at the start of a 5:00 match, 0 in overtime, 0 in free 
 - `final_obs` (new step argument): the learner's observation of the last state of an episode that ended (pre-reset).
 - `python -m train.ppo train --mode match` or `--curriculum-minutes M` (first_goal for M minutes, then match; a new env,
   the rolling stats reset, the plot marks the switch). `eval` defaults to full matches (`--mode match`).
-- Scripted matches in the env (test `match_mode_endings`): chaser vs idle 5-0 **mercy** after 16.4 s of play; chaser vs
-  defender 1-0 at **300.0 s (clock end)**; chaser vs chaser on a 20 s clock (in-memory params) 0-0 → **overtime goal** at
-  63.4 s; some 0-0 games truncated at the overtime cap. Determinism (16 envs, seed 42, threads 1 vs 4): first_goal
-  `a8f2913cdf9b6aee` = `a8f2913cdf9b6aee`, match `ee5c1ae9a9229ea6` = `ee5c1ae9a9229ea6` (before the faceoff jitter;
-  the test asserts equality, not these values).
+- Scripted matches in the env (test `match_mode_endings`; current values in "Verified (s10 + t1 integration)"): mercy,
+  clock end and an overtime goal each occur; some 0-0 games are truncated at the overtime cap. Determinism across thread
+  counts is asserted for both modes (the test checks equality, the hashes are printed with `--nocapture`).
 
 ### Training details
 - **Truncation**: a truncated episode adds γ·V(final_obs) to the last reward and then ends the GAE trace (a real end does
@@ -624,7 +570,7 @@ GPU update's per-minibatch launches; both shrink per decision with more envs. Th
 | s3 | defense | defensive_position + 0.03 × max(s3, 0) |
 goal_for, goal_against, match_win never change. `sample` draws s0..s3 uniform in [−1, 1) per episode (rest 0) and writes it
 into obs 32–35; `train.ppo --styles`. **Style zero reproduces the default env exactly** (tests: Rust and Python, both
-modes, e.g. first_goal hash `7194c031fce744d1` = `7194c031fce744d1`). Self-play opponents see a zero style.
+modes, current hashes in "Verified (s10 + t1 integration)"). Self-play opponents see a zero style.
 
 ### Ladder (`python -m train.league`)
 Checkpoints vs scripted bots (env opponent) and vs each other (external opponent), full matches by default, win 1 / draw

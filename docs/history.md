@@ -664,3 +664,6 @@ and puck_mass 0.17 kg, both placeholders).
 - stick_mass needs a measurement that sees the stick slow at contact (higher fps, or hits on a heavy/stationary puck at several radii);
   stick_inner, z range and the left-button pose's geometry are unmeasured; the hit table has only 7 hits (more fast swings at
   different contact radii would test saturation and the puck speed cap).
+
+## s10 (2026-11-04): player coast, dash, stick braking and hit contact models
+- Replaced the constant-drag coast (now speed-proportional, player_coast_rate), the additive dash (now a ramp toward dash_speed, move key required), the symmetric stick chase (separate stick_max_ang_decel) and the stick impulse direction (centre-on). Refit held out by clip / event / hit, with the old models refit the same way for comparison. An overshoot term and a blade-normal impulse were tested and rejected. Hit scenarios rescaled to real meters; bot shot constants re-measured. Details: CLAUDE.md "s10 models".

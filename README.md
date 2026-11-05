@@ -1,15 +1,16 @@
 # slapmini
 
 A compressed, top-down 2D (2.5D: the puck has height) hockey sim in Rust, modeled on Slapshot: Rebound,
-for training RL bots. `params.json` holds the rink shape measured from real clips (provenance `measured-shape`) and four puck
-params fitted to them (`fitted`); everything else is still an unmeasured placeholder (`params.placeholder.json` keeps the
-pre-fit values for tests).
+for training RL bots. `params.json` holds the rink shape measured from real clips (provenance `measured-shape`), puck, player,
+dash and stick params fitted to them (`fitted`), the measured player speed cap and rink length (`measured`), in real meters
+(scale estimated from the in-game shot-speed readout, see CLAUDE.md). Everything else is still an unmeasured placeholder
+(`params.placeholder.json` keeps the pre-fit values for tests).
 
 ![Real shots (dashed) vs the sim replaying them with the fitted params (solid), on the sim's own rink](measure/results/fits/readme_fit.png)
 
 *Five real practice-mode shots (dashed, measured from screen recordings by `measure/`) and the sim replaying each one from
 its measured start with the fitted puck params (solid). Right: speed against distance for the corner ride, fitted vs
-placeholder physics. Meters are at a placeholder scale until a clip with the in-game speed readout pins it down.*
+placeholder physics. The figure predates the absolute scale: its meters are placeholder meters (real = ×1.0873).*
 
 Crates:
 
@@ -53,6 +54,7 @@ npm run dev       # http://localhost:5173
 npm run build     # wasm + typecheck + static site in web/dist (relative paths, host as plain files)
 npm run verify    # headless Playwright checks; screenshots in web/verify-out
 npm run verify-match   # three full matches in match mode (mercy, clock, overtime), sped-up loop; match-*.png
+npm run verify-skate   # hold W from rest: player speed vs time, ramp to the cap; skate-top-speed.png
 ```
 
 Controls: WASD move; the mouse sets the stick target; Shift dash and Space lift (both unverified guesses).
@@ -130,7 +132,7 @@ cargo build --release -p calib
 ## File formats
 
 - **params.json**: `{"params": {name: {"value", "provenance", "unit", "note"}}}`. Provenance is `placeholder`, `fitted`, `measured`,
-  or `measured-shape` (a ratio to rink_length is measured; the meter value still assumes the placeholder scale).
+  `measured-shape` or `rule`. Meters are real meters at the estimated scale (`python -m measure.rescale` applied it once).
 - **Scenario** (`*.scenario.json`): `{name, description, steps, initial_state: State, inputs: [{step, player, input}]}`.
   Each input is held from its `step` until that player's next event.
 - **Trajectory CSV**: header `t,x,y,z` plus an optional `stick_angle` (player 0) column. Puck position in meters, rink-centered.

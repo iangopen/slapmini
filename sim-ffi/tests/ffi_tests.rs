@@ -92,14 +92,16 @@ fn scripted_actions(b: &Batch, bots: &mut [Scripted]) -> Vec<f32> {
 /// with the goal_for reward and END_WIN, and the env starts a fresh episode.
 #[test]
 fn goal_ends_episode_with_reward() {
-    let mut b = new_batch("", r#"{"opponent": "idle", "learner_team": -1, "threads": 1}"#, 4, 7).unwrap();
+    // The scripted chaser is a 120 Hz controller: drive it at one decision per sim step (at the
+    // training rate of 30 Hz it can hold the puck without ever meeting its swing conditions).
+    let mut b = new_batch("", r#"{"opponent": "idle", "learner_team": -1, "threads": 1, "action_repeat": 1}"#, 4, 7).unwrap();
     let n = b.len();
     let mut s = Bufs::new(n);
     b.reset_all(&mut s.obs, None);
     let mut bots: Vec<Scripted> = (0..n).map(|_| Scripted::new(Kind::Chaser)).collect();
     let (mut goals, mut shots) = (0, 0);
     let mut teams = std::collections::BTreeSet::new();
-    for _ in 0..3000 {
+    for _ in 0..12000 {
         let a = scripted_actions(&b, &mut bots);
         s.step(&mut b, &a, None);
         for i in 0..n {

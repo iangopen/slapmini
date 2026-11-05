@@ -57,13 +57,20 @@ fn determinism_100k_steps_byte_identical() {
 }
 
 /// Params whose SHAPE (ratio to rink_length) was measured from real clips; the meter scale is still a placeholder.
-const MEASURED_SHAPE: [&str; 11] = [
+const MEASURED_SHAPE: [&str; 13] = [
     "rink_width", "rink_corner_radius", "net_width", "net_depth", "net_x", "blue_line_x", "faceoff_x", "faceoff_y", "faceoff_circle_radius",
-    "puck_radius", "player_radius",
+    "puck_radius", "player_radius", "stick_length", "stick_thickness",
 ];
 
-/// Scale-free puck params fitted to real clips (python -m measure holdout, merged from params.fitted.json).
-const FITTED: [&str; 4] = ["board_restitution", "board_friction", "ice_linear_drag", "ice_friction_decel"];
+/// Fitted to real clips: puck (measure holdout), player/dash (s7 measure.skatefit), stick (s7b measure.stick).
+const FITTED: [&str; 10] = [
+    "board_restitution", "board_friction", "ice_linear_drag", "ice_friction_decel",
+    "player_accel", "player_ice_drag", "dash_speed",
+    "stick_max_ang_speed", "stick_max_ang_accel", "stick_restitution",
+];
+
+/// Measured model-free (no fit): the player speed cap.
+const MEASURED: [&str; 1] = ["player_max_speed"];
 
 /// The pre-merge params (placeholder physics, measured shape), for tests about placeholder behaviour.
 const PLACEHOLDER_JSON: &str = include_str!("../../params.placeholder.json");
@@ -81,6 +88,8 @@ fn params_file_complete_and_provenance_known() {
             "measured-shape"
         } else if FITTED.contains(&k.as_str()) {
             "fitted"
+        } else if MEASURED.contains(&k.as_str()) {
+            "measured"
         } else if MATCH_RULES.contains(&k.as_str()) {
             "rule"
         } else {

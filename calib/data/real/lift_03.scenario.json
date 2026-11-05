@@ -1,15 +1,15 @@
 {
   "name": "lift_03",
-  "description": "MEASURED (wall bounce) from justliftedshots frames 991-1216; placeholder meter scale; z unknown",
+  "description": "MEASURED (wall bounce) from justliftedshots frames 991-1216; real meters; z unknown; REAL METERS (x1.0873, measure.rescale)",
   "steps": 450,
   "initial_state": {
     "tick": 0,
     "puck": {
-      "x": 2.7745961742076615,
-      "y": 2.533488220865392,
+      "x": 3.016718006741028,
+      "y": 2.754570054841754,
       "z": 0.0,
-      "vx": 31.063027072211433,
-      "vy": 16.40854590570048,
+      "vx": 33.77370515526804,
+      "vy": 17.84041813302761,
       "vz": 0.0,
       "in_net": null
     },

@@ -69,8 +69,8 @@ const FITTED: [&str; 10] = [
     "stick_max_ang_speed", "stick_max_ang_accel", "stick_restitution",
 ];
 
-/// Measured model-free (no fit): the player speed cap.
-const MEASURED: [&str; 1] = ["player_max_speed"];
+/// Measured model-free (no fit): the player speed cap, and rink_length (the absolute scale from the goal readouts).
+const MEASURED: [&str; 2] = ["player_max_speed", "rink_length"];
 
 /// The pre-merge params (placeholder physics, measured shape), for tests about placeholder behaviour.
 const PLACEHOLDER_JSON: &str = include_str!("../../params.placeholder.json");

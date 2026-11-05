@@ -1,15 +1,15 @@
 {
   "name": "lift_01",
-  "description": "MEASURED (glide) from justliftedshots frames 111-407; placeholder meter scale; z unknown",
+  "description": "MEASURED (glide) from justliftedshots frames 111-407; real meters; z unknown; REAL METERS (x1.0873, measure.rescale)",
   "steps": 592,
   "initial_state": {
     "tick": 0,
     "puck": {
-      "x": -0.4755879861650336,
-      "y": 0.4581979600480015,
+      "x": -0.5170896056841389,
+      "y": 0.49818205963739615,
       "z": 0.0,
-      "vx": 8.503819147460218,
-      "vy": 1.8453176082903986,
+      "vx": 9.24589480324583,
+      "vy": 2.0063470528916296,
       "vz": 0.0,
       "in_net": null
     },

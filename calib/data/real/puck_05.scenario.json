@@ -1,15 +1,15 @@
 {
   "name": "puck_05",
-  "description": "MEASURED (wall bounce) from justpuckphysicshittingitatfixedpoint frames 906-1296; placeholder meter scale; z unknown",
+  "description": "MEASURED (wall bounce) from justpuckphysicshittingitatfixedpoint frames 906-1296; real meters; z unknown; REAL METERS (x1.0873, measure.rescale)",
   "steps": 780,
   "initial_state": {
     "tick": 0,
     "puck": {
-      "x": 2.8972183337455397,
-      "y": 2.5766172490548658,
+      "x": 3.150040643073512,
+      "y": 2.801462686339591,
       "z": 0.0,
-      "vx": 23.15067912607915,
-      "vy": 21.176207166327654,
+      "vx": 25.170895583704354,
+      "vy": 23.024123678604127,
       "vz": 0.0,
       "in_net": null
     },

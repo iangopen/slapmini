@@ -1,15 +1,15 @@
 {
   "name": "wall_02",
-  "description": "MEASURED (glide) from justhittingwallphysicsfixedpoint frames 341-417; placeholder meter scale; z unknown",
+  "description": "MEASURED (glide) from justhittingwallphysicsfixedpoint frames 341-417; real meters; z unknown; REAL METERS (x1.0873, measure.rescale)",
   "steps": 152,
   "initial_state": {
     "tick": 0,
     "puck": {
-      "x": -0.3618127073315184,
-      "y": 18.13467393449009,
+      "x": -0.39338586257021996,
+      "y": 19.71717466963498,
       "z": 0.0,
-      "vx": 2.5982685206208234,
-      "vy": -8.956207616791511,
+      "vx": 2.825003330347188,
+      "vy": -9.737760413874176,
       "vz": 0.0,
       "in_net": null
     },

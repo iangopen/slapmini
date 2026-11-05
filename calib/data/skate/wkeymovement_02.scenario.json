@@ -1,72 +1,72 @@
 {
- "name": "wkeymovement_02",
- "description": "s7 wkeymovement frames 1065-1545, keys W; inputs from the key display shifted by the measured lag 0.000 s; player 0 tracked from video (placeholder-scale meters)",
- "steps": 961,
- "initial_state": {
-  "tick": 0,
-  "puck": {
-   "x": 25.0,
-   "y": -15.0,
-   "z": 0.0,
-   "vx": 0.0,
-   "vy": 0.0,
-   "vz": 0.0,
-   "in_net": null
+  "name": "wkeymovement_02",
+  "description": "s7 wkeymovement frames 1065-1545, keys W; inputs from the key display shifted by the measured lag 0.000 s; player 0 tracked from video (real meters); REAL METERS (x1.0873, measure.rescale)",
+  "steps": 961,
+  "initial_state": {
+    "tick": 0,
+    "puck": {
+      "x": 27.18159524243658,
+      "y": -16.308957145461946,
+      "z": 0.0,
+      "vx": 0.0,
+      "vy": 0.0,
+      "vz": 0.0,
+      "in_net": null
+    },
+    "players": [
+      {
+        "team": 0,
+        "x": -32.13571873751407,
+        "y": 11.085359413576962,
+        "vx": 0.0,
+        "vy": 0.0,
+        "facing": 0.0375569318675147,
+        "stick_angle": 0.0,
+        "stick_omega": 0.0,
+        "dash_timer": 0.0,
+        "dash_cooldown": 0.0,
+        "dash_prev": false
+      }
+    ],
+    "score": [
+      0,
+      0
+    ]
   },
-  "players": [
-   {
-    "team": 0,
-    "x": -29.556505468949616,
-    "y": 10.195648300536666,
-    "vx": 0.0,
-    "vy": 0.0,
-    "facing": 0.0375569318675147,
-    "stick_angle": 0.0,
-    "stick_omega": 0.0,
-    "dash_timer": 0.0,
-    "dash_cooldown": 0.0,
-    "dash_prev": false
-   }
+  "inputs": [
+    {
+      "step": 0,
+      "player": 0,
+      "input": {
+        "move_x": 0.0,
+        "move_y": 0.0,
+        "stick_target_angle": 0.0,
+        "dash": false,
+        "lift": false
+      }
+    },
+    {
+      "step": 34,
+      "player": 0,
+      "input": {
+        "move_x": 1.0,
+        "move_y": 0.0,
+        "stick_target_angle": 0.0,
+        "dash": false,
+        "lift": false
+      }
+    },
+    {
+      "step": 496,
+      "player": 0,
+      "input": {
+        "move_x": 0.0,
+        "move_y": 0.0,
+        "stick_target_angle": 0.0,
+        "dash": false,
+        "lift": false
+      }
+    }
   ],
-  "score": [
-   0,
-   0
-  ]
- },
- "inputs": [
-  {
-   "step": 0,
-   "player": 0,
-   "input": {
-    "move_x": 0.0,
-    "move_y": 0.0,
-    "stick_target_angle": 0.0,
-    "dash": false,
-    "lift": false
-   }
-  },
-  {
-   "step": 34,
-   "player": 0,
-   "input": {
-    "move_x": 1.0,
-    "move_y": 0.0,
-    "stick_target_angle": 0.0,
-    "dash": false,
-    "lift": false
-   }
-  },
-  {
-   "step": 496,
-   "player": 0,
-   "input": {
-    "move_x": 0.0,
-    "move_y": 0.0,
-    "stick_target_angle": 0.0,
-    "dash": false,
-    "lift": false
-   }
-  }
- ],
- "track": "player0"
+  "track": "player0"
 }

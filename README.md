@@ -197,22 +197,83 @@ cargo build --release -p sim-ffi
 PowerShell (replace `.venv\Scripts\python` with `.venv/bin/python` and `\` with `/` in bash):
 
 ```powershell
-# train against the chaser for 30 minutes (runs/NAME holds latest.pt, metrics.csv, learning_curve.png)
+# train against the chaser for 30 minutes on first-goal episodes (runs/NAME holds latest.pt, metrics.csv, learning_curve.png)
 .venv\Scripts\python -m train.ppo train --run runs\chaser --minutes 30 --opponents chaser --plot
+# full matches (5:00 clock, mercy at a 5-goal lead, next-goal overtime), after 20 minutes of first-goal curriculum
+.venv\Scripts\python -m train.ppo train --run runs\match --minutes 120 --curriculum-minutes 20 --opponents chaser --plot
 # self-play: frozen snapshots from a pool (one added every 50 updates) mixed with the scripted bots
 .venv\Scripts\python -m train.ppo train --run runs\selfplay --minutes 120 --opponents "chaser:0.2,defender:0.1,cautious:0.1,pool:0.6" --plot
 # resume (refuses if params.json's physics changed since the checkpoint; --allow-physics-change overrides)
 .venv\Scripts\python -m train.ppo train --run runs\selfplay --minutes 240 --opponents "chaser:0.2,defender:0.1,cautious:0.1,pool:0.6" --resume runs\selfplay\latest.pt
-# evaluate against a scripted bot (or a checkpoint path as --opponent); baselines: --policy random / untrained
-.venv\Scripts\python -m train.ppo eval --ckpt runs\chaser\latest.pt --opponent chaser --episodes 400
-.venv\Scripts\python -m train.ppo eval --policy random --opponent chaser --episodes 400
+# evaluate on full matches against a scripted bot (or a checkpoint path as --opponent); baselines: --policy random / untrained
+.venv\Scripts\python -m train.ppo eval --ckpt runs\chaser\latest.pt --opponent chaser --episodes 64
+.venv\Scripts\python -m train.ppo eval --policy random --opponent chaser --episodes 64
 .venv\Scripts\python -m train.ppo plot --run runs\chaser
+# rating ladder: checkpoints vs the scripted bots and each other, Elo ratings + per-style statistics -> JSON
+.venv\Scripts\python -m train.league --ckpts "runs\match\ckpts\*.pt" runs\match\latest.pt --matches 16 --out runs\match\league.json
 # export for the browser (deterministic policy; checks onnxruntime against PyTorch)
 .venv\Scripts\python -m train.export_onnx --ckpt runs\chaser\latest.pt --out web\public\bots\chaser.onnx
 ```
 
-`runs/` is gitignored. Useful knobs: `--envs` (default 64), `--threads` (env worker threads, 0 = all cores), `--device`
-(`auto`/`cpu`/`cuda`), `--reward weights.json`, `--episode-seconds`. On a GPU, more envs (256–1024) keep it busy.
+`runs/` is gitignored. Useful knobs: `--envs` (default 64), `--mode first_goal|match`, `--curriculum-minutes M`, `--styles`
+(sample a play style per episode), `--obs-norm` (running observation normalization), `--keep-every N` (keep
+`ckpts/upd_N.pt` for the ladder), `--threads` / `--torch-threads` (auto by default), `--device` (update device,
+`auto`/`cpu`/`cuda`), `--rollout-device` (acting device, default `cpu`), `--reward weights.json`, `--profile`
+(time breakdown table at the end, also written to `runs/NAME/profile.md`).
+
+### Long run on Ian's machine (RTX 3070 Ti, 12-core CPU)
+
+Measured on that machine (decisions per second of training, update on the GPU, rollouts on the CPU): 64 envs 43k,
+128 envs 72k, 256 envs 110–117k, **512 envs 157–176k**. More envs mostly share fixed per-step Python costs, so they are
+nearly free; the price is a larger batch per update (envs × steps samples). The command below uses 512 envs and splits
+each update into 8 minibatches (65,536 samples per update, 8,192 per minibatch) instead of the default 4.
+
+Start (PowerShell, from the repo root; 8 hours of training; `--minutes` counts the total across resumes):
+
+```powershell
+cargo build --release -p sim-ffi
+.venv\Scripts\python -m train.ppo train --run runs\long1 --minutes 480 --envs 512 --minibatches 8 `
+  --curriculum-minutes 60 --opponents "chaser:0.3,defender:0.15,cautious:0.05,pool:0.5" `
+  --styles --obs-norm --keep-every 200 --anneal --print-every 20 --plot
+```
+
+What it does: 60 minutes of first-goal episodes (dense rewards), then full matches; every episode samples a style
+(aggression, shot-taking, possession, defense) that shifts the shaping reward and is shown to the policy; half the
+opponents are frozen snapshots of itself; rayon uses 8 env threads and torch 4 CPU threads (auto for 512 envs).
+
+Monitor (a second PowerShell window):
+
+```powershell
+Get-Content runs\long1\metrics.csv -Tail 3 -Wait                    # one row per update
+.venv\Scripts\python -m train.ppo plot --run runs\long1              # refresh runs\long1\learning_curve.png any time
+nvidia-smi -l 10                                                     # GPU use (low is normal: the GPU only runs the update)
+```
+
+Stop: press Ctrl+C once; it finishes the current update, writes `runs\long1\latest.pt` and exits (a second Ctrl+C aborts
+without saving; `latest.pt` is also written every 25 updates). Resume with the same command plus
+`--resume runs\long1\latest.pt` (and a larger `--minutes` if the budget was used up). It refuses to resume if params.json
+changed since the checkpoint (physics stamp); `--allow-physics-change` continues anyway.
+
+Evaluate and rate, then export:
+
+```powershell
+.venv\Scripts\python -m train.ppo eval --ckpt runs\long1\latest.pt --opponent chaser --episodes 64 --envs 32
+.venv\Scripts\python -m train.ppo eval --ckpt runs\long1\latest.pt --opponent defender --episodes 64 --envs 32
+.venv\Scripts\python -m train.league --ckpts "runs\long1\ckpts\*.pt" runs\long1\latest.pt --matches 16 `
+  --styles "0,0,0,0;1,0,0,0;0,1,0,0;0,0,1,0;0,0,0,1;-1,-1,0,1" --out runs\long1\league.json
+.venv\Scripts\python -m train.export_onnx --ckpt runs\long1\latest.pt --out web\public\bots\long1.onnx
+```
+
+Is it working? In the console and `metrics.csv` (rolling over the last 400 episodes):
+- `win` against the mix rises and `goal_diff` per episode climbs above 0 within the first hour (first-goal phase); after
+  the switch to matches (purple line in the plot) the numbers reset and should climb again, more slowly.
+- `ep_seconds` in match mode: early matches end by mercy or the clock; `truncated` (overtime cap) should stay rare.
+- `entropy` falls slowly (starts near 5.4 = log 9 + the stick Gaussian + two coin flips); a crash toward 0 in minutes means collapse. `kl` stays below ~0.03.
+- `dec/s` stays flat (a drop means something else is using the CPU).
+- The ladder's ratings for the kept checkpoints rise with the update number and pass the chaser (1000); per-style rows
+  differ (shots per match higher for style 0,1,0,0; possession share higher for 0,0,1,0).
+Signs of trouble: win rate stuck at 0 after an hour in first-goal mode, entropy collapse, NaN losses, or ratings that fall
+as training goes on (self-play cycling: lower `pool`, raise the scripted share).
 
 ## Skating clips, key display and scale (session s7)
 

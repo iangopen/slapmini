@@ -53,6 +53,10 @@ pub struct Config {
     /// ±player, per axis. (Match mode: only the opening faceoff; the sim resets after goals exactly.)
     pub jitter_puck: f64,
     pub jitter_player: f64,
+    /// Match mode: also jitter every faceoff after a goal (default true). The sim resets to exactly
+    /// the same spawn after every goal; without jitter a policy memorizes that one faceoff (t1 smoke
+    /// run: 95% match wins vs the chaser, 5% wins from jittered starts).
+    pub jitter_every_faceoff: bool,
     /// Default opponent for every env: "chaser", "defender", "cautious", "idle" or "external".
     pub opponent: String,
     /// Base reward weights.
@@ -82,6 +86,7 @@ impl Default for Config {
             learner_team: -1,
             jitter_puck: 1.5,
             jitter_player: 1.0,
+            jitter_every_faceoff: true,
             opponent: "chaser".into(),
             reward: RewardWeights::default(),
             style: vec![],
@@ -224,12 +229,7 @@ impl Env {
 
     pub fn reset(&mut self, p: &Params, cfg: &Config) {
         let mut s = if cfg.is_match() { State::new_match(p, 2) } else { State::new_default(p, 2) };
-        s.puck.x = cfg.jitter_puck * self.rng.sym();
-        s.puck.y = cfg.jitter_puck * self.rng.sym();
-        for pl in s.players.iter_mut() {
-            pl.x += cfg.jitter_player * self.rng.sym();
-            pl.y += cfg.jitter_player * self.rng.sym();
-        }
+        self.jitter(&mut s, cfg);
         let team = if cfg.learner_team < 0 { (self.rng.next_u64() >> 63) as usize } else { cfg.learner_team.min(1) as usize };
         if cfg.style_mode == "sample" {
             self.style = [0.0; STYLE_DIM];
@@ -251,6 +251,16 @@ impl Env {
             b.reset();
         }
         self.skip_frozen(p);
+    }
+
+    /// Faceoff jitter: the puck by up to ±jitter_puck, each player by up to ±jitter_player, per axis.
+    fn jitter(&mut self, s: &mut State, cfg: &Config) {
+        s.puck.x = cfg.jitter_puck * self.rng.sym();
+        s.puck.y = cfg.jitter_puck * self.rng.sym();
+        for pl in s.players.iter_mut() {
+            pl.x += cfg.jitter_player * self.rng.sym();
+            pl.y += cfg.jitter_player * self.rng.sym();
+        }
     }
 
     /// Fast-forward a countdown or goal pause (inputs are ignored in them; no decision is spent).
@@ -317,6 +327,11 @@ impl Env {
                 if scored {
                     // Goal pause + reset to spawn + countdown are skipped; the next decision sees the faceoff.
                     self.skip_frozen(p);
+                    if cfg.jitter_every_faceoff {
+                        let mut s = std::mem::take(&mut self.state);
+                        self.jitter(&mut s, cfg);
+                        self.state = s;
+                    }
                     if let Opponent::Scripted(b) = &mut self.opponent {
                         b.reset();
                     }

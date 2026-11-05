@@ -277,6 +277,37 @@ fn match_mode_endings() {
     assert_eq!((ot.gf - ot.ga).abs(), 1.0, "overtime is decided by one goal: {ot:?}");
 }
 
+/// Match mode jitters every faceoff after a goal (the sim alone resets to the same spawn each time),
+/// unless jitter_every_faceoff is false.
+#[test]
+fn faceoffs_after_goals_are_jittered() {
+    for (jit, want_distinct) in [(true, true), (false, false)] {
+        let cfg = format!(r#"{{"mode": "match", "opponent": "idle", "threads": 1, "learner_team": 0, "jitter_every_faceoff": {jit}}}"#);
+        let mut b = new_batch("", &cfg, 1, 21).unwrap();
+        let mut s = Bufs::new(1);
+        b.reset_all(&mut s.obs, None);
+        let mut bot = vec![Scripted::new(Kind::Chaser)];
+        let mut faceoffs = vec![];
+        let mut gf = 0.0;
+        while faceoffs.len() < 3 {
+            let a = scripted_actions(&b, &mut bot);
+            s.step(&mut b, &a, None);
+            if s.d[0] == 1 {
+                break;
+            }
+            if s.info(0)[4] != gf {
+                gf = s.info(0)[4];
+                bot[0].reset();
+                let st = &b.envs[0].state;
+                faceoffs.push((st.puck.x, st.puck.y, st.players[0].x, st.players[0].y));
+            }
+        }
+        assert_eq!(faceoffs.len(), 3, "{faceoffs:?}");
+        let distinct = faceoffs.windows(2).all(|w| w[0] != w[1]);
+        assert_eq!(distinct, want_distinct, "jitter {jit}: {faceoffs:?}");
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 #[allow(dead_code)]
 struct MatchResult {

@@ -28,7 +28,9 @@ import json
 import math
 import os
 import random
+import signal
 import sys
+import threading
 import time
 from collections import defaultdict, deque
 from pathlib import Path
@@ -504,8 +506,20 @@ def train(args):
     t0 = time.time()
     total_eps = 0
     gamma = args.gamma
+    # Ctrl+C finishes the current update, saves latest.pt and exits cleanly (a second Ctrl+C aborts).
+    stop = {"flag": False}
+
+    def _sigint(sig, frame):
+        if stop["flag"]:
+            raise KeyboardInterrupt
+        stop["flag"] = True
+        print("\nCtrl+C: finishing this update and saving latest.pt (Ctrl+C again aborts without saving)", flush=True)
+
+    old_handler = signal.signal(signal.SIGINT, _sigint) if threading.current_thread() is threading.main_thread() else None
     while True:
         minutes = (time.time() - t0 + t_offset) / 60
+        if stop["flag"]:
+            break
         if args.minutes and minutes >= args.minutes:
             break
         if args.updates and update >= args.updates:
@@ -650,6 +664,8 @@ def train(args):
             save_ckpt(run / "ckpts" / f"upd_{update:06d}.pt", policy, None,
                       ckpt_state(args, update, global_steps, t0, t_offset, stamp, d, env_cfg))
         prof.mark("other")
+    if old_handler is not None:
+        signal.signal(signal.SIGINT, old_handler)
     save_ckpt(run / "latest.pt", policy, opt, ckpt_state(args, update, global_steps, t0, t_offset, stamp, d, env_cfg))
     if args.profile:
         r1 = env.profile()

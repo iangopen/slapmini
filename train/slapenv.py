@@ -20,7 +20,15 @@ DEFAULT_PARAMS = REPO / "params.json"
 # Opponent ids (bots::Kind) and the external-policy slot.
 OPPONENTS = {"chaser": 0, "defender": 1, "cautious": 2, "idle": 3, "external": -1}
 SCRIPTED = ["chaser", "defender", "cautious", "idle"]
-END_RUNNING, END_GOAL_FOR, END_GOAL_AGAINST, END_LIMIT = 0, 1, 2, 3
+# End reasons (info[:, 0]): first-goal mode = who scored first; match mode = the match result.
+END_RUNNING, END_WIN, END_LOSS, END_TRUNCATED = 0, 1, 2, 3
+END_GOAL_FOR, END_GOAL_AGAINST, END_LIMIT = END_WIN, END_LOSS, END_TRUNCATED  # old names
+# Info columns (sim-ffi env::INFO_DIM): end, episode playing sim steps, return, learner team, goals for,
+# goals against, opponent possession seconds, then the raw reward-term sums (names in VecEnv.reward_terms).
+I_END, I_STEPS, I_RET, I_TEAM, I_GF, I_GA, I_OPP_POSS, I_RAW = 0, 1, 2, 3, 4, 5, 6, 7
+ABI_VERSION = 2
+# Move indices (bots/src/action.rs): 0 stop, then 8 directions counterclockwise from +x (canonical frame).
+N_MOVES = 9
 
 
 def lib_path() -> Path:
@@ -56,18 +64,22 @@ def lib() -> C.CDLL:
         "slap_batch_new": ([cp, cp, C.c_uint32, C.c_uint64], vp),
         "slap_batch_free": ([vp], None), "slap_batch_len": ([vp], C.c_uint32),
         "slap_batch_reset": ([vp, f32p, f32p], C.c_int32),
-        "slap_batch_step": ([vp, f32p, f32p, f32p, f32p, f32p, u8p, f32p], C.c_int32),
+        "slap_batch_step": ([vp, f32p, f32p, f32p, f32p, f32p, f32p, u8p, f32p], C.c_int32),
         "slap_batch_set_opponent": ([vp, C.c_uint32, C.c_int32], C.c_int32),
         "slap_batch_set_style": ([vp, C.c_uint32, f32p, C.c_uint32], C.c_int32),
         "slap_batch_set_reward_weights": ([vp, C.c_uint32, f32p, C.c_uint32], C.c_int32),
         "slap_batch_hash": ([vp], C.c_uint64), "slap_batch_env_hash": ([vp, C.c_uint32], C.c_uint64),
         "slap_batch_get_state": ([vp, C.c_uint32, C.c_char_p, C.c_uint32], C.c_int32),
         "slap_batch_set_state": ([vp, C.c_uint32, cp], C.c_int32),
+        "slap_batch_profile": ([vp, C.POINTER(C.c_uint64)], C.c_int32),
     }
     for name, (args, res) in sig.items():
         fn = getattr(L, name)
         fn.argtypes = args
         fn.restype = res
+    if L.slap_abi_version() != ABI_VERSION:
+        raise RuntimeError(f"{lib_path()}: ABI v{L.slap_abi_version()}, this wrapper needs v{ABI_VERSION}; "
+                           "rebuild with cargo build --release -p sim-ffi")
     _LIB = L
     return L
 
@@ -104,9 +116,13 @@ def physics_stamp(path: Path | str = DEFAULT_PARAMS) -> str:
 class VecEnv:
     """N 1v1 environments stepped together in Rust (rayon). Finished envs auto-reset.
 
-    step(actions[N, act], opp_actions[N, act] | None) -> obs, rewards, dones(bool), info
-    info columns: end reason (0 running, 1 goal for, 2 goal against, 3 step limit), episode sim
-    steps, episode return, learner team, then the raw reward-term sums (names in .reward_terms).
+    step(actions[N, 4], opp_actions[N, 4] | None) -> obs, rewards, dones(bool), info
+    Actions: move index 0..8, stick angle (rad, canonical), dash 0/1, lift 0/1 (bots/src/action.rs).
+    info columns: see I_* above (end reason: 0 running, 1 win, 2 loss, 3 truncated).
+    After step, .final_obs[i] holds the learner's observation of the last state of an episode that
+    ended this step (before the auto-reset), for bootstrapping truncated episodes.
+    The returned arrays are views of internal buffers, overwritten by the next step: copy what you keep.
+    config: see sim-ffi/src/env.rs Config (mode "first_goal" | "match", style_mode, ...).
     """
 
     def __init__(self, n: int, seed: int = 0, config: dict | None = None,
@@ -124,6 +140,7 @@ class VecEnv:
         self.h = h
         self.obs = np.zeros((n, self.obs_dim), np.float32)
         self.opp_obs = np.zeros((n, self.obs_dim), np.float32)
+        self.final_obs = np.zeros((n, self.obs_dim), np.float32)
         self.rew = np.zeros(n, np.float32)
         self.done = np.zeros(n, np.uint8)
         self.info = np.zeros((n, self.info_dim), np.float32)
@@ -141,8 +158,9 @@ class VecEnv:
         a = np.ascontiguousarray(actions, np.float32).reshape(self.n, self.act_dim)
         oa = self._zero_opp if opp_actions is None else np.ascontiguousarray(opp_actions, np.float32).reshape(self.n, self.act_dim)
         self._check(self.L.slap_batch_step(self.h, _ptr(a), _ptr(oa), _ptr(self.obs), _ptr(self.opp_obs),
-                                           _ptr(self.rew), _ptr(self.done, C.c_uint8), _ptr(self.info)))
-        return self.obs.copy(), self.rew.copy(), self.done.astype(bool), self.info.copy()
+                                           _ptr(self.final_obs), _ptr(self.rew), _ptr(self.done, C.c_uint8),
+                                           _ptr(self.info)))
+        return self.obs, self.rew, self.done.view(bool), self.info
 
     def set_opponent(self, env: int | None, kind: str | int):
         k = OPPONENTS[kind] if isinstance(kind, str) else int(kind)
@@ -161,6 +179,16 @@ class VecEnv:
             weights = [weights.get(t, 0.0) for t in self.reward_terms]
         w = np.ascontiguousarray(weights, np.float32)
         self._check(self.L.slap_batch_set_reward_weights(self.h, 0xFFFFFFFF if env is None else env, _ptr(w), w.size))
+
+    def profile(self) -> list[int]:
+        """[wall ns inside step (cumulative), then CPU ns summed over envs: sim, reward, opponent bot,
+        observe+reset (filled only with config profile: true)]."""
+        out = (C.c_uint64 * 5)()
+        self._check(self.L.slap_batch_profile(self.h, out))
+        return list(out)
+
+    def step_ns(self) -> int:
+        return self.profile()[0]
 
     def hash(self) -> int:
         return int(self.L.slap_batch_hash(self.h))

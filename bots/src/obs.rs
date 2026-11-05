@@ -23,9 +23,9 @@
 //! | 23, 24 | cos, sin of opponent stick angle | 1 |
 //! | 25 | opponent stick angular velocity (rad/s) | / OMEGA |
 //! | 26, 27 | opponent − own position (m) | / REL |
-//! | 28 | own team's goals | / SCORE |
-//! | 29 | opponent's goals | / SCORE |
-//! | 30 | match time left (s); always 0 until match rules land | / TIME |
+//! | 28 | score difference: own goals − opponent goals (mercy ends the match at ±5) | / SCORE |
+//! | 29 | 1 in overtime (next goal wins), else 0 | 1 |
+//! | 30 | regulation time left (s): 1.0 at the start of a 5:00 match, 0 in overtime; 0 in free play | / TIME |
 //! | 31 | 1 if the dash is ready (cooldown 0), else 0 | 1 |
 //! | 32..40 | style vector (caller-supplied, zeros by default) | as given |
 //!
@@ -33,7 +33,7 @@
 //! angular velocity unchanged. With no opponent, fields 19..=27 are 0.
 
 use crate::frame::Frame;
-use sim::State;
+use sim::{Params, State};
 
 /// Number of base fields (everything except the style slot).
 pub const BASE_DIM: usize = 32;
@@ -42,7 +42,7 @@ pub const STYLE_DIM: usize = 8;
 /// Full observation length.
 pub const OBS_DIM: usize = BASE_DIM + STYLE_DIM;
 /// Bump when the layout or a normalization constant changes (checkpoints record it).
-pub const OBS_VERSION: u32 = 1;
+pub const OBS_VERSION: u32 = 2;
 
 pub const POS_X: f64 = 30.0;
 pub const POS_Y: f64 = 20.0;
@@ -65,7 +65,7 @@ pub fn opponent_of(state: &State, me: usize) -> Option<usize> {
 
 /// Write the observation of player `me` into `out` (length OBS_DIM). `style` fills the style
 /// slot (missing entries are 0, extra entries ignored).
-pub fn observe(state: &State, me: usize, style: &[f32], out: &mut [f32]) {
+pub fn observe(state: &State, me: usize, style: &[f32], p: &Params, out: &mut [f32]) {
     assert!(out.len() >= OBS_DIM, "obs buffer too small");
     let pl = &state.players[me];
     let f = Frame::for_team(pl.team);
@@ -113,9 +113,11 @@ pub fn observe(state: &State, me: usize, style: &[f32], out: &mut [f32]) {
         o[26] = (ox - x) / REL;
         o[27] = (oy - y) / REL;
     }
-    o[28] = score(team) / SCORE;
-    o[29] = score(1 - team.min(1)) / SCORE;
-    o[30] = 0.0; // time left: hook for the match-rules session
+    o[28] = (score(team) - score(1 - team.min(1))) / SCORE;
+    if let Some(m) = &state.match_state {
+        o[29] = if m.overtime { 1.0 } else { 0.0 };
+        o[30] = m.clock_ticks as f64 * p.timestep / TIME;
+    }
     o[31] = if pl.dash_cooldown <= 0.0 { 1.0 } else { 0.0 };
 
     for (d, s) in out.iter_mut().zip(o.iter()) {

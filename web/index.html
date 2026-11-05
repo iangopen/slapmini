@@ -3,56 +3,60 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>slapmini feel lab</title>
+    <title>slapmini</title>
     <link rel="stylesheet" href="./src/style.css" />
+    <link rel="stylesheet" href="./src/game/game.css" />
   </head>
-  <body>
+  <body class="game">
     <canvas id="rink"></canvas>
-    <aside id="panel">
-      <h1>feel lab</h1>
-      <section id="readout"></section>
-      <section>
-        <h2>Match</h2>
-        <div class="row"><label><input id="match-mode" type="checkbox" /> Match mode (1v1 rules, practice tools off)</label></div>
-        <div class="row"><button id="match-restart" disabled>New match</button></div>
-        <div id="match-info" class="muted">free play (no rules)</div>
-      </section>
-      <section>
-        <h2>Record / replay</h2>
-        <div class="row">
-          <button id="rec">Record</button>
-          <button id="replay" disabled>Replay</button>
+    <div id="banner" class="banner" hidden></div>
+
+    <section id="menu" class="screen" aria-label="Main menu">
+      <div class="card">
+        <h1 class="title">slapmini</h1>
+        <p class="muted">A top-down 1v1 hockey sim. Unofficial fan project, not affiliated with the game it is modelled on; uses none of its assets.</p>
+        <div class="field">
+          <label for="opponent">Opponent</label>
+          <select id="opponent"></select>
+          <div id="opponent-desc" class="muted small"></div>
         </div>
-        <div class="row">
-          <button id="dl-scenario" disabled>Scenario .json</button>
-          <button id="dl-csv" disabled>Trajectory .csv</button>
+        <div class="field">
+          <label for="skill">Skill <span id="skill-value">100</span></label>
+          <input id="skill" type="range" min="0" max="100" step="5" value="100" />
+          <div id="skill-desc" class="muted small"></div>
         </div>
-        <div class="row"><label>Load scenario <input id="load-scenario" type="file" accept=".json" /></label></div>
-        <div id="rec-status" class="muted"></div>
-      </section>
-      <section>
-        <h2>View</h2>
-        <div class="row"><label><input id="game-view" type="checkbox" /> Game view (nets top/bottom, +x up)</label></div>
-      </section>
-      <section>
-        <h2>Ghost</h2>
-        <div class="row"><input id="ghost-file" type="file" accept=".csv" /></div>
-        <div class="row"><input id="ghost-scrub" type="range" min="0" max="0" value="0" disabled /> <span id="ghost-t">–</span></div>
-        <div class="row"><button id="ghost-clear" disabled>Clear ghost</button></div>
-      </section>
-      <section>
-        <h2>Practice tools <span class="badge approx">approximate</span></h2>
-        <ul class="muted keys" id="keys"></ul>
-      </section>
-      <section>
-        <h2>Params</h2>
-        <div class="row">
-          <button id="params-reset">Reset to file</button>
-          <button id="params-export">Export JSON</button>
-        </div>
-        <div id="params"></div>
-      </section>
-    </aside>
-    <script type="module" src="./src/main.ts"></script>
+        <nav class="buttons">
+          <button id="play" class="primary">Play vs Bot</button>
+          <button id="practice">Practice (feel lab)</button>
+          <button id="controls-btn">Controls</button>
+        </nav>
+        <div id="menu-status" class="muted small" role="status"></div>
+      </div>
+    </section>
+
+    <section id="controls" class="screen" aria-label="Controls" hidden>
+      <div class="card">
+        <h1>Controls</h1>
+        <ul id="controls-list" class="controls"></ul>
+        <p class="warn small">Dash (Shift) and lift (Space) are UNVERIFIED guesses at the real game's bindings.</p>
+        <p class="muted small">You are BLUE, attacking the top net. 5:00 clock, a 5-goal lead ends the match (mercy), a tie at 0:00 goes to next-goal overtime.</p>
+        <nav class="buttons"><button id="controls-back" class="primary">Back</button></nav>
+      </div>
+    </section>
+
+    <section id="loading" class="screen" hidden><div class="card"><p id="loading-text">Loading…</p></div></section>
+
+    <section id="gameover" class="screen overlay" aria-label="Game over" hidden>
+      <div class="card">
+        <h1 id="result">Game over</h1>
+        <p id="result-detail" class="muted"></p>
+        <nav class="buttons">
+          <button id="rematch" class="primary">Rematch (Enter)</button>
+          <button id="to-menu">Menu (Esc)</button>
+        </nav>
+      </div>
+    </section>
+
+    <script type="module" src="./src/game/main.ts"></script>
   </body>
 </html>

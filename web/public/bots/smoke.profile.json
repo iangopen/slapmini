@@ -1,0 +1,10 @@
+{
+  "name": "Smoke-test bot",
+  "description": "SMOKE TEST, NOT STRONG: a tiny PPO policy trained for 10 minutes on CPU (4.9M decisions, first-goal then match curriculum vs the chaser). It still loses every match to the chaser; it only shows that trained ONNX policies run in the browser.",
+  "policy": "smoke.onnx",
+  "scripted": null,
+  "style": [0, 0, 0, 0],
+  "skill": 100,
+  "fallback": "chaser",
+  "smoke_test": true
+}

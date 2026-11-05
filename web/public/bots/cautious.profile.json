@@ -1,0 +1,9 @@
+{
+  "name": "Cautious",
+  "description": "Scripted: waits in its own half and only attacks a puck that comes to it.",
+  "policy": null,
+  "scripted": "cautious",
+  "style": [],
+  "skill": 100,
+  "fallback": "chaser"
+}

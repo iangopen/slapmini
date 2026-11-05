@@ -16,8 +16,16 @@ Crates:
 
 - `sim` – deterministic physics core (pure: no I/O, clock or RNG; builds for wasm32).
 - `calib` – CLI + library: replay scenarios, score them against trajectory CSVs, and fit params.
-- `sim-wasm` – wasm-bindgen wrapper (`new`, `step`, `get_state`, `set_state`, `set_params`, `get_params`, `reset`, `start_match`, `state_hash`).
-- `web/` – the feel lab: a browser client for playing the sim, tuning params live, practice drills, record/replay and ghost overlays.
+- `sim-wasm` – wasm-bindgen wrapper (`new`, `step`, `get_state`, `set_state`, `set_params`, `get_params`, `reset`, `start_match`,
+  `state_hash`, and the bots crate: `observe`, `action_input`, `set_scripted`, `scripted_input`). Observation check:
+  `cargo run --release -p sim-wasm --example obs_fixture > target/obs_fixture.jsonl` then `node scripts/obs_crosscheck.mjs target/obs_fixture.jsonl`.
+- `web/` – the browser game (`index.html`: menu, a 1v1 match against a bot, game over) and the feel lab (`lab.html`: tuning
+  params live, practice drills, record/replay and ghost overlays).
+
+**Unofficial fan project.** slapmini is not affiliated with or endorsed by the makers of Slapshot: Rebound. The game in this
+repo draws everything itself (canvas shapes); it uses none of the game's art, sounds, logos or footage, and the published site
+contains none. Measurement clips of the real game exist only for calibration — see "Publishing on GitHub Pages" before making
+this repository public.
 
 ## Commands (same in PowerShell and macOS/Linux shells)
 
@@ -43,16 +51,17 @@ node scripts/wasm_crosscheck.mjs
 cargo test -p sim --release crosscheck_hash_native -- --nocapture
 ```
 
-## Feel lab (web/)
+## Game and feel lab (web/)
 
 ```sh
 cd web
 npm install
-npx playwright install chromium   # only for npm run verify
+npx playwright install chromium   # only for the verify scripts
 npm run wasm      # build sim-wasm into web/wasm-pkg
-npm run dev       # http://localhost:5173
-npm run build     # wasm + typecheck + static site in web/dist (relative paths, host as plain files)
-npm run verify    # headless Playwright checks; screenshots in web/verify-out
+npm run dev       # http://localhost:5173 = the game menu; http://localhost:5173/lab.html = the feel lab
+npm run build     # wasm + typecheck + static site in web/dist (relative paths, host as plain files from any folder)
+npm run verify-game    # the game through the real UI, served from web/dist under /slapmini/ (needs npm run build first)
+npm run verify    # feel-lab checks; screenshots in web/verify-out
 npm run verify-match   # three full matches in match mode (mercy, clock, overtime), sped-up loop; match-*.png
 npm run verify-skate   # hold W from rest: player speed vs time, ramp to the cap; skate-top-speed.png
 ```
@@ -63,7 +72,43 @@ Match mode (checkbox, or `?mode=match`): 1v1 rules from the sim (5:00 clock, mer
 scoreboard + OVERTIME banner + game-over overlay, Enter = rematch, practice tools off. `?speed=N` runs the loop N× real time.
 Downloaded lab recordings (`.scenario.json` + `.csv`) work directly with `calib eval` / `calib fit`.
 
+The game: menu (opponent, skill 0–100, Play vs Bot, Practice = the feel lab, Controls; arrow keys / Tab / Enter work),
+then a full match as BLUE (attacking the top net) against the chosen bot, then a game-over screen (Enter = rematch,
+Esc = menu). Opponents are listed in `web/public/bots/index.json`. To add a trained bot:
+
+```sh
+python -m train.export_onnx --ckpt runs/NAME/latest.pt --out web/public/bots/NAME.onnx   # also writes NAME.json
+# write web/public/bots/NAME.profile.json, e.g.
+#   {"name": "My bot", "description": "...", "policy": "NAME.onnx", "scripted": null,
+#    "style": [0, 0, 0, 0], "skill": 100, "fallback": "chaser"}
+# and add "NAME.profile.json" to the "profiles" list in web/public/bots/index.json
+```
+
+If a model is missing, corrupt or built for another observation layout, the game says so on screen and plays the
+profile's scripted `fallback` instead.
+
 Setup: Rust via rustup plus `rustup target add wasm32-unknown-unknown`, and wasm-pack (`npm install -g wasm-pack` or `cargo install wasm-pack`).
+
+## Publishing on GitHub Pages
+
+`.github/workflows/pages.yml` builds `web/dist` on every push to `main` and publishes it with GitHub's Pages actions.
+It only checks out `main` and refuses to publish if any image or video file ends up in `dist/`.
+
+**Read this before switching anything on.** Free GitHub Pages needs a PUBLIC repository, and this repository is
+not ready to be public:
+
+1. The `clip-data` branch holds screen recordings of the real game (`clips/*.mkv`). Move those clips to a separate
+   PRIVATE repository (or local storage), then delete the `clip-data` branch here.
+2. `main` itself tracks 30 images made from those recordings (game frames with the game's arena art and sponsor logos):
+   `measure/results/*.map.png` (4), every file in `measure/results/qa/` except `ghost-game-view.png` (24), and
+   `measure/results/skate/qa/*.path.png` (2). They are also in the git history. Before going public, either rewrite the
+   history to drop them (e.g. `git filter-repo`), or publish a fresh repository made from a footage-free snapshot of `main`.
+   The published site never contains them (it is built from `web/` only).
+
+Then, as the repository owner: make the repository public (Settings → General → Danger zone → Change visibility), and
+switch on Pages: Settings → Pages → Build and deployment → Source: **GitHub Actions**. The next push to `main` (or
+Actions → pages → Run workflow) publishes the site at `https://<user>.github.io/<repo>/`. All paths are relative, so the
+`/<repo>/` subfolder works (checked by `npm run verify-game`, which serves `dist` under `/slapmini/`).
 On Windows without the Windows SDK, use the GNU toolchain: `rustup override set stable-x86_64-pc-windows-gnu` in the repo.
 
 ## Measuring real clips (measure/)

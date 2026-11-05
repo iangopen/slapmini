@@ -12,7 +12,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const webDir = path.resolve(here, "..");
 const out = path.join(webDir, "verify-out");
 mkdirSync(out, { recursive: true });
-const URL_ = "http://localhost:5173/";
+const URL_ = "http://localhost:5173/lab.html";
 
 const server = spawn("npx vite --port 5173 --strictPort", {
   cwd: webDir,

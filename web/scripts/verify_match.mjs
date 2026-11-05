@@ -15,7 +15,7 @@ const webDir = path.resolve(here, "..");
 const out = path.join(webDir, "verify-out");
 mkdirSync(out, { recursive: true });
 const PORT = 5174;
-const URL_ = `http://localhost:${PORT}/?mode=match`;
+const URL_ = `http://localhost:${PORT}/lab.html?mode=match`;
 
 const server = spawn(`npx vite --port ${PORT} --strictPort`, {
   cwd: webDir,

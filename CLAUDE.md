@@ -25,8 +25,8 @@ built to train RL bots. The physics must eventually match the real game. Ian is 
   Synthetic self-check data (generated from the sim itself) is in `calib/data/`, made with the PINNED `calib/data/params.synthetic.json`
   (the original all-placeholder params, old 60×26 m rink); `calib/tests/fit_recovery.rs` uses that file, so params.json edits don't move it.
   Real measured segments are in `calib/data/real/` (see "Segment manifest").
-- **sim-wasm**: a `Sim` class with `new(params_json, n_players)`, `step(inputs_json)`, `get_state()`, `set_state(json)`, `set_params(json)`, `get_params()`, `reset(scenario_json)` (loads `initial_state`) and `state_hash()`. JSON crosses the boundary in the same shapes as params.json and scenario files.
-- **web/** feel lab. `npm run wasm` builds sim-wasm into `web/wasm-pkg/` (gitignored). `npm run dev` serves it, and `npm run build` (wasm + tsc + vite) writes a static `web/dist/` with relative paths. `npm run verify` is the Playwright check.
+- **sim-wasm**: a `Sim` class with `new(params_json, n_players)`, `step(inputs_json)`, `get_state()`, `set_state(json)`, `set_params(json)`, `get_params()`, `reset(scenario_json)` (loads `initial_state`), `start_match`, `state_hash()`, and the bots crate compiled in: `observe(player, style)`, `action_input(...)`, `set_scripted`, `scripted_input` (see "Game (w1)"). JSON crosses the boundary in the same shapes as params.json and scenario files.
+- **web/**: the game at `index.html` (see "Game (w1)") and the feel lab at **`lab.html`** (described below). `npm run wasm` builds sim-wasm into `web/wasm-pkg/` (gitignored). `npm run dev` serves both, and `npm run build` (wasm + tsc + vite, two pages) writes a static `web/dist/` with relative paths. `npm run verify` is the lab's Playwright check.
   - The app imports the repo-root `params.json` directly, so param edits show up without a wasm rebuild.
   - `src/lab.ts`: sim owner with no DOM. Covers stepping, record/replay and practice tools.
   - `src/loop.ts`: fixed-step accumulator, capped at 5 steps per advance; the overflow is dropped and counted. It doesn't render, so it can run headless.
@@ -594,3 +594,89 @@ possession seconds). JSON output.
 - Faceoff jitter after goals is a training choice; the real game resets exactly (a fixed-faceoff trick may work in the real game).
 - When the s10 physics lands: rebuild, re-run `cargo test` (bot tests), and expect old checkpoints to be refused (physics stamp).
 - Browser loader for the ONNX policies (port `bots::observe` to JS, or expose it in sim-wasm) is still not built.
+
+## Game (session w1, 2026-11-04, branch w1)
+A playable browser game around the sim: menu → match vs a bot → game over, plus the lab, as plain static files for GitHub Pages.
+Nothing in sim/, bots/, sim-ffi/, train/ or the params files changed; sim-wasm gained the bots crate (crosscheck hashes unchanged:
+free play `ed2b9c3b2c52da91`, match `ef5c44a7fc4de600`, s10 `b19f6906467b50c1`).
+
+### Game flow (`web/index.html`, `web/src/game/`)
+- **Menu**: title, opponent select, skill slider 0–100 (with the handicap it means), Play vs Bot, Practice (opens `lab.html`;
+  the lab has a "← menu" link back), Controls (bindings; dash and lift marked UNVERIFIED). Keyboard: focus starts on Play,
+  ArrowUp/Down and Tab move, Enter activates, Esc leaves Controls.
+- **Match**: `Sim.start_match(2)`, the sim's rules (5:00, mercy at a 5-goal lead, next-goal overtime) and the lab's canvas
+  scoreboard/countdown/banners (`drawMatchHud`). The human is BLUE (player 0, team 0) with WASD (screen-relative) and the mouse
+  (stick toward the cursor), drawn in the game view (BLUE attacks the top net). Esc returns to the menu.
+- **Game over**: "You win!" / "<bot> wins", the score and how it ended (mercy / clock / overtime), Rematch (Enter) and Menu (Esc).
+- `?speed=N` and `window.game` (summary, bot stats, frame stats, `setSpeed`, `setScore` test hook) for verification.
+
+### Same observation as training (`sim-wasm`)
+- `Sim.observe(player, style)` = `bots::observe` (Float32Array, OBS_DIM 40, obs v2); `Sim.action_input(player, move, angle,
+  dash, lift)` = `bots::Action::to_input` (team rotation in Rust); `Sim.set_scripted(player, kind)` + `Sim.scripted_input(player)`
+  = `bots::Scripted` (reset at goal resets / a new match, as in training). The browser never re-implements the observation.
+- **Equality test**: `cargo run --release -p sim-wasm --example obs_fixture > target/obs_fixture.jsonl` (states from scripted free
+  play and matches with goals, dashes, lifts, three style vectors) then `node scripts/obs_crosscheck.mjs target/obs_fixture.jsonl`:
+  **684 observations (456 in match mode), 27,360 fields, 0 bit mismatches**.
+
+### Profiles and skill (`web/public/bots/`, `web/src/game/profiles.ts`, `skill.ts`)
+- `index.json` lists profile files; a profile is `{name, description, policy: "x.onnx" | null, scripted: "chaser" | ... | null,
+  style: [≤ 8 floats], skill: 0..100, fallback: "chaser", smoke_test?}` (exactly one of policy / scripted). Built-in scripted
+  profiles (chaser, defender, cautious) are added even if index.json is missing.
+- Skill → handicaps, ONE file (`skill.ts`), h = 1 − skill/100: perception delay round(18·h) sim steps (≤ 150 ms; policies see an
+  older observation, scripted bots' inputs are delayed instead because they read the live state in Rust), stick-angle noise
+  N(0, 0.5·h rad) redrawn per decision, mistakes 0.6·h per second lasting 0.25 s (skate a random direction, no dash/lift).
+  Skill 100 = no handicap. **UNCALIBRATED**: calibrate with the rating ladder (`train.league` at several skills) before trusting
+  that skill numbers mean comparable strength.
+
+### Bot runtime (`web/src/game/botRuntime.ts`)
+- onnxruntime-web **1.31.1** (pinned, `onnxruntime-web/wasm` entry, single-threaded: no cross-origin isolation needed). Vite
+  emits its runtime (`ort-wasm-simd-threaded-*.wasm`, 14.8 MB, 3.8 MB gzipped) into `dist/assets/` with a relative URL: no CDN.
+- One decision per 4 sim steps (30 Hz), action held in between, deterministic heads (argmax move, mean stick direction,
+  dash/lift prob > 0.5); the sidecar `.json` is checked (obs v2 / 40 / act v2). `run()` is async: a decision's action applies
+  from the next sim step after it resolves (≈ one frame); if one is still pending at the next decision it is skipped and counted.
+- **Measured (Playwright, headless Chromium on Ian's machine, smoke policy)**: inference per decision mean 0.82 ms, p50 0.70,
+  p95 0.90 ms (one 40 ms first-call warm-up); 326 decisions in ~10.9 s at real time, 0 skipped. Frame interval p50/p95 16.7 ms;
+  work per frame (sim steps + bot + draw) mean 0.37 ms, p95 0.50 ms, max 1.0 ms. **No Web Worker needed.** At 6× loop speed
+  many decisions are skipped (962 of 1771): bots play worse in sped-up verification runs only.
+- Fallback: a missing (HTTP 404) or corrupt model (protobuf parse error), or a layout mismatch, shows an amber banner
+  ("Could not load the … model (…). Playing the scripted chaser instead.") and plays the profile's scripted `fallback`.
+
+### Opponents shipped
+chaser, defender, cautious (scripted, no model file) and **Smoke-test bot** (`smoke.onnx`, 321 KB, + `smoke.json` sidecar,
+physics stamp `ad14b1064ab382dc`): PPO trained ~10 min on CPU (first_goal 6 min then match, vs the chaser, 128 envs; 4.9M
+decisions because the CPU was shared with builds), ONNX vs PyTorch 3.6e-7. It loses every match to the chaser: labelled
+"smoke test, weak" in the menu; it only shows that a trained policy runs in the browser.
+
+### Adding a policy
+`python -m train.export_onnx --ckpt runs/NAME/latest.pt --out web/public/bots/NAME.onnx` (writes NAME.json), write
+`NAME.profile.json`, add it to `index.json`'s `profiles`. A policy trained under other physics still loads (the game does not
+check the physics stamp; it is in the sidecar for reference).
+
+### Deployment (`.github/workflows/pages.yml`)
+- On push to main (or manual run): checkout main only (depth 1; clip-data is never fetched), Rust + wasm32, wasm-pack 0.13.1,
+  Node 22, `npm ci && npm run build`, a guard that fails on any image/video file in dist, upload-pages-artifact, deploy-pages.
+- Ian must: (1) move the clips off the repo (clip-data branch) and deal with the 30 footage-derived images tracked on main
+  (`measure/results/*.map.png`, `measure/results/qa/*` except ghost-game-view.png, `measure/results/skate/qa/*.path.png`; also
+  in history: rewrite with git filter-repo or publish a fresh footage-free repo); (2) make the repo public; (3) Settings → Pages →
+  Source: GitHub Actions. Nothing was switched on in this session. README "Publishing on GitHub Pages" has the steps.
+- Relative paths: `npm run verify-game` serves `web/dist` under `/slapmini/` with a server that 404s anything outside it:
+  0 requests escaped; the game, the ONNX model, the ort wasm and `lab.html` all load from the subfolder.
+
+### Verified (w1, Windows, headless Chromium)
+- `cargo test --workspace` 59 passed; train 16 and measure 31 Python tests OK; `npm run build`, `verify`, `verify-match`,
+  `verify-skate`, `verify-s10` OK (the lab scripts now open `lab.html`).
+- `npm run verify-game` (VERIFY GAME OK): menu keyboard navigation; vs chaser with the human driven by W/D/A/S key presses
+  (human moved 19.7 m), bot travelled 118 m and shot 5 times, **mercy 0-5 at 04:44**, game over, Enter rematch, Esc menu;
+  vs the smoke ONNX bot (policy loaded, 39 m travelled and a goal in the first seconds, 3 shots by 6×); **clock end 1-0 at 00:00**
+  vs the defender (score set to 1-0 by the test hook, 40×); fallback for a missing and a corrupt model; Practice opens the lab.
+  Screenshots (inspected): `web/verify-out/game-menu.png`, `game-midmatch-onnx.png`, `game-over-mercy.png`, `game-over-clock.png`,
+  `game-fallback.png`, `game-controls.png`.
+
+### Open (w1)
+- Skill mapping uncalibrated (ladder at several skills). Scripted bots get output delay, not perception delay.
+- Only the smoke-test policy ships; a real policy from the long training run is the next opponent to add.
+- No sound, no pause menu, no touch controls, no team choice (human is always BLUE), 1v1 only; the scoreboard and game view
+  are the lab's (the real HUD layout is approximated).
+- Repo is not yet public and Pages is not on (see Deployment); the footage cleanup is Ian's decision.
+- The onnxruntime wasm is 14.8 MB (3.8 MB gzipped by Pages): first load of a policy bot costs that download; scripted bots
+  don't need it (verify-game checks that it is not downloaded before a policy bot is chosen).

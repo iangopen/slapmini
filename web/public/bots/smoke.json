@@ -1,0 +1,25 @@
+{
+  "obs_dim": 40,
+  "obs_version": 2,
+  "act_dim": 4,
+  "act_version": 2,
+  "obs_norm_in_graph": false,
+  "inputs": {
+    "obs": [
+      "batch",
+      40
+    ]
+  },
+  "outputs": [
+    "move",
+    "move_probs",
+    "stick_dir",
+    "dash_prob",
+    "lift_prob"
+  ],
+  "opset": 17,
+  "frame": "canonical: the acting player attacks +x; for team 1 rotate move index k>0 to ((k-1+4)%8)+1 and negate stick_dir",
+  "physics_stamp": "ad14b1064ab382dc",
+  "update": 308,
+  "source": "runs/w1_smoke/latest.pt"
+}

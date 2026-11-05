@@ -1,0 +1,62 @@
+# Build web/dist (the game + the feel lab) and publish it to GitHub Pages as plain static files.
+# Setup (once, by the repo owner): Settings → Pages → Build and deployment → Source: "GitHub Actions".
+# Free GitHub Pages needs a PUBLIC repository — read README "Publishing on GitHub Pages" first (game footage).
+name: pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4   # main only; the clip-data branch is never fetched
+        with:
+          fetch-depth: 1
+          lfs: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install wasm-pack
+        run: npm install -g wasm-pack@0.13.1
+      - name: Build
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+      - name: Guard: no game footage or images in the site
+        working-directory: web/dist
+        run: |
+          bad=$(find . -type f \( -iname '*.mkv' -o -iname '*.mp4' -o -iname '*.webm' -o -iname '*.mov' -o -iname '*.avi' \
+                 -o -iname '*.png' -o -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.gif' -o -iname '*.webp' \))
+          if [ -n "$bad" ]; then echo "refusing to publish media files:"; echo "$bad"; exit 1; fi
+          du -sh . && find . -type f | sort
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

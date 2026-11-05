@@ -1,0 +1,9 @@
+{
+  "name": "Chaser",
+  "description": "Scripted: skates to the puck and shoots at the net.",
+  "policy": null,
+  "scripted": "chaser",
+  "style": [],
+  "skill": 100,
+  "fallback": "chaser"
+}

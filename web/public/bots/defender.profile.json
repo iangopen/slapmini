@@ -1,0 +1,9 @@
+{
+  "name": "Defender",
+  "description": "Scripted: guards its net and clears the puck; rarely attacks.",
+  "policy": null,
+  "scripted": "defender",
+  "style": [],
+  "skill": 100,
+  "fallback": "chaser"
+}

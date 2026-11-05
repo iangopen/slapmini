@@ -1,0 +1,4 @@
+{
+  "_comment": "Opponents shown in the menu, in this order. Each entry is a profile file in this folder (see web/src/game/profiles.ts and CLAUDE.md 'Game'). To add a trained bot: copy NAME.onnx and NAME.json (from python -m train.export_onnx) here, write NAME.profile.json, list it below.",
+  "profiles": ["chaser.profile.json", "defender.profile.json", "cautious.profile.json", "smoke.profile.json"]
+}

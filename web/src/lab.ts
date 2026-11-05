@@ -44,7 +44,7 @@ export function parseCsv(text: string): Sample[] {
 }
 
 function sameInput(a: PlayerInput, b: PlayerInput): boolean {
-  return a.move_x === b.move_x && a.move_y === b.move_y && a.stick_target_angle === b.stick_target_angle && a.dash === b.dash && a.lift === b.lift;
+  return a.move_x === b.move_x && a.move_y === b.move_y && a.stick_target_angle === b.stick_target_angle && a.dash === b.dash && a.lift === b.lift && !!a.stick_up === !!b.stick_up; // w4: the raised stick is logged too
 }
 
 /** `endHash`: sim state hash after the last recorded / replayed step (determinism check). */

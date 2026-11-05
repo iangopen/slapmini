@@ -6,6 +6,8 @@ export interface PlayerInput {
   stick_target_angle: number;
   dash: boolean;
   lift: boolean;
+  /** w4: raised stick (left mouse button); absent = false. */
+  stick_up?: boolean;
 }
 
 export interface Puck {
@@ -23,6 +25,8 @@ export interface Player {
   dash_timer: number;
   dash_cooldown: number;
   dash_prev: boolean;
+  /** w4: raised stick, set from the input each step; absent = false. */
+  stick_up?: boolean;
 }
 
 /** sim::rules::MatchPhase (serde snake_case). */

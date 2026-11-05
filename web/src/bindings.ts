@@ -11,6 +11,7 @@ export const BINDINGS = {
   lift: "KeyE",
   /** UNVERIFIED GUESS: stop / brake (web-layer brake, see brake.ts; the real game's braking is unmeasured). */
   brake: "Space",
+  // The raised stick is a MOUSE button: see MOUSE_BINDINGS below.
 
   // Practice tools. APPROXIMATE semantics, written from patch notes, not checked in the real game.
   /** Set puck spawn at cursor; hold to raise spawn height; release drops the puck from the spawn. */
@@ -25,6 +26,13 @@ export const BINDINGS = {
   // Match mode.
   /** Start a new match after game over (rematch). */
   rematch: "Enter",
+} as const;
+
+/** Mouse buttons (MouseEvent.button). UNVERIFIED GUESS like the keys: the real game raises the stick with the left
+ * button (Ian), but its exact behaviour (hold vs toggle, timing) is unmeasured. */
+export const MOUSE_BINDINGS = {
+  /** Raise the stick while held (w4). In relative mode the click that captures the pointer does not raise. */
+  stickUp: 0,
 } as const;
 
 /** Extra codes accepted for the same action (e.g. right Shift). */
@@ -45,6 +53,7 @@ export const KEY_HELP: [string, string][] = [
   ["Shift", "dash (binding unverified guess)"],
   ["E", "lift (binding unverified guess)"],
   ["Space", "brake / stop (binding unverified guess; stopping time is a placeholder)"],
+  ["Left mouse", "raise the stick while held: a puck on the ice passes under it (unverified; heights are placeholders)"],
   ["F", "set puck spawn at cursor, hold to raise height (approx.)"],
   ["G", "set puck target at cursor (approx.)"],
   ["R", "reset puck to spawn (approx.)"],

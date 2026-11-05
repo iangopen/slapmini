@@ -3,10 +3,10 @@
 
 import init, { Sim } from "../../wasm-pkg/sim_wasm.js";
 import paramsFile from "../../../params.json";
-import { actionFor, BINDINGS } from "../bindings";
+import { actionFor, BINDINGS, MOUSE_BINDINGS } from "../bindings";
 import { FixedStepLoop } from "../loop";
-import { draw, drawInputBadges, drawMatchHud, fitView, formatClock, keysToMove, toScreen, toWorld, TEAM_NAMES, type View } from "../render";
-import { DEFAULT_SETTINGS, loadSettings, PointerCapture, saveSettings, SENS_MAX, SENS_MIN, SENS_STEP, StickAim } from "../stick";
+import { draw, drawInputBadges, drawMatchHud, drawnRadii, fitView, followView, formatClock, keysToMove, toScreen, toWorld, TEAM_NAMES, type View } from "../render";
+import { DEFAULT_SETTINGS, loadSettings, PointerCapture, saveSettings, SENS_MAX, SENS_MIN, SENS_STEP, StickAim, StickRaise } from "../stick";
 import { brakeMove } from "../brake";
 import { flatParams, type ParamFile, type PlayerInput, type State } from "../types";
 import { BotDriver, loadPolicy, PolicyDriver, ScriptedDriver } from "./botRuntime";
@@ -107,17 +107,45 @@ function focusables(): HTMLElement[] {
 }
 
 // ---------- canvas / view (game view: like the real camera, BLUE attacks the top net) ----------
+// Camera (w4): "follow" (default) = the real game's camera, following the human player at a fixed zoom that shows the
+// whole attack zone (render.ts followView); "fit" = the whole rink (the pre-w4 view). Stored in localStorage.
+type CameraMode = "follow" | "fit";
+const CAMERA_KEY = "slapmini.camera.v1";
+let cameraMode: CameraMode = (() => {
+  try {
+    return localStorage.getItem(CAMERA_KEY) === "fit" ? "fit" : "follow";
+  } catch {
+    return "follow";
+  }
+})();
+if (qs.get("camera") === "fit" || qs.get("camera") === "follow") cameraMode = qs.get("camera") as CameraMode;
 const canvas = $<HTMLCanvasElement>("rink");
 const ctx = canvas.getContext("2d")!;
 let view: View = fitView(1, 1, P, true);
+/** The view for this frame: follows player 0 in "follow" mode. All conversions stay in render.ts. */
+function updateView(): void {
+  const pl = state.players[0];
+  view = cameraMode === "follow" && pl ? followView(canvas.width, canvas.height, P, pl.x, pl.y) : fitView(canvas.width, canvas.height, P, true);
+}
 function resize(): void {
   const r = canvas.getBoundingClientRect();
   canvas.width = Math.max(1, Math.round(r.width));
   canvas.height = Math.max(1, Math.round(r.height));
-  view = fitView(canvas.width, canvas.height, P, true);
+  updateView();
 }
 new ResizeObserver(resize).observe(canvas);
 resize();
+const cameraSel = $<HTMLSelectElement>("camera-mode");
+cameraSel.value = cameraMode;
+cameraSel.addEventListener("change", () => {
+  cameraMode = cameraSel.value === "fit" ? "fit" : "follow";
+  try {
+    localStorage.setItem(CAMERA_KEY, cameraMode);
+  } catch {
+    /* storage blocked: this page only */
+  }
+  updateView();
+});
 
 // ---------- input ----------
 const held = new Set<string>();
@@ -133,6 +161,9 @@ const capture = new PointerCapture(canvas, wantLock, (dx, dy) => aim.move(dx, dy
 function updateLockHint(): void {
   $("lock-hint").hidden = !(wantLock() && !capture.locked && state.match_state?.phase !== "finished");
 }
+// Raised stick (w4): left button held, both mouse modes; the capturing click does not raise (stick.ts StickRaise).
+const raise = new StickRaise(canvas, capture, () => mouseSettings.mode === "relative",
+  () => screen === "match" && state.match_state?.phase !== "finished", MOUSE_BINDINGS.stickUp);
 window.addEventListener("keydown", (e) => {
   if (screen === "match") {
     if (e.code === "Escape") {
@@ -187,7 +218,7 @@ function humanInput(): PlayerInput {
     const [wx, wy] = toWorld(view, mouse.x, mouse.y);
     stick = Math.atan2(wy - pl.y, wx - pl.x);
   }
-  return { move_x: mx, move_y: my, stick_target_angle: stick, dash: held.has("dash"), lift: held.has("lift") };
+  return { move_x: mx, move_y: my, stick_target_angle: stick, dash: held.has("dash"), lift: held.has("lift"), stick_up: raise.held };
 }
 
 // ---------- match ----------
@@ -243,6 +274,7 @@ async function startMatch(id: string, sk: number): Promise<void> {
 
 function toMenu(): void {
   capture.release();
+  raise.release();
   $("lock-hint").hidden = true;
   banner(null);
   screen = "menu";
@@ -268,6 +300,7 @@ function showGameOver(): void {
   const how = m.overtime ? "in overtime" : Math.abs(a - b) >= P.mercy_lead ? "by the mercy rule" : "at the end of the clock";
   $("result-detail").textContent = `${TEAM_NAMES[0]} ${a} – ${b} ${TEAM_NAMES[1]}, ${how}. Opponent: ${bot!.label}, skill ${currentSkill}.`;
   capture.release(); // the buttons need the cursor
+  raise.release();
   updateLockHint();
   $("gameover").hidden = false;
   $("rematch").focus();
@@ -275,7 +308,7 @@ function showGameOver(): void {
 
 /** LIFT / BRAKE badges while their keys are held (render.ts). */
 function drawLiftBadge(): void {
-  drawInputBadges(ctx, canvas.height, held.has("lift"), held.has("brake"));
+  drawInputBadges(ctx, canvas.height, held.has("lift"), held.has("brake"), raise.held);
 }
 
 // ---------- verification stats ----------
@@ -323,13 +356,15 @@ function frame(now: number): void {
       if (state.match_state?.phase === "finished") showGameOver();
     }
     const tgt = lastInputs[0]?.stick_target_angle;
-    draw(ctx, view, P, state, { targets: tgt === undefined ? [] : [tgt], spawn: null, target: null, ghost: null, ghostIndex: 0, forehand: null });
+    updateView();
+    draw(ctx, view, P, state, { targets: tgt === undefined ? [] : [tgt], spawn: null, target: null, ghost: null, ghostIndex: 0, forehand: null, puckMinPx: 0 });
     drawMatchHud(ctx, P, state);
     drawLiftBadge();
     frameStats.work.push(performance.now() - t0);
     frameStats.frames.push(dt * 1000);
   } else {
-    draw(ctx, view, P, state, { targets: [], spawn: null, target: null, ghost: null, ghostIndex: 0, forehand: null });
+    updateView();
+    draw(ctx, view, P, state, { targets: [], spawn: null, target: null, ghost: null, ghostIndex: 0, forehand: null, puckMinPx: 0 });
   }
   requestAnimationFrame(frame);
 }
@@ -383,6 +418,16 @@ window.game = {
   setSpeed(n: number) {
     speed = Math.max(1, n);
     loop = makeLoop();
+  },
+  /** w4 test hook: camera mode, the raised stick, the last inputs and the drawn radii. */
+  get w4() {
+    return { camera: cameraMode, stickUp: raise.held, lastInputs, radii: drawnRadii(view, P, 0), scale: view.s };
+  },
+  setCamera(m: "follow" | "fit") { cameraMode = m; cameraSel.value = m; updateView(); },
+  /** Test hook: replace the sim state (verification pictures and drills). */
+  setState(s: State) {
+    sim.set_state(JSON.stringify(s));
+    state = JSON.parse(sim.get_state());
   },
   /** Test hook: make the next goals end the match quickly (state edit: score). */
   setScore(a: number, b: number) {

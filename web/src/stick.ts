@@ -138,3 +138,31 @@ export class PointerCapture {
     return performance.now() - this.releasedAt < 250;
   }
 }
+
+/**
+ * The raised stick (w4): the left mouse button (MOUSE_BINDINGS.stickUp) held = stick_up. In relative mode the click
+ * that captures the pointer only captures. The stick is lowered on button up, window blur, pointer unlock and
+ * `release()` (match end, leaving the match), so it can never stay stuck up.
+ */
+export class StickRaise {
+  held = false;
+  constructor(canvas: HTMLCanvasElement, capture: PointerCapture, relative: () => boolean, active: () => boolean, button: number) {
+    // Registered after PointerCapture's own mousedown (which requests the lock): during the capturing click the
+    // pointer is not locked yet, so that click is recognised and does not raise.
+    canvas.addEventListener("mousedown", (e) => {
+      if (e.button !== button || !active()) return;
+      if (relative() && !capture.locked) return; // this click only captures the mouse
+      this.held = true;
+    });
+    window.addEventListener("mouseup", (e) => {
+      if (e.button === button) this.held = false;
+    });
+    window.addEventListener("blur", () => (this.held = false));
+    document.addEventListener("pointerlockchange", () => {
+      if (!capture.locked) this.held = false;
+    });
+  }
+  release(): void {
+    this.held = false;
+  }
+}

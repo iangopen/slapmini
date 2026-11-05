@@ -2,12 +2,12 @@
 
 import init, { Sim } from "../wasm-pkg/sim_wasm.js";
 import paramsFile from "../../params.json";
-import { actionFor, BINDINGS, KEY_HELP } from "./bindings";
+import { actionFor, BINDINGS, KEY_HELP, MOUSE_BINDINGS } from "./bindings";
 import { Lab, parseCsv, toCsv, type Recording } from "./lab";
 import { FixedStepLoop } from "./loop";
 import { buildParamPanel, download } from "./panel";
 import { draw, drawInputBadges, drawMatchHud, fitView, formatClock, keysToMove, toScreen, toWorld, TEAM_NAMES, type View } from "./render";
-import { loadSettings, MAX_LEAD, PointerCapture, saveSettings, SENS_MAX, SENS_MIN, SENS_STEP, StickAim } from "./stick";
+import { loadSettings, MAX_LEAD, PointerCapture, saveSettings, SENS_MAX, SENS_MIN, SENS_STEP, StickAim, StickRaise } from "./stick";
 import { brakeMove } from "./brake";
 import type { ParamFile, Sample, Scenario } from "./types";
 
@@ -62,6 +62,9 @@ const capture = new PointerCapture(canvas, wantLock, (dx, dy) => aim.move(dx, dy
 function updateLockHint(): void {
   $("lock-hint").hidden = !(wantLock() && !capture.locked);
 }
+// Raised stick (w4): left button held; not during a replay (the recording carries the flag).
+const raise = new StickRaise(canvas, capture, () => mouseSettings.mode === "relative", () => lab.mode !== "replay", MOUSE_BINDINGS.stickUp);
+const puckMin = $<HTMLInputElement>("puck-min");
 canvas.addEventListener("mousedown", () => (document.activeElement as HTMLElement | null)?.blur?.());
 const mouseMode = $<HTMLSelectElement>("mouse-mode");
 const sens = $<HTMLInputElement>("sensitivity");
@@ -135,7 +138,7 @@ function readHumanInput(): void {
     const [wx, wy] = mouseWorld();
     stick = Math.atan2(wy - pl.y, wx - pl.x);
   }
-  lab.inputs[0] = { move_x: mx, move_y: my, stick_target_angle: stick, dash: held.has("dash"), lift: held.has("lift") };
+  lab.inputs[0] = { move_x: mx, move_y: my, stick_target_angle: stick, dash: held.has("dash"), lift: held.has("lift"), stick_up: raise.held };
 }
 
 // ---------- fixed-step loop ----------
@@ -317,9 +320,10 @@ function frame(now: number): void {
     ghost,
     ghostIndex: +scrub.value,
     forehand: lab.toolsEnabled ? lab.forehandPoint() : null,
+    puckMinPx: puckMin.checked ? 6 : 0,
   });
   drawMatchHud(ctx, lab.p, lab.state);
-  drawInputBadges(ctx, canvas.height, held.has("lift"), held.has("brake"));
+  drawInputBadges(ctx, canvas.height, held.has("lift"), held.has("brake"), !!lab.state.players[0]?.stick_up);
   updateReadout();
   requestAnimationFrame(frame);
 }

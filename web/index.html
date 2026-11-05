@@ -39,13 +39,20 @@
       <div class="card">
         <h1>Controls</h1>
         <ul id="controls-list" class="controls"></ul>
-        <p class="warn small">Dash (Shift), lift (E) and brake (Space) are UNVERIFIED guesses at the real game's bindings. The brake's stopping time is a placeholder (the real game's braking is unmeasured).</p>
+        <p class="warn small">Dash (Shift), lift (E) and brake (Space) are UNVERIFIED guesses at the real game's bindings. The brake's stopping time is a placeholder (the real game's braking is unmeasured). Left mouse (raise the stick while held) is also unverified; its height range is a placeholder.</p>
         <p class="muted small">You are BLUE, attacking the top net. 5:00 clock, a 5-goal lead ends the match (mercy), a tie at 0:00 goes to next-goal overtime.</p>
         <div class="field">
           <label for="mouse-mode">Mouse</label>
           <select id="mouse-mode">
             <option value="relative">Relative (like the game: capture the mouse, left/right turns the stick)</option>
             <option value="cursor">Cursor aim (the stick points at the cursor)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="camera-mode">Camera</label>
+          <select id="camera-mode">
+            <option value="follow">Follow the player (like the game; the whole attack zone stays visible)</option>
+            <option value="fit">Whole rink (the old fitted view)</option>
           </select>
         </div>
         <div class="field">

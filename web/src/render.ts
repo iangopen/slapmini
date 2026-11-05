@@ -12,20 +12,43 @@ import type { P, Sample, State } from "./types";
  * option "Rink vertical" off, `?view=horizontal`): +x right, +y up. Both keep x then y counterclockwise on
  * screen (the measure/ coordinate convention); rot is a 90 deg rotation of the old view.
  */
-export interface View { s: number; cx: number; cy: number; rot: boolean }
+/** (cx, cy) = the screen position of the camera's world point (ox, oy); ox = oy = 0 = center ice (fitted view). */
+export interface View { s: number; cx: number; cy: number; rot: boolean; ox?: number; oy?: number }
 
 export function fitView(canvasW: number, canvasH: number, p: P, rot = false, marginPx = 24): View {
   const [along, across] = rot ? [canvasH, canvasW] : [canvasW, canvasH];
   // Never ≤ 0: a canvas smaller than the margins (e.g. the 1×1 placeholder before the first layout) would
   // otherwise flip the transform and break the angle helpers (the stick aim started backwards in the lab).
   const s = Math.max(1e-3, Math.min((along - 2 * marginPx) / p.rink_length, (across - 2 * marginPx) / p.rink_width));
-  return { s, cx: canvasW / 2, cy: canvasH / 2, rot };
+  return { s, cx: canvasW / 2, cy: canvasH / 2, rot, ox: 0, oy: 0 };
 }
 
-export const toScreen = (v: View, x: number, y: number): [number, number] =>
-  v.rot ? [v.cx - y * v.s, v.cy - x * v.s] : [v.cx + x * v.s, v.cy - y * v.s];
-export const toWorld = (v: View, sx: number, sy: number): [number, number] =>
-  v.rot ? [(v.cy - sy) / v.s, (v.cx - sx) / v.s] : [(sx - v.cx) / v.s, -(sy - v.cy) / v.s];
+/** Length of the attack zone (blue line to the end boards) plus this margin (m) fills the screen height at the follow zoom. */
+export const FOLLOW_ZONE_MARGIN_M = 3;
+
+/**
+ * The game's follow camera (w4): a FIXED zoom at which the whole attack zone (blue line to the end boards, plus
+ * FOLLOW_ZONE_MARGIN_M) fits the screen's long axis and the rink's width fits across, centred on the world point
+ * (tx, ty) (the human player), clamped so the view does not run past the end boards / side boards when the rink is
+ * longer / wider than the screen (the real game's camera also stops at the rink ends). Vertical rink only.
+ */
+export function followView(canvasW: number, canvasH: number, p: P, tx: number, ty: number): View {
+  const zone = p.rink_length / 2 - p.blue_line_x + FOLLOW_ZONE_MARGIN_M;
+  const s = Math.max(1e-3, Math.min(canvasH / zone, canvasW / (p.rink_width + 2)));
+  const halfX = canvasH / 2 / s; // world x is screen vertical
+  const halfY = canvasW / 2 / s;
+  const clamp = (c: number, half: number, rinkHalf: number) => (half >= rinkHalf + 1 ? 0 : Math.max(-(rinkHalf + 1 - half), Math.min(rinkHalf + 1 - half, c)));
+  return { s, cx: canvasW / 2, cy: canvasH / 2, rot: true, ox: clamp(tx, halfX, p.rink_length / 2), oy: clamp(ty, halfY, p.rink_width / 2) };
+}
+
+export const toScreen = (v: View, x: number, y: number): [number, number] => {
+  const dx = x - (v.ox ?? 0), dy = y - (v.oy ?? 0);
+  return v.rot ? [v.cx - dy * v.s, v.cy - dx * v.s] : [v.cx + dx * v.s, v.cy - dy * v.s];
+};
+export const toWorld = (v: View, sx: number, sy: number): [number, number] => {
+  const [x, y] = v.rot ? [(v.cy - sy) / v.s, (v.cx - sx) / v.s] : [(sx - v.cx) / v.s, -(sy - v.cy) / v.s];
+  return [x + (v.ox ?? 0), y + (v.oy ?? 0)];
+};
 
 /** A screen direction (right, up; any length) → the world direction (same length in meters per pixel units),
  * through toWorld. Used for WASD (W = screen up) and the mouse aim. */
@@ -82,6 +105,9 @@ export interface Overlay {
   ghost: Sample[] | null;
   ghostIndex: number;
   forehand: { x: number; y: number } | null;
+  /** Minimum on-screen puck radius in px, DISPLAY ONLY (the physics radius is unchanged). Default PUCK_MIN_PX (the
+   * lab's option); the game passes 0 = true scale (w4: 6 px drew the puck larger than the player at the fitted zoom). */
+  puckMinPx?: number;
 }
 
 export function draw(ctx: CanvasRenderingContext2D, v: View, p: P, st: State, o: Overlay): void {
@@ -181,7 +207,7 @@ export function draw(ctx: CanvasRenderingContext2D, v: View, p: P, st: State, o:
     });
     ctx.stroke();
     const g = o.ghost[Math.min(o.ghostIndex, o.ghost.length - 1)];
-    circle(g.x, g.y, Math.max(p.puck_radius, PUCK_MIN_PX / v.s) * 1.2);
+    circle(g.x, g.y, Math.max(p.puck_radius, (o.puckMinPx ?? PUCK_MIN_PX) / v.s) * 1.2);
     ctx.fillStyle = "rgba(140, 60, 200, 0.45)";
     ctx.fill();
   }
@@ -243,20 +269,32 @@ export function draw(ctx: CanvasRenderingContext2D, v: View, p: P, st: State, o:
       ctx.setLineDash([]);
     }
     // actual stick
-    ctx.strokeStyle = "#1b232c";
-    ctx.lineWidth = Math.max(3, p.stick_thickness * 2 * v.s);
-    ctx.lineCap = "round";
     const a = pl.stick_angle;
-    line(pl.x + Math.cos(a) * p.stick_inner, pl.y + Math.sin(a) * p.stick_inner, pl.x + Math.cos(a) * p.stick_length, pl.y + Math.sin(a) * p.stick_length);
+    const [c, s] = [Math.cos(a), Math.sin(a)];
+    ctx.lineCap = "round";
+    if (pl.stick_up) {
+      // Raised (w4): lighter and thinner, with a thin line offset to one side (the blade lifted off the ice).
+      ctx.strokeStyle = "rgba(27, 35, 44, 0.45)";
+      ctx.lineWidth = Math.max(1.5, p.stick_thickness * v.s);
+      line(pl.x + c * p.stick_inner, pl.y + s * p.stick_inner, pl.x + c * p.stick_length, pl.y + s * p.stick_length);
+      const off = Math.max(0.12, 3 / v.s); // ≥ 3 px to the stick's left
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(27, 35, 44, 0.7)";
+      line(pl.x + c * p.stick_inner - s * off, pl.y + s * p.stick_inner + c * off, pl.x + c * p.stick_length - s * off, pl.y + s * p.stick_length + c * off);
+    } else {
+      ctx.strokeStyle = "#1b232c";
+      ctx.lineWidth = Math.max(3, p.stick_thickness * 2 * v.s);
+      line(pl.x + c * p.stick_inner, pl.y + s * p.stick_inner, pl.x + c * p.stick_length, pl.y + s * p.stick_length);
+    }
     ctx.lineCap = "butt";
   });
 
   // Puck: shadow grows and offsets with height; color goes cool → warm.
-  // Display radius has a pixel floor so the puck stays readable at minimap scale.
+  // Display radius: true scale with puckMinPx 0 (the game), else a DISPLAY-ONLY pixel floor (the lab's option).
   const pk = st.puck;
   const z = Math.max(0, pk.z);
   const off = z * 0.6;
-  const rDisp = Math.max(p.puck_radius, PUCK_MIN_PX / v.s);
+  const rDisp = drawnRadii(v, p, o.puckMinPx).puck / v.s;
   circle(pk.x + off, pk.y - off, rDisp * (1 + 0.6 * z));
   ctx.fillStyle = `rgba(0,0,0,${0.45 / (1 + z)})`;
   ctx.fill();
@@ -270,13 +308,19 @@ export function draw(ctx: CanvasRenderingContext2D, v: View, p: P, st: State, o:
 
 // ---------- match HUD (screen space; drawn after the rink, independent of the view rotation) ----------
 
-/** Bottom-left LIFT / BRAKE badges while those keys are held (lift only acts at stick contact; the brake is web-side). */
-export function drawInputBadges(ctx: CanvasRenderingContext2D, canvasH: number, lift: boolean, brake: boolean): void {
-  if (!lift && !brake) return;
+/** On-screen radii in px of a player and a puck on the ice (the puck with its display-only minimum). */
+export function drawnRadii(v: View, p: P, puckMinPx?: number): { player: number; puck: number } {
+  return { player: p.player_radius * v.s, puck: Math.max(p.puck_radius * v.s, puckMinPx ?? PUCK_MIN_PX) };
+}
+
+/** Bottom-left LIFT / BRAKE / STICK UP badges while those inputs are held (lift only acts at stick contact; the brake
+ * is web-side; the raised stick is the left mouse button). */
+export function drawInputBadges(ctx: CanvasRenderingContext2D, canvasH: number, lift: boolean, brake: boolean, stickUp = false): void {
+  if (!lift && !brake && !stickUp) return;
   ctx.save();
   ctx.font = "bold 14px system-ui, sans-serif";
   let x = 16;
-  for (const [on, text, color] of [[lift, "LIFT", "rgba(255, 200, 80, 0.95)"], [brake, "BRAKE", "rgba(255, 110, 110, 0.95)"]] as const) {
+  for (const [on, text, color] of [[lift, "LIFT", "rgba(255, 200, 80, 0.95)"], [brake, "BRAKE", "rgba(255, 110, 110, 0.95)"], [stickUp, "STICK UP", "rgba(120, 200, 255, 0.95)"]] as const) {
     if (!on) continue;
     ctx.fillStyle = color;
     ctx.fillText(text, x, canvasH - 64);

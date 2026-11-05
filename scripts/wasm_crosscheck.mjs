@@ -48,3 +48,30 @@ for (let t = 0; t < 100000; t++) {
   s10.step(JSON.stringify(inp));
 }
 console.log(`wasm s10 crosscheck hash after 100000 steps: ${s10.state_hash()} (score ${JSON.stringify(JSON.parse(s10.get_state()).score)})`);
+
+// w4 raised stick: the s10 inputs plus stick_up toggling in 40-step blocks (sim/tests/stick_up.rs stick_up_inputs;
+// u32 hash x * 2654435761 >> 16 via Math.imul, identical to Rust's wrapping_mul).
+// Compare with: cargo test -p sim --release --test stick_up stick_up_determinism -- --nocapture
+const su = new Sim("", 2);
+for (let t = 0; t < 100000; t++) {
+  const st = JSON.parse(su.get_state());
+  const inp = st.players.map((pl, k) => {
+    const dx = st.puck.x - pl.x, dy = st.puck.y - pl.y;
+    const d = Math.max(Math.sqrt(dx * dx + dy * dy), 1e-9);
+    const phase = (t + k * 97) % 600;
+    const coasting = phase >= 480;
+    const sense = (Math.floor(t / 300) + k) % 2 === 0 ? 1.0 : -1.0;
+    const x = Math.floor(t / 40) * 2 + k;
+    const up = ((Math.imul(x, 2654435761) >>> 0) >>> 16) % 3 === 0;
+    return {
+      move_x: coasting ? 0.0 : dx / d,
+      move_y: coasting ? 0.0 : dy / d,
+      stick_target_angle: d < 2.0 ? pl.stick_angle + sense * 2.5 : pl.stick_angle,
+      dash: phase % 150 < 3 && !coasting,
+      lift: t % 700 < 15,
+      stick_up: up,
+    };
+  });
+  su.step(JSON.stringify(inp));
+}
+console.log(`wasm stick_up crosscheck hash after 100000 steps: ${su.state_hash()} (score ${JSON.stringify(JSON.parse(su.get_state()).score)})`);

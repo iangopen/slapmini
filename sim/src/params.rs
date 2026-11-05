@@ -44,6 +44,8 @@ define_params!(
     match_length_s, mercy_lead, countdown_s, goal_pause_s, player_spawn_x,
     // s10: proportional coasting, set-speed dash ramp, separate stick deceleration limit.
     player_coast_rate, dash_ramp_time, stick_max_ang_decel,
+    // w4: raised stick (left mouse button) height range.
+    stick_up_z_min, stick_up_z_max,
 );
 
 /// One entry of `params.json`.

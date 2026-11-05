@@ -29,6 +29,7 @@ fn scripted_inputs(tick: u64, n: usize) -> Vec<PlayerInput> {
                 stick_target_angle: next() * 6.283 - 3.1415,
                 dash: next() < 0.02,
                 lift: next() < 0.2,
+                stick_up: false,
             }
         })
         .collect()
@@ -226,6 +227,7 @@ pub fn crosscheck_inputs(t: u64) -> Vec<PlayerInput> {
             stick_target_angle: ((t + k * 100) % 628) as f64 * 0.01 - 3.14,
             dash: t % 240 == k * 7,
             lift: t % 500 < 20,
+            stick_up: false,
         })
         .collect()
 }

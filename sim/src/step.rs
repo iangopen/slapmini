@@ -196,6 +196,8 @@ fn update_player_controls(pl: &mut Player, inp: &PlayerInput, p: &Params, dt: f6
         pl.dash_cooldown = p.dash_cooldown;
     }
     pl.dash_prev = inp.dash;
+    // Raised stick: instant raise and lower (placeholder timing); the stick keeps rotating while raised.
+    pl.stick_up = inp.stick_up;
     let ramping = pl.dash_timer > 0.0 && p.dash_duration - pl.dash_timer < p.dash_ramp_time - 1e-12;
 
     let s0 = len(pl.vx, pl.vy);
@@ -304,7 +306,9 @@ fn integrate_puck(puck: &mut Puck, p: &Params, h: f64) {
 }
 
 fn stick_puck(pl: &mut Player, inp: &PlayerInput, puck: &mut Puck, p: &Params) {
-    if puck.z < p.stick_z_min || puck.z > p.stick_z_max {
+    // A raised stick (w4) uses its own height range: it passes over a puck on the ice.
+    let (z_min, z_max) = if pl.stick_up { (p.stick_up_z_min, p.stick_up_z_max) } else { (p.stick_z_min, p.stick_z_max) };
+    if puck.z < z_min || puck.z > z_max {
         return;
     }
     let (ux, uy) = (cos(pl.stick_angle), sin(pl.stick_angle));

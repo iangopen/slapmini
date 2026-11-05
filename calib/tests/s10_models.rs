@@ -26,7 +26,7 @@ fn run(s: &mut State, inp: PlayerInput, steps: usize, p: &Params) {
     }
 }
 
-const W: PlayerInput = PlayerInput { move_x: 1.0, move_y: 0.0, stick_target_angle: 0.0, dash: false, lift: false };
+const W: PlayerInput = PlayerInput { move_x: 1.0, move_y: 0.0, stick_target_angle: 0.0, dash: false, lift: false, stick_up: false };
 
 #[test]
 fn coast_decays_in_proportion_to_speed_and_cap_is_hard() {

@@ -36,6 +36,10 @@ pub struct Player {
     /// Dash input from the previous step, for press-edge detection.
     #[serde(default)]
     pub dash_prev: bool,
+    /// Raised stick (w4): set from the input every step. A raised stick contacts the puck only inside
+    /// [stick_up_z_min, stick_up_z_max] (it passes over a puck on the ice).
+    #[serde(default)]
+    pub stick_up: bool,
 }
 
 /// One player's input for one step.
@@ -50,6 +54,9 @@ pub struct PlayerInput {
     pub dash: bool,
     #[serde(default)]
     pub lift: bool,
+    /// Raise the stick while held (w4; the game's left mouse button). Default false when absent in JSON.
+    #[serde(default)]
+    pub stick_up: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -129,6 +136,14 @@ impl State {
             b.push(m.overtime as u8);
             b.push(m.winner.map_or(255, |t| t));
             b.push(m.last_goal.map_or(255, |t| t));
+        }
+        // Raised sticks only when some stick is up, so states without one (every free-play and match
+        // state before w4, and every bot run) keep their encodings and hashes.
+        if self.players.iter().any(|pl| pl.stick_up) {
+            b.push(0x5C);
+            for pl in &self.players {
+                b.push(pl.stick_up as u8);
+            }
         }
         b
     }

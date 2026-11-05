@@ -310,6 +310,8 @@
       "provenance": "placeholder",
       "unit": "rad/s^2",
       "note": "s10: stick deceleration limit; equal to stick_max_ang_accel here (the old symmetric chase)"
-    }
+    },
+    "stick_up_z_min": {"value": 0.35, "provenance": "placeholder", "unit": "m", "note": "PLACEHOLDER (w4): raised-stick height range, lower bound. A raised stick (left mouse button) contacts the puck only between stick_up_z_min and stick_up_z_max, so it passes over a puck on the ice (puck z = 0) and can still hit a puck in the air. Unmeasured: Ian's feel check should set it."},
+    "stick_up_z_max": {"value": 1.5, "provenance": "placeholder", "unit": "m", "note": "PLACEHOLDER (w4): raised-stick height range, upper bound. A raised stick (left mouse button) contacts the puck only between stick_up_z_min and stick_up_z_max, so it passes over a puck on the ice (puck z = 0) and can still hit a puck in the air. Unmeasured: Ian's feel check should set it."}
   }
 }

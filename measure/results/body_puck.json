@@ -1,0 +1,666 @@
+{
+ "clip": "hittingpuck",
+ "episodes_found": 39,
+ "samples": [
+  {
+   "episode": 0,
+   "frames": 34,
+   "first_frame": 2,
+   "puck_centre_px": [
+    945.02,
+    535.6
+   ],
+   "puck_dist_px": 15.42,
+   "body_radius_px": 8.45,
+   "body_fit_rms_px": 0.797,
+   "body_edge_points_kept": 335,
+   "puck_radius_px": 4.3,
+   "ratio": 1.9651162790697674,
+   "used": true
+  },
+  {
+   "episode": 1,
+   "frames": 60,
+   "first_frame": 134,
+   "puck_centre_px": [
+    949.24,
+    503.38
+   ],
+   "puck_dist_px": 37.7,
+   "body_radius_px": 8.759,
+   "body_fit_rms_px": 0.685,
+   "body_edge_points_kept": 317,
+   "puck_radius_px": 4.3,
+   "ratio": 2.0369767441860467,
+   "used": true
+  },
+  {
+   "episode": 2,
+   "frames": 30,
+   "first_frame": 220,
+   "puck_centre_px": [
+    945.14,
+    535.55
+   ],
+   "puck_dist_px": 15.4,
+   "body_radius_px": 8.373,
+   "body_fit_rms_px": 0.857,
+   "body_edge_points_kept": 348,
+   "puck_radius_px": 4.3,
+   "ratio": 1.9472093023255814,
+   "used": true
+  },
+  {
+   "episode": 3,
+   "frames": 26,
+   "first_frame": 252,
+   "puck_centre_px": [
+    945.45,
+    535.68
+   ],
+   "puck_dist_px": 15.1,
+   "body_radius_px": 8.455,
+   "body_fit_rms_px": 0.87,
+   "body_edge_points_kept": 349,
+   "puck_radius_px": 4.1,
+   "ratio": 2.06219512195122,
+   "used": true
+  },
+  {
+   "episode": 4,
+   "frames": 40,
+   "first_frame": 543,
+   "puck_centre_px": [
+    945.06,
+    535.62
+   ],
+   "puck_dist_px": 15.45,
+   "body_radius_px": 8.295,
+   "body_fit_rms_px": 0.957,
+   "body_edge_points_kept": 360,
+   "puck_radius_px": 4.3,
+   "ratio": 1.9290697674418604,
+   "used": true
+  },
+  {
+   "episode": 5,
+   "frames": 29,
+   "first_frame": 782,
+   "puck_centre_px": [
+    969.06,
+    374.46
+   ],
+   "puck_dist_px": 165.04,
+   "body_radius_px": 8.451,
+   "body_fit_rms_px": 1.017,
+   "body_edge_points_kept": 350,
+   "puck_radius_px": 4.2,
+   "ratio": 2.012142857142857,
+   "used": true
+  },
+  {
+   "episode": 6,
+   "frames": 44,
+   "first_frame": 815,
+   "puck_centre_px": [
+    945.11,
+    535.63
+   ],
+   "puck_dist_px": 15.42,
+   "body_radius_px": 8.525,
+   "body_fit_rms_px": 0.714,
+   "body_edge_points_kept": 326,
+   "puck_radius_px": 4.25,
+   "ratio": 2.0058823529411764,
+   "used": true
+  },
+  {
+   "episode": 7,
+   "frames": 40,
+   "first_frame": 1082,
+   "puck_centre_px": [
+    947.43,
+    114.71
+   ],
+   "puck_dist_px": 423.91,
+   "body_radius_px": 8.235,
+   "body_fit_rms_px": 0.931,
+   "body_edge_points_kept": 357,
+   "puck_radius_px": 0.3,
+   "ratio": 27.45,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 8,
+   "frames": 60,
+   "first_frame": 1128,
+   "puck_centre_px": [
+    947.36,
+    114.58
+   ],
+   "puck_dist_px": 424.96,
+   "body_radius_px": 8.377,
+   "body_fit_rms_px": 0.794,
+   "body_edge_points_kept": 318,
+   "puck_radius_px": 0.35,
+   "ratio": 23.934285714285718,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 9,
+   "frames": 60,
+   "first_frame": 1251,
+   "puck_centre_px": [
+    947.26,
+    114.59
+   ],
+   "puck_dist_px": 424.88,
+   "body_radius_px": 8.493,
+   "body_fit_rms_px": 0.97,
+   "body_edge_points_kept": 336,
+   "puck_radius_px": 0.25,
+   "ratio": 33.972,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 10,
+   "frames": 38,
+   "first_frame": 1384,
+   "puck_centre_px": [
+    962.35,
+    114.81
+   ],
+   "puck_dist_px": 423.89,
+   "body_radius_px": 8.326,
+   "body_fit_rms_px": 0.947,
+   "body_edge_points_kept": 360,
+   "puck_radius_px": 0.25,
+   "ratio": 33.304,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 11,
+   "frames": 60,
+   "first_frame": 1438,
+   "puck_centre_px": [
+    962.06,
+    114.68
+   ],
+   "puck_dist_px": 424.81,
+   "body_radius_px": 8.803,
+   "body_fit_rms_px": 0.638,
+   "body_edge_points_kept": 322,
+   "puck_radius_px": 0.25,
+   "ratio": 35.212,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 12,
+   "frames": 28,
+   "first_frame": 1501,
+   "puck_centre_px": [
+    962.41,
+    114.63
+   ],
+   "puck_dist_px": 424.29,
+   "body_radius_px": 8.354,
+   "body_fit_rms_px": 0.935,
+   "body_edge_points_kept": 348,
+   "puck_radius_px": 0.35,
+   "ratio": 23.86857142857143,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 13,
+   "frames": 32,
+   "first_frame": 1534,
+   "puck_centre_px": [
+    941.39,
+    113.92
+   ],
+   "puck_dist_px": 425.3,
+   "body_radius_px": 8.405,
+   "body_fit_rms_px": 0.849,
+   "body_edge_points_kept": 332,
+   "puck_radius_px": 0.65,
+   "ratio": 12.93076923076923,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 14,
+   "frames": 60,
+   "first_frame": 1568,
+   "puck_centre_px": [
+    942.04,
+    113.67
+   ],
+   "puck_dist_px": 425.89,
+   "body_radius_px": 8.258,
+   "body_fit_rms_px": 0.929,
+   "body_edge_points_kept": 335,
+   "puck_radius_px": 0.45,
+   "ratio": 18.35111111111111,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 15,
+   "frames": 60,
+   "first_frame": 1751,
+   "puck_centre_px": [
+    942.26,
+    113.73
+   ],
+   "puck_dist_px": 426.33,
+   "body_radius_px": 8.927,
+   "body_fit_rms_px": 0.623,
+   "body_edge_points_kept": 315,
+   "puck_radius_px": 0.25,
+   "ratio": 35.708,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 16,
+   "frames": 34,
+   "first_frame": 1858,
+   "puck_centre_px": [
+    959.92,
+    112.21
+   ],
+   "puck_dist_px": 426.53,
+   "body_radius_px": 8.336,
+   "body_fit_rms_px": 0.646,
+   "body_edge_points_kept": 317,
+   "puck_radius_px": 0.25,
+   "ratio": 33.344,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 17,
+   "frames": 60,
+   "first_frame": 1896,
+   "puck_centre_px": [
+    960.08,
+    111.96
+   ],
+   "puck_dist_px": 427.37,
+   "body_radius_px": 8.325,
+   "body_fit_rms_px": 0.82,
+   "body_edge_points_kept": 334,
+   "puck_radius_px": 0.75,
+   "ratio": 11.1,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 18,
+   "frames": 46,
+   "first_frame": 2013,
+   "puck_centre_px": [
+    958.61,
+    113.96
+   ],
+   "puck_dist_px": 424.44,
+   "body_radius_px": 8.264,
+   "body_fit_rms_px": 1.002,
+   "body_edge_points_kept": 360,
+   "puck_radius_px": 0.65,
+   "ratio": 12.713846153846152,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 19,
+   "frames": 60,
+   "first_frame": 2061,
+   "puck_centre_px": [
+    958.76,
+    113.64
+   ],
+   "puck_dist_px": 425.08,
+   "body_radius_px": 8.446,
+   "body_fit_rms_px": 0.947,
+   "body_edge_points_kept": 360,
+   "puck_radius_px": 0.7,
+   "ratio": 12.065714285714286,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 20,
+   "frames": 60,
+   "first_frame": 2251,
+   "puck_centre_px": [
+    958.55,
+    113.8
+   ],
+   "puck_dist_px": 425.27,
+   "body_radius_px": 8.405,
+   "body_fit_rms_px": 0.498,
+   "body_edge_points_kept": 283,
+   "puck_radius_px": 0.75,
+   "ratio": 11.206666666666665,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 21,
+   "frames": 60,
+   "first_frame": 2372,
+   "puck_centre_px": [
+    946.33,
+    114.91
+   ],
+   "puck_dist_px": 423.79,
+   "body_radius_px": 8.241,
+   "body_fit_rms_px": 0.994,
+   "body_edge_points_kept": 360,
+   "puck_radius_px": 0.25,
+   "ratio": 32.964,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 22,
+   "frames": 53,
+   "first_frame": 2447,
+   "puck_centre_px": [
+    946.43,
+    114.52
+   ],
+   "puck_dist_px": 425.22,
+   "body_radius_px": 8.052,
+   "body_fit_rms_px": 0.733,
+   "body_edge_points_kept": 320,
+   "puck_radius_px": 0.5,
+   "ratio": 16.104,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 23,
+   "frames": 60,
+   "first_frame": 2501,
+   "puck_centre_px": [
+    946.49,
+    114.48
+   ],
+   "puck_dist_px": 425.08,
+   "body_radius_px": 7.972,
+   "body_fit_rms_px": 0.584,
+   "body_edge_points_kept": 311,
+   "puck_radius_px": 0.45,
+   "ratio": 17.715555555555557,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 24,
+   "frames": 60,
+   "first_frame": 2691,
+   "puck_centre_px": [
+    923.37,
+    113.66
+   ],
+   "puck_dist_px": 426.68,
+   "body_radius_px": 8.399,
+   "body_fit_rms_px": 0.899,
+   "body_edge_points_kept": 349,
+   "puck_radius_px": 0.3,
+   "ratio": 27.996666666666666,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 25,
+   "frames": 57,
+   "first_frame": 2752,
+   "puck_centre_px": [
+    923.27,
+    113.51
+   ],
+   "puck_dist_px": 427.43,
+   "body_radius_px": 8.709,
+   "body_fit_rms_px": 0.614,
+   "body_edge_points_kept": 299,
+   "puck_radius_px": 4.15,
+   "ratio": 2.09855421686747,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 26,
+   "frames": 60,
+   "first_frame": 2812,
+   "puck_centre_px": [
+    923.97,
+    113.45
+   ],
+   "puck_dist_px": 427.48,
+   "body_radius_px": 8.426,
+   "body_fit_rms_px": 0.453,
+   "body_edge_points_kept": 247,
+   "puck_radius_px": 0.25,
+   "ratio": 33.704,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 27,
+   "frames": 60,
+   "first_frame": 3007,
+   "puck_centre_px": [
+    923.98,
+    113.36
+   ],
+   "puck_dist_px": 427.59,
+   "body_radius_px": 7.916,
+   "body_fit_rms_px": 0.677,
+   "body_edge_points_kept": 296,
+   "puck_radius_px": 0.25,
+   "ratio": 31.664,
+   "used": false,
+   "excluded": "puck > 200 px from the image centre (by the net) or no puck edge"
+  },
+  {
+   "episode": 28,
+   "frames": 52,
+   "first_frame": 3098,
+   "puck_centre_px": [
+    945.0,
+    535.63
+   ],
+   "puck_dist_px": 15.48,
+   "body_radius_px": 8.171,
+   "body_fit_rms_px": 0.832,
+   "body_edge_points_kept": 348,
+   "puck_radius_px": 4.25,
+   "ratio": 1.9225882352941175,
+   "used": true
+  },
+  {
+   "episode": 29,
+   "frames": 22,
+   "first_frame": 3389,
+   "puck_centre_px": [
+    945.04,
+    535.65
+   ],
+   "puck_dist_px": 15.45,
+   "body_radius_px": 8.234,
+   "body_fit_rms_px": 0.915,
+   "body_edge_points_kept": 349,
+   "puck_radius_px": 4.25,
+   "ratio": 1.9374117647058824,
+   "used": true
+  },
+  {
+   "episode": 30,
+   "frames": 36,
+   "first_frame": 3810,
+   "puck_centre_px": [
+    945.0,
+    535.61
+   ],
+   "puck_dist_px": 15.38,
+   "body_radius_px": 8.526,
+   "body_fit_rms_px": 0.532,
+   "body_edge_points_kept": 289,
+   "puck_radius_px": 4.3,
+   "ratio": 1.9827906976744187,
+   "used": true
+  },
+  {
+   "episode": 31,
+   "frames": 29,
+   "first_frame": 3864,
+   "puck_centre_px": [
+    945.41,
+    535.75
+   ],
+   "puck_dist_px": 15.8,
+   "body_radius_px": 8.407,
+   "body_fit_rms_px": 0.776,
+   "body_edge_points_kept": 342,
+   "puck_radius_px": 4.05,
+   "ratio": 2.075802469135802,
+   "used": true
+  },
+  {
+   "episode": 32,
+   "frames": 31,
+   "first_frame": 4252,
+   "puck_centre_px": [
+    945.11,
+    535.56
+   ],
+   "puck_dist_px": 16.24,
+   "body_radius_px": 8.422,
+   "body_fit_rms_px": 0.927,
+   "body_edge_points_kept": 357,
+   "puck_radius_px": 4.3,
+   "ratio": 1.9586046511627908,
+   "used": true
+  },
+  {
+   "episode": 33,
+   "frames": 28,
+   "first_frame": 4472,
+   "puck_centre_px": [
+    898.79,
+    675.17
+   ],
+   "puck_dist_px": 149.68,
+   "body_radius_px": 8.216,
+   "body_fit_rms_px": 0.896,
+   "body_edge_points_kept": 329,
+   "puck_radius_px": 4.15,
+   "ratio": 1.979759036144578,
+   "used": true
+  },
+  {
+   "episode": 34,
+   "frames": 38,
+   "first_frame": 4501,
+   "puck_centre_px": [
+    898.77,
+    675.25
+   ],
+   "puck_dist_px": 149.82,
+   "body_radius_px": 8.282,
+   "body_fit_rms_px": 0.957,
+   "body_edge_points_kept": 339,
+   "puck_radius_px": 4.2,
+   "ratio": 1.9719047619047618,
+   "used": true
+  },
+  {
+   "episode": 35,
+   "frames": 26,
+   "first_frame": 4561,
+   "puck_centre_px": [
+    944.99,
+    536.02
+   ],
+   "puck_dist_px": 15.91,
+   "body_radius_px": 8.496,
+   "body_fit_rms_px": 0.704,
+   "body_edge_points_kept": 312,
+   "puck_radius_px": 3.9,
+   "ratio": 2.1784615384615384,
+   "used": true
+  },
+  {
+   "episode": 36,
+   "frames": 34,
+   "first_frame": 4622,
+   "puck_centre_px": [
+    939.11,
+    531.1
+   ],
+   "puck_dist_px": 23.52,
+   "body_radius_px": 8.372,
+   "body_fit_rms_px": 0.677,
+   "body_edge_points_kept": 304,
+   "puck_radius_px": 4.05,
+   "ratio": 2.06716049382716,
+   "used": true
+  },
+  {
+   "episode": 37,
+   "frames": 24,
+   "first_frame": 4667,
+   "puck_centre_px": [
+    938.99,
+    531.06
+   ],
+   "puck_dist_px": 23.28,
+   "body_radius_px": 8.759,
+   "body_fit_rms_px": 0.465,
+   "body_edge_points_kept": 319,
+   "puck_radius_px": 4.0,
+   "ratio": 2.18975,
+   "used": true
+  },
+  {
+   "episode": 38,
+   "frames": 60,
+   "first_frame": 4798,
+   "puck_centre_px": [
+    928.93,
+    525.63
+   ],
+   "puck_dist_px": 34.3,
+   "body_radius_px": 8.776,
+   "body_fit_rms_px": 0.781,
+   "body_edge_points_kept": 324,
+   "puck_radius_px": 4.4,
+   "ratio": 1.9945454545454544,
+   "used": true
+  }
+ ],
+ "n": 18,
+ "n_excluded": 21,
+ "ratio_median": 1.9886680761099367,
+ "ratio_mean": 2.0120761959952786,
+ "ratio_sd": 0.07787089480573559,
+ "body_radius_px_median": 8.436,
+ "body_radius_px_sd": 0.18084371073503874,
+ "puck_radius_px_median": 4.25,
+ "puck_radius_px_sd": 0.13173056280328646,
+ "m_per_px": 0.06874165287865942,
+ "scale_source": "REAL METERS: rescaled x1.0873 from placeholder meters (python -m measure.rescale). Scale ESTIMATED from the in-game SHOT SPEED readouts of 4 ground goals (median 0.06418 m/px, spread (CV) 2.5%), ASSUMING the mph readout is in real units (measure/results/scale.json). Before: params.json rink_length = 60 m (PLACEHOLDER, unmeasured) / measured inner board length 949.00 px",
+ "body_radius_m_as_seen": 0.5799045836843709,
+ "puck_radius_m_as_seen": 0.2921520247343026,
+ "sim_puck_radius_m": 0.249853,
+ "player_radius_m": 0.496874684820296
+}

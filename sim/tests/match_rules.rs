@@ -47,6 +47,7 @@ fn wild(t: u64) -> Vec<PlayerInput> {
             stick_target_angle: ((t * 13 + k * 50) % 628) as f64 * 0.01 - 3.14,
             dash: t % 30 == k,
             lift: t % 50 < 10,
+            stick_up: false,
         })
         .collect()
 }
@@ -235,6 +236,7 @@ fn crosscheck_hash_native_match() {
                 stick_target_angle: ((t + k * 100) % 628) as f64 * 0.01 - 3.14,
                 dash: t % 240 == k * 7,
                 lift: t % 500 < 20,
+                stick_up: false,
             })
             .collect();
         step(&mut s, &inp, &p);

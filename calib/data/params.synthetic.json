@@ -66,6 +66,8 @@
     "player_spawn_x":            { "value": 15.0,  "provenance": "placeholder", "unit": "m", "note": "MATCH RULE, invented: |x| of the match spawn points (team 0 at -x, team 1 at +x), facing center" },
     "player_coast_rate":         {"value": 0.0, "provenance": "placeholder", "unit": "1/s", "note": "s10: speed-proportional coast rate; 0 here keeps the old constant-deceleration coast (player_ice_drag only)"},
     "dash_ramp_time":            {"value": 0.05, "provenance": "placeholder", "unit": "s", "note": "s10: dash ramp time to dash_speed; invented (the old additive impulse cannot be reproduced)"},
-    "stick_max_ang_decel":       {"value": 120.0, "provenance": "placeholder", "unit": "rad/s^2", "note": "s10: stick deceleration limit; equal to stick_max_ang_accel here (the old symmetric chase)"}
+    "stick_max_ang_decel":       {"value": 120.0, "provenance": "placeholder", "unit": "rad/s^2", "note": "s10: stick deceleration limit; equal to stick_max_ang_accel here (the old symmetric chase)"},
+    "stick_up_z_min":            {"value": 0.35, "provenance": "placeholder", "unit": "m", "note": "PLACEHOLDER (w4): raised-stick height range, lower bound. A raised stick (left mouse button) contacts the puck only between stick_up_z_min and stick_up_z_max, so it passes over a puck on the ice (puck z = 0) and can still hit a puck in the air. Unmeasured: Ian's feel check should set it."},
+    "stick_up_z_max":            {"value": 1.5, "provenance": "placeholder", "unit": "m", "note": "PLACEHOLDER (w4): raised-stick height range, upper bound. A raised stick (left mouse button) contacts the puck only between stick_up_z_min and stick_up_z_max, so it passes over a puck on the ice (puck z = 0) and can still hit a puck in the air. Unmeasured: Ian's feel check should set it."}
   }
 }

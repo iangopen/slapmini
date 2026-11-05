@@ -1,0 +1,49 @@
+{
+ "name": "hit_04",
+ "description": "MEASURED stick hit from hittingpuck frame 3471 (medium swing, w 20.68 rad/s); placeholder meter scale; stick placed just short of the puck at the measured angular speed",
+ "steps": 68,
+ "initial_state": {
+  "tick": 0,
+  "puck": {
+   "x": -0.022571127502632515,
+   "y": 0.27692307692307666,
+   "z": 0.0,
+   "vx": 0.0,
+   "vy": 0.0,
+   "vz": 0.0,
+   "in_net": null
+  },
+  "players": [
+   {
+    "team": 0,
+    "x": -0.26889357218123894,
+    "y": -0.642170706006325,
+    "vx": 0.0,
+    "vy": 0.0,
+    "facing": 0.0,
+    "stick_angle": 0.9200060534512957,
+    "stick_omega": 20.683800000000012,
+    "dash_timer": 0.0,
+    "dash_cooldown": 0.0,
+    "dash_prev": false
+   }
+  ],
+  "score": [
+   0,
+   0
+  ]
+ },
+ "inputs": [
+  {
+   "step": 0,
+   "player": 0,
+   "input": {
+    "move_x": 0.0,
+    "move_y": 0.0,
+    "stick_target_angle": 1.42246345734073,
+    "dash": false,
+    "lift": false
+   }
+  }
+ ]
+}

@@ -1,0 +1,35 @@
+{
+  "_comment": "Stick params from video (session s7b; python -m measure.stick ...; see CLAUDE.md 'Stick (session s7b)'). Clips: rotatinganddizzy (zoomed sweeps) and hittingpuck (hits, normal zoom). Lengths are meters at the PLACEHOLDER scale (rink_length 60 m): multiply by the real/placeholder scale ratio when the absolute scale is applied. Angular values are scale-free. Only the names listed here change; everything else stays in params.json (not merged).",
+  "params": {
+    "stick_max_ang_speed": {
+      "value": 26.173,
+      "provenance": "fitted",
+      "unit": "rad/s",
+      "note": "rotatinganddizzy: hard cap seen as a flat plateau in every cap-limited move (344 frames, median 26.17, sd per frame 1.65 = capture jitter); step model with free onsets, held out by event: RMSE 3.2, 2.3, 1.9, 3.0 deg vs placeholder 8, 363, 251, 151 deg. Scale-free."
+    },
+    "stick_max_ang_accel": {
+      "value": 513.9,
+      "provenance": "fitted",
+      "unit": "rad/s^2",
+      "note": "rotatinganddizzy: from the 3 flick starts (rest -> cap within 4 frames). Stops are harder: their fit is flat above ~1500 rad/s^2 (60 fps cannot resolve more), and the real stick overshoots the final angle by 0.7-12.4 deg and settles back, which the sim's symmetric bang-bang braking cannot reproduce. Scale-free."
+    },
+    "stick_length": {
+      "value": 1.0876,
+      "provenance": "measured-shape",
+      "unit": "m",
+      "note": "pivot (body centre) -> blade tip on the ice plane: half-max blade tip 17.62 px (hittingpuck) and 80.74 px (rotatinganddizzy); the zoomed clip magnifies the player model (camera moves closer), solved with a dolly-camera model (tip at 0.101 of the zoomed camera height). Consistent with the hits: resting-puck contact radii 0.95-1.06 m with perpendicular exits. PLACEHOLDER meter scale."
+    },
+    "stick_thickness": {
+      "value": 0.0539,
+      "provenance": "measured-shape",
+      "unit": "m",
+      "note": "collision HALF-thickness = half the blade's width at half max (rotatinganddizzy, de-rotated average of 359 frames, ice scale corrected for the blade height). PLACEHOLDER meter scale."
+    },
+    "stick_restitution": {
+      "value": 0.3597,
+      "provenance": "fitted",
+      "unit": "ratio",
+      "note": "hittingpuck, 7 hits, calib path objective with stick_mass FIXED at the params.json placeholder 2 kg and puck_mass 0.17 kg (placeholders): stick_mass and restitution are degenerate (a joint fit runs to a rigid stick, e = 0.138); only exit/head speed ~1.1-1.14 is measured. Held out by swing speed: {'slow': 0.36, 'medium': 0.348, 'fast': 0.364}. Changing stick_mass requires refitting this."
+    }
+  }
+}

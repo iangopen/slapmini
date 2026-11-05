@@ -63,9 +63,9 @@ const MEASURED_SHAPE: [&str; 13] = [
 ];
 
 /// Fitted to real clips: puck (measure holdout), player/dash (s7 measure.skatefit), stick (s7b measure.stick).
-const FITTED: [&str; 10] = [
+const FITTED: [&str; 13] = [
     "board_restitution", "board_friction", "ice_linear_drag", "ice_friction_decel",
-    "player_accel", "player_ice_drag", "dash_speed",
+    "player_accel", "player_ice_drag", "dash_speed", "player_coast_rate", "dash_ramp_time", "stick_max_ang_decel",
     "stick_max_ang_speed", "stick_max_ang_accel", "stick_restitution",
 ];
 

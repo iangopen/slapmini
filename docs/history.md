@@ -810,4 +810,5 @@ env at runtime (`set_reward_weights`, a vector in TERM_NAMES order).
   same 40-float observation as `bots::observe` (port it, or expose `observe` through sim-wasm in a later session).
 - Windows/GPU path not run here (no GPU in the container); the commands are in README "Bots and training".
 
-
+## w4 (2026-11-05)
+Measured the body/puck radius ratio (1.989) → player_radius 0.4969; true-scale drawing in the game; follow camera; raised stick (left mouse, stick_up input/state, stick_up_z_min/max placeholders); verify-w4. Hashes and the physics stamp changed (radius only).

@@ -131,7 +131,7 @@ Provenance tags: `measured` (model-free measurement), `measured-shape` (geometry
 | net_x / net_width / net_depth | 24.8082 / 6.4375 / 2.4206 m | measured-shape | goal line, parallax-corrected net roof (depth assumes a flat roof) |
 | blue_line_x, faceoff_x/y, faceoff_circle_radius | 8.7525, 17.7281 / 11.3362, 5.1193 m | measured-shape | display only |
 | puck_radius | 0.249853 m | measured-shape | resting puck's bright face (s6) |
-| player_radius | 0.495466 m | measured-shape, **UNCERTAIN** | the OLD pink skin; the new grey body reads ~0.52–0.56 m (placeholder scale) |
+| player_radius | 0.4969 m | measured-shape | w4: body/puck radius ratio 1.989 (sd 0.078, n 18) in the same frames of hittingpuck × puck_radius (`measure/body_puck.py`) |
 | board_restitution / board_friction | 0.342796 / 0 | fitted | s5/s6 wall bounces, held out by clip |
 | ice_linear_drag / ice_friction_decel | 0.47254 1/s / 0 m/s^2 | fitted | glides; decel refit in real m/s^2 (below) |
 | player_accel | 17.3594 m/s^2 | fitted | s10 refit of the s7 key-display skating runs with the proportional coast |
@@ -801,3 +801,70 @@ Web only (web/src, web/index.html, web/scripts). sim/, params and bots untouched
 - The true sensitivity (0.005 rad per mouse unit is a guess).
 - The real brake: whether there is one, its key and its stopping time (record W then S at top speed).
 - The real lift and dash keys (E and Shift are guesses).
+
+## Scale, raised stick, follow camera (session w4, 2026-11-05, branch w4)
+Physics changed (player_radius + the raised stick), so the crosscheck hashes and the physics stamp changed (listed below).
+ACT/OBS are unchanged: the bots and the training envs never raise the stick.
+
+### Player to puck scale
+- Cause of "the player looks too small": the lab's 6 px minimum puck radius drew the puck (6 px) larger than the player
+  (5.41 px) at the whole-rink zoom; the sim radii were already close.
+- Measured (`python -m measure.body_puck` → `measure/results/body_puck.json`): body and puck half-max edge radii in the SAME
+  frames of the hittingpuck clip (resting puck near the player, < 200 px from the image centre, radius > 2 px; 18 of 39
+  episodes): body 8.44 px, puck 4.25 px, **ratio 1.989 (median; mean 2.012, sd 0.078)** → player_radius = 1.989 ×
+  puck_radius 0.249853 = **0.4969 m** (was 0.495466; provenance measured-shape, source in the note). The ratio is
+  scale-free, so it does not depend on the absolute-scale assumption. Both blobs read ~17% larger than the sim radii at the
+  map scale (soft edges); the ratio cancels that.
+- Drawn radii in the game, 1280×760: follow camera 28.29 px/m → player 14.06 px, puck 7.07 px; whole rink 10.91 px/m →
+  5.42 / 2.73 px (ratio 1.989 both; before w4: 5.41 / 6.00 px). Screenshots `web/verify-out/w4-scale-before.png`,
+  `w4-scale-after-follow.png`, `w4-scale-after-fit.png` (`node web/scripts/scale_shot.mjs OUT.png [query]`).
+- The game draws true scale (`puckMinPx: 0`); the lab keeps the 6 px minimum as a checkbox "Minimum puck size 6 px
+  (display only)", default on.
+
+### Raised stick (sim)
+- `PlayerInput.stick_up` and `Player.stick_up` (bool, serde default false, so old JSON loads). The player's flag is set from
+  the input every step; raising and lowering are **instant** (placeholder) and the stick keeps rotating while raised.
+- Raised, the stick hits the puck only for `stick_up_z_min ≤ z ≤ stick_up_z_max` = **0.35 / 1.5 m (placeholder)** instead of
+  stick_z_min / stick_z_max; a puck on the ice passes under it. Appended to params.json and the three pinned params files.
+- Hash: `to_bytes` appends 0x5C + one byte per player ONLY when some player has the stick up, so runs that never raise it
+  keep their encoding.
+- Tests `sim/tests/stick_up.rs`: rolling puck deflected with the stick down / untouched up; a puck at z 0.8 m hit only by
+  the raised stick; encoding + serde default; 100k-step determinism with random raises (hash `99709a2c0e5f2646`, 66,440 of
+  200,000 player-steps raised, native = wasm).
+- Hashes after 100k steps, native = wasm (old → new): free play `ed2b9c3b2c52da91` → **`1c20a120d579b8ae`**, match
+  `ef5c44a7fc4de600` → **`1562dade657130b9`**, s10 shots `b19f6906467b50c1` → **`2ddbc98e6f2e54c3`**. All three changed
+  only because of player_radius: `node scripts/radius_attribution.mjs` runs the new code with the old radius and reproduces
+  all three old hashes.
+- Physics stamp `ad14b1064ab382dc` (main, = the smoke bot's) → **`8e01b0174c545b10`**. The smoke policy was not re-exported:
+  the browser does not check the stamp, ACT/OBS are unchanged, and a 0.3% radius change does not need it.
+- Bots: shotlab unchanged (48/48, median |err| 0.001 rad, 27.6–27.7 m/s), SHOT constants kept. Tournament 100×60 s,
+  before → after: chaser–chaser 0.53–0.35 (27/61/12) → 0.53–0.39 (24/61/15); chaser–defender 0.50–0.02 (42/56/2) →
+  0.54–0.01 (43/56/1); chaser–cautious 17.00 → 16.98, chaser–idle 17.00; all other pairings 0–0. **Scripted bots never raise
+  the stick.**
+
+### Web
+- Left mouse button (bindings.ts `MOUSE_BINDINGS.stickUp`, Controls screen, marked unverified) raises the stick while held,
+  in the game and the lab, both mouse modes (`StickRaise` in stick.ts). In relative mode the click that captures the pointer
+  does not raise. Released on mouseup, window blur, pointer unlock, game over and back to the menu. The lab ignores it
+  during a replay; recordings carry `stick_up` (sameInput compares it).
+- Drawing: a raised stick is lighter, thinner, with a thin offset line; "STICK UP" badge next to LIFT / BRAKE.
+- **Follow camera** (game, default): game orientation, centred on the human player (clamped to the rink), fixed zoom
+  = min(height / attack zone length (rink_length/2 − blue_line_x + 3 m), width / (rink_width + 2 m)), so the whole attack zone
+  fits. Controls → Camera "Whole rink" (or `?camera=fit`) is the old fitted view (localStorage `slapmini.camera.v1`).
+  All screen↔world conversion stays in render.ts (`followView`, View `ox/oy`).
+- `npm run verify-w4` (real mouse buttons): capture click does not raise; held raises (badge, input and sim state true);
+  release lowers; Esc while held lowers; whole-rink camera available; in the lab a puck rolled across the raised stick
+  passes untouched (down: deflected); record → replay with raised sticks byte-identical (end hash equal).
+
+### Verified (w4, Windows)
+- `cargo test --workspace --release` 63 tests pass; measure 31 and train Python tests OK; `npm run build`; verify, verify-match,
+  verify-skate, verify-s10, verify-game, verify-w2, verify-w3, verify-space, verify-stick, verify-w4 all OK. No existing
+  verify script needed changes (none depended on the radius or the camera).
+
+### Open (w4)
+- **The raised stick is not in the bot ACT/OBS yet.** Before the first long training run a follow-up must add an action head
+  and an obs field for it and bump ACT and OBS versions.
+- Raise/lower timing (instant here), the raised height range (0.35–1.5 m placeholder), and whether a raised stick can hit
+  a puck in the air in the real game are unmeasured. Whether the real button is hold or toggle is unverified.
+- The follow camera's zoom and clamping are a reasoned choice, not measured from the real camera.
+

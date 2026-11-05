@@ -7,8 +7,10 @@ export const BINDINGS = {
   right: "KeyD",
   /** UNVERIFIED GUESS: the real game's dash binding has not been checked. */
   dash: "ShiftLeft",
-  /** UNVERIFIED GUESS: the real game's lift binding has not been checked. */
-  lift: "Space",
+  /** UNVERIFIED GUESS: the real game's lift binding has not been checked (was Space before w3). */
+  lift: "KeyE",
+  /** UNVERIFIED GUESS: stop / brake (web-layer brake, see brake.ts; the real game's braking is unmeasured). */
+  brake: "Space",
 
   // Practice tools. APPROXIMATE semantics, written from patch notes, not checked in the real game.
   /** Set puck spawn at cursor; hold to raise spawn height; release drops the puck from the spawn. */
@@ -41,7 +43,8 @@ export const KEY_HELP: [string, string][] = [
   ["WASD", "move"],
   ["Mouse", "stick target angle"],
   ["Shift", "dash (binding unverified guess)"],
-  ["Space", "lift (binding unverified guess)"],
+  ["E", "lift (binding unverified guess)"],
+  ["Space", "brake / stop (binding unverified guess; stopping time is a placeholder)"],
   ["F", "set puck spawn at cursor, hold to raise height (approx.)"],
   ["G", "set puck target at cursor (approx.)"],
   ["R", "reset puck to spawn (approx.)"],

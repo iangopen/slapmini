@@ -6,8 +6,9 @@ import { actionFor, BINDINGS, KEY_HELP } from "./bindings";
 import { Lab, parseCsv, toCsv, type Recording } from "./lab";
 import { FixedStepLoop } from "./loop";
 import { buildParamPanel, download } from "./panel";
-import { draw, drawMatchHud, fitView, formatClock, keysToMove, toScreen, toWorld, TEAM_NAMES, type View } from "./render";
-import { loadSettings, PointerCapture, saveSettings, SENS_MAX, SENS_MIN, SENS_STEP, StickAim } from "./stick";
+import { draw, drawInputBadges, drawMatchHud, fitView, formatClock, keysToMove, toScreen, toWorld, TEAM_NAMES, type View } from "./render";
+import { loadSettings, MAX_LEAD, PointerCapture, saveSettings, SENS_MAX, SENS_MIN, SENS_STEP, StickAim } from "./stick";
+import { brakeMove } from "./brake";
 import type { ParamFile, Sample, Scenario } from "./types";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -123,9 +124,13 @@ window.addEventListener("blur", () => {
 function readHumanInput(): void {
   const pl = lab.state.players[0];
   if (!pl) return;
-  const [mx, my] = keysToMove(view, held.has("up"), held.has("down"), held.has("left"), held.has("right"));
+  // Space = brake: overrides WASD while held (brake.ts); dash and lift pass through unchanged.
+  const [mx, my] = held.has("brake")
+    ? brakeMove(pl.vx, pl.vy, lab.p.player_accel, lab.p.timestep)
+    : keysToMove(view, held.has("up"), held.has("down"), held.has("left"), held.has("right"));
   let stick: number;
-  if (mouseSettings.mode === "relative") stick = aim.worldAngle(view);
+  // Relative aim, held within MAX_LEAD of the stick's actual angle (stick.ts).
+  if (mouseSettings.mode === "relative") stick = aim.worldAngle(view, pl.stick_angle);
   else {
     const [wx, wy] = mouseWorld();
     stick = Math.atan2(wy - pl.y, wx - pl.x);
@@ -155,6 +160,7 @@ readout.innerHTML = `
     <button id="units" title="switch units">mph</button></div>
   <div>height <span id="height">0.00</span> m &nbsp; tick <span id="tick">0</span></div>
   <div>stick <span id="stick">–</span></div>
+  <div>lead <span id="lead">–</span> &nbsp; <span id="sens-readout" class="muted"></span></div>
   <div id="target-info" class="muted"></div>
   <div class="muted">mode <span id="mode">play</span> &nbsp; dropped <span id="dropped">0</span></div>`;
 $("units").addEventListener("click", () => {
@@ -170,7 +176,19 @@ function updateReadout(): void {
   $("height").textContent = pk.z.toFixed(2);
   $("tick").textContent = String(lab.state.tick);
   const pl = lab.state.players[0];
-  if (pl) $("stick").textContent = `angle ${pl.stick_angle.toFixed(2)} → target ${lab.inputs[0].stick_target_angle.toFixed(2)} rad`;
+  if (pl) {
+    $("stick").textContent = `angle ${pl.stick_angle.toFixed(2)} → target ${lab.inputs[0].stick_target_angle.toFixed(2)} rad`;
+    // Lead = target − stick (wrapped), the amount the mouse is ahead of the stick. At the limit you are outrunning it.
+    let d = (lab.inputs[0].stick_target_angle - pl.stick_angle + Math.PI) % (2 * Math.PI);
+    if (d < 0) d += 2 * Math.PI;
+    d -= Math.PI;
+    // AT LIMIT = the aim was pulled back to MAX_LEAD on the last step (the lead shown is after the step,
+    // when the stick has already closed part of it).
+    const atLimit = mouseSettings.mode === "relative" && aim.clamped;
+    $("lead").textContent = `${((d * 180) / Math.PI).toFixed(1)}°${mouseSettings.mode === "relative" ? ` (limit ±${((MAX_LEAD * 180) / Math.PI).toFixed(0)}°${atLimit ? ", AT LIMIT" : ""})` : ""}`;
+    $("lead").style.color = atLimit ? "var(--warn)" : "";
+  }
+  $("sens-readout").textContent = `${mouseSettings.mode} · sensitivity ${mouseSettings.sensitivity.toFixed(4)} rad/unit`;
   $("target-info").textContent = lab.target ? `target: closest approach ${Number.isFinite(lab.targetBest) ? lab.targetBest.toFixed(2) + " m" : "–"}` : "";
   const pr = lab.progress;
   $("mode").textContent = lab.mode + (lab.mode !== "play" ? ` ${pr.steps}${pr.total ? "/" + pr.total : ""}` : "");
@@ -301,6 +319,7 @@ function frame(now: number): void {
     forehand: lab.toolsEnabled ? lab.forehandPoint() : null,
   });
   drawMatchHud(ctx, lab.p, lab.state);
+  drawInputBadges(ctx, canvas.height, held.has("lift"), held.has("brake"));
   updateReadout();
   requestAnimationFrame(frame);
 }

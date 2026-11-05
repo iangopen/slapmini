@@ -48,20 +48,52 @@ export function saveSettings(s: MouseSettings): void {
   }
 }
 
-/** The relative stick aim of one player, in screen radians (counterclockwise from screen-right). */
+/**
+ * Maximum lead of the relative aim over the stick's actual angle (radians). The sim's stick chase turns
+ * the short way (wrap(target − stick)) at ≤ 26.17 rad/s; a target more than π ahead flips the short way,
+ * so the stick reversed and stalled near 180° when the mouse outran it (w3 reproduction: a fast flick
+ * turned the stick 162° of 3438°, reversing for 60 steps). Well under π, the short way can never flip, and
+ * the mouse movement beyond the lead is dropped instead of piling up as a debt the stick works off later.
+ */
+export const MAX_LEAD = 1.2;
+
+const wrapAngle = (a: number): number => {
+  const t = (a + Math.PI) % (2 * Math.PI);
+  return (t < 0 ? t + 2 * Math.PI : t) - Math.PI;
+};
+
+/** The relative stick aim of one player, in screen radians (counterclockwise from screen-right, wrapped to (−π, π]). */
 export class StickAim {
   screenAngle = Math.PI / 2; // up the screen
+  /** Reads (sim steps) since the aim was last pulled back to MAX_LEAD. */
+  private sinceClamp = Infinity;
+  /** The mouse is outrunning the stick: the aim hit MAX_LEAD within the last 8 sim steps (~67 ms). */
+  get clamped(): boolean {
+    return this.sinceClamp < 8;
+  }
   constructor(public settings: MouseSettings) {}
   /** Point forward along the world angle `forward` (e.g. 0 = toward +x, the net BLUE attacks). */
   reset(v: View, forward: number): void {
-    this.screenAngle = worldAngleToScreen(v, forward);
+    this.screenAngle = wrapAngle(worldAngleToScreen(v, forward));
   }
   /** Horizontal mouse movement: right (dx > 0) turns clockwise on screen. Vertical movement is ignored. */
   move(dx: number, _dy = 0): void {
-    if (Number.isFinite(dx)) this.screenAngle -= dx * this.settings.sensitivity;
+    if (Number.isFinite(dx)) this.screenAngle = wrapAngle(this.screenAngle - dx * this.settings.sensitivity);
   }
-  /** The sim's stick_target_angle (world radians). */
-  worldAngle(v: View): number {
+  /**
+   * The sim's stick_target_angle (world radians). With `stickWorld` (the sim's current stick_angle) the aim
+   * is first pulled to within MAX_LEAD of the stick, in screen space, and stored that way: call this once per
+   * sim step with the stick angle. Without it (readouts, tests) the aim is returned unchanged.
+   */
+  worldAngle(v: View, stickWorld?: number): number {
+    if (stickWorld !== undefined && Number.isFinite(stickWorld)) {
+      const stickScreen = worldAngleToScreen(v, stickWorld);
+      const lead = wrapAngle(this.screenAngle - stickScreen);
+      if (Math.abs(lead) > MAX_LEAD) {
+        this.screenAngle = wrapAngle(stickScreen + Math.sign(lead) * MAX_LEAD);
+        this.sinceClamp = 0;
+      } else this.sinceClamp++;
+    }
     return screenAngleToWorld(v, this.screenAngle);
   }
 }

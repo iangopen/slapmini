@@ -715,7 +715,7 @@ unchanged (free play `ed2b9c3b2c52da91`, match `ef5c44a7fc4de600`, s10 `b19f6906
 - The game resets the aim to forward at every match start (not at goal resets: unknown what the real game does).
 - Recording/replay log `stick_target_angle`, not mouse events: a relative-mouse recording replays byte-identically.
 
-### Space (lift): root cause
+### Space (lift): root cause (w2; since w3 lift is on E and Space is the brake, see "Stick lead and brake (w3)")
 - Diagnosis (`web/scripts/diag_space.mjs`, real UI, prints the PlayerInput the sim receives each step):
   - GAME: Space always reached the sim (`lift: true` every step while held), whether the match was started with the mouse
     or with Enter; it did not restart the match, scroll, or press a button. Lift is the sim's placeholder that only acts AT
@@ -748,3 +748,56 @@ unchanged (free play `ed2b9c3b2c52da91`, match `ef5c44a7fc4de600`, s10 `b19f6906
 - Whether the real game turns the stick relative to the screen (as here) or relative to the player's facing; and whether it
   re-centres the aim at faceoffs.
 - Lift and dash bindings are still unverified guesses; lift is still the sim's contact-only placeholder.
+
+## Stick lead and brake (session w3, 2026-11-05, branch w3)
+Web only (web/src, web/index.html, web/scripts). sim/, params and bots untouched: crosscheck hashes unchanged (free play
+`ed2b9c3b2c52da91`, match `ef5c44a7fc4de600`, s10 `b19f6906467b50c1`, native = wasm). The sim's stick chase is unchanged.
+
+### "The stick throttles and doesn't move": cause as found
+- `npm run verify-stick` (`web/scripts/repro_stick.mjs`): REAL pointer lock, bursts of movementX (20 / 60 / 150 / 400 units per
+  frame for 30 frames, both directions, then 1 s still), per sim step the stick angle, ω and target. Before the fix, at 400
+  units per frame (2 rad per frame, far above the 26.17 rad/s stick cap) the stick turned only **164° of 3438°**, its mean ω was
+  −3 rad/s (against the mouse), with **28 reversal steps while the target was more than 90° away** (up to 177° wrapped), 8–9
+  stall steps, and the unbounded target 3600° (10 turns) ahead when the mouse stopped. Cause confirmed: StickAim kept an
+  unbounded target; the sim turns the stick the short way (wrap(target − stick)); once the target ran more than half a turn
+  ahead, the short way flipped and the stick turned back and stalled. (The leftover whole-turn "debt" is invisible to the
+  wrapped chase, so after the mouse stopped the stick simply stopped on a wrapped point, not where the mouse aimed.)
+  At 20–150 units per frame the stick kept up (lead ≤ 56°) and nothing went wrong.
+- Fix (`web/src/stick.ts`): **`MAX_LEAD = 1.2` rad (69°)**, one constant. Every sim step `StickAim.worldAngle(view,
+  stickWorld)` converts the sim's current stick_angle into screen space through the view transform, pulls the aim back to
+  within MAX_LEAD of it (mouse movement beyond that is dropped, not owed) and stores the aim wrapped into one turn. Callers:
+  `humanInput` (game) and `readHumanInput` (lab) pass `players[0].stick_angle`; cursor-aim mode is unchanged.
+- After (same script): **0 flip-reversals and 0 stalls at every speed**; at 400 units per frame the stick turns at the cap
+  (mean ω 25.7–26.2 rad/s, 1484–1536° in the burst); max lead 66.7° (< 69°); after the mouse stops it settles in 0.025 s
+  (residual lead 18.8°). Occasional 1–2 reverse steps 0.3–0.6° from the target are the sim's hard-stop overshoot when mouse
+  events pause briefly (also seen before the fix at 150 units); the script counts them separately.
+- Slow movement (100 units over ~1 s, 2 units per frame): target = integrated mouse angle exactly (max |target − mouse|
+  0.000°), the stick on it, no lag or deadzone.
+- Lab readout: "lead" = target − stick (wrapped, after the step) with "AT LIMIT" in amber when the aim hit MAX_LEAD within the
+  last 8 sim steps (`StickAim.clamped`), plus the mouse mode and sensitivity.
+
+### Brake (Space) and lift (E)
+- Bindings (`web/src/bindings.ts`, all UNVERIFIED guesses): **lift moved from Space to E**, **Space = brake**. The Controls
+  screen and the lab's key list show both, marked unverified.
+- `web/src/brake.ts` builds the brake from the sim's own controls (the sim has no brake input; adding one would change the
+  physics before the first training run): while Space is held the move input points opposite to the velocity with length
+  m = min(1, speed / (player_accel · timestep)), so the player decelerates at the skating acceleration and stops on the step it
+  would overshoot, never reversing; below 0.05 m/s no move is sent. Space overrides WASD; dash and lift pass through.
+  **The stopping time is a PLACEHOLDER** (the sim's acceleration run backwards; the real game's braking is unmeasured: the
+  "W then S at top speed" recording is still missing). **Bots do not brake.** LIFT and BRAKE badges show while held (game and lab).
+- Measured (`npm run verify-w3`, lab, real keys): from top speed 11.6935 m/s with W held, Space stops the player in **0.667 s
+  over 3.794 m** (max/accel predicts 0.674 s), speed falling linearly, min along-velocity 0, sideways 0; at rest it sends no
+  move; Space released mid-stop with W held → speed back up to 11.69 (move (1, 0)); Space 0.06 s into a dash: the dash still
+  fires (peak 15.48 m/s), then the brake stops the player 0.858 s after the dash; E → lift true, Space → lift false.
+  `node scripts/lift_demo.mjs`: lift at contact still raises the puck to 1.822 m (0 without).
+- Record → replay with the relative mouse (clamped aim) and the brake: byte-identical CSVs (sha256 fc3a94d7…, recordings log
+  the inputs, including the brake's move and the clamped stick_target_angle).
+- Verify-script changes: `verify_w2.mjs` holds E instead of Space for the lift in its recording; `diag_space.mjs`
+  (`npm run verify-space`) holds E for the lift checks and now also checks that Space with a focused checkbox neither lifts
+  nor toggles it. New: `verify-w3`, `verify-stick`.
+
+### Open (w3, for Ian)
+- Whether the real game limits the stick's lead (or lets the aim run ahead), and the right MAX_LEAD if it does.
+- The true sensitivity (0.005 rad per mouse unit is a guess).
+- The real brake: whether there is one, its key and its stopping time (record W then S at top speed).
+- The real lift and dash keys (E and Shift are guesses).

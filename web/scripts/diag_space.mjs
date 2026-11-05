@@ -1,5 +1,7 @@
-// Space (lift) diagnosis: press Space in the game and in the lab through the real UI and print what
-// the sim receives each step. Run: node scripts/diag_space.mjs (starts its own Vite dev server).
+// Lift-key and Space check (w2 diagnosis, updated in w3 when lift moved to E and Space became the brake):
+// hold the LIFT key in the game and in the lab through the real UI and print what the sim receives each
+// step; then press Space with a panel checkbox focused (the w2 bug: it toggled the checkbox). Run:
+// npm run verify-space (starts its own Vite dev server).
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -15,7 +17,9 @@ await new Promise((res, rej) => {
 });
 const launch = async () => { try { return await chromium.launch(); } catch (e) { const a = process.env.PW_CHROMIUM || "/opt/pw-browsers/chromium"; if (!existsSync(a)) throw e; return chromium.launch({ executablePath: a }); } };
 const browser = await launch();
+const LIFT_KEY = "KeyE"; // web/src/bindings.ts lift (was Space before w3)
 let liftSeen = { game: false, lab: false };
+let spaceOk = false;
 const labCases = [];
 try {
   // ---- game ----
@@ -29,16 +33,16 @@ try {
   const g = () => page.evaluate(() => ({ active: window.game.activeElement, started: window.game.matchesStarted, phase: window.game.summary.phase, tick: window.game.summary.tick,
     human: window.game.lastInputs[0], scrollY: window.scrollY }));
   console.log("[game] after clicking Play:", JSON.stringify(await g()));
-  await page.keyboard.down("Space");
+  await page.keyboard.down(LIFT_KEY);
   for (let k = 0; k < 6; k++) {
     await page.waitForTimeout(50);
     const s = await g();
     liftSeen.game ||= !!s.human?.lift;
-    console.log(`[game] Space held, sample ${k}: tick ${s.tick} lift ${s.human?.lift} phase ${s.phase} matchesStarted ${s.started} active ${s.active}`);
+    console.log(`[game] E held, sample ${k}: tick ${s.tick} lift ${s.human?.lift} phase ${s.phase} matchesStarted ${s.started} active ${s.active}`);
   }
-  await page.keyboard.up("Space");
+  await page.keyboard.up(LIFT_KEY);
   await page.waitForTimeout(300);
-  console.log("[game] after Space released:", JSON.stringify(await g()));
+  console.log("[game] after E released:", JSON.stringify(await g()));
 
   // ---- game, match started from the keyboard (Enter on the focused Play button) ----
   await page.keyboard.press("Escape");
@@ -48,13 +52,13 @@ try {
   await page.waitForFunction(() => window.game.screen === "match" && window.game.summary.phase === "playing", null, { timeout: 15000 });
   const before2 = await g();
   console.log("[game/keyboard start] after Enter on Play:", JSON.stringify(before2));
-  await page.keyboard.down("Space");
+  await page.keyboard.down(LIFT_KEY);
   await page.waitForTimeout(150);
   const held2 = await g();
-  await page.keyboard.up("Space");
+  await page.keyboard.up(LIFT_KEY);
   await page.waitForTimeout(600);
   const after2 = await g();
-  console.log(`[game/keyboard start] Space held: lift ${held2.human?.lift}, active ${held2.active}; after release: matchesStarted ${before2.started} -> ${after2.started}, phase ${after2.phase}, tick ${after2.tick}`);
+  console.log(`[game/keyboard start] E held: lift ${held2.human?.lift}, active ${held2.active}; after release: matchesStarted ${before2.started} -> ${after2.started}, phase ${after2.phase}, tick ${after2.tick}`);
 
   // ---- lab ----
   const lab = await browser.newPage({ viewport: { width: 1280, height: 760 } });
@@ -69,22 +73,33 @@ try {
   ]) {
     await prep();
     const before = await lab.evaluate(() => ({ active: document.activeElement?.tagName + "#" + document.activeElement?.id, match: document.getElementById("match-mode").checked, mode: window.lab.lab.mode }));
-    await lab.keyboard.down("Space");
+    await lab.keyboard.down(LIFT_KEY);
     await lab.waitForTimeout(150);
     const held = await lab.evaluate(() => ({ lift: window.lab.lab.inputs[0].lift, tick: window.lab.lab.state.tick }));
-    await lab.keyboard.up("Space");
+    await lab.keyboard.up(LIFT_KEY);
     await lab.waitForTimeout(100);
     const after = await lab.evaluate(() => ({ match: document.getElementById("match-mode").checked, mode: window.lab.lab.mode, scrollY: window.scrollY }));
     liftSeen.lab ||= held.lift;
     labCases.push(held.lift && before.match === after.match && before.mode === after.mode);
-    console.log(`[lab] ${what}: focus ${before.active}; while Space held lift=${held.lift} (tick ${held.tick}); match checkbox ${before.match} -> ${after.match}; mode ${before.mode} -> ${after.mode}`);
+    console.log(`[lab] ${what}: focus ${before.active}; while E held lift=${held.lift} (tick ${held.tick}); match checkbox ${before.match} -> ${after.match}; mode ${before.mode} -> ${after.mode}`);
   }
+  // Space (now the brake) with the Match mode checkbox focused: no lift, and the checkbox must not toggle.
+  await lab.click("#match-mode");
+  const b0 = await lab.evaluate(() => ({ active: document.activeElement?.id, match: document.getElementById("match-mode").checked }));
+  await lab.keyboard.down("Space");
+  await lab.waitForTimeout(150);
+  const sHeld = await lab.evaluate(() => ({ lift: window.lab.lab.inputs[0].lift }));
+  await lab.keyboard.up("Space");
+  await lab.waitForTimeout(100);
+  const b1 = await lab.evaluate(() => document.getElementById("match-mode").checked);
+  spaceOk = !sHeld.lift && b0.match === b1;
+  console.log(`[lab] Space with #${b0.active} focused: lift=${sHeld.lift}; match checkbox ${b0.match} -> ${b1}`);
 } finally {
   await browser.close();
   if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { stdio: "ignore" });
   else { try { process.kill(-server.pid, "SIGTERM"); } catch { server.kill(); } }
 }
 console.log(`\nlift reached the sim: game ${liftSeen.game}, lab ${liftSeen.lab}`);
-const ok = liftSeen.game && labCases.length === 3 && labCases.every(Boolean);
-console.log(ok ? "SPACE OK: lift reaches the sim in every case and no focused control reacts to Space" : `SPACE NOT OK (lab cases ${JSON.stringify(labCases)})`);
+const ok = liftSeen.game && labCases.length === 3 && labCases.every(Boolean) && spaceOk;
+console.log(ok ? "SPACE OK: the lift key (E) reaches the sim in every case; Space does not lift and no focused control reacts to it" : `SPACE NOT OK (lab cases ${JSON.stringify(labCases)}, space ${spaceOk})`);
 process.exit(ok ? 0 : 1);

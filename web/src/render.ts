@@ -270,6 +270,21 @@ export function draw(ctx: CanvasRenderingContext2D, v: View, p: P, st: State, o:
 
 // ---------- match HUD (screen space; drawn after the rink, independent of the view rotation) ----------
 
+/** Bottom-left LIFT / BRAKE badges while those keys are held (lift only acts at stick contact; the brake is web-side). */
+export function drawInputBadges(ctx: CanvasRenderingContext2D, canvasH: number, lift: boolean, brake: boolean): void {
+  if (!lift && !brake) return;
+  ctx.save();
+  ctx.font = "bold 14px system-ui, sans-serif";
+  let x = 16;
+  for (const [on, text, color] of [[lift, "LIFT", "rgba(255, 200, 80, 0.95)"], [brake, "BRAKE", "rgba(255, 110, 110, 0.95)"]] as const) {
+    if (!on) continue;
+    ctx.fillStyle = color;
+    ctx.fillText(text, x, canvasH - 64);
+    x += ctx.measureText(text).width + 14;
+  }
+  ctx.restore();
+}
+
 export const TEAM_NAMES = ["BLUE", "ORANGE"];
 
 /** Regulation clock as mm:ss, counting down; rounded up like a game clock (4:59.2 shows 05:00). */

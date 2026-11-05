@@ -5,8 +5,9 @@ import init, { Sim } from "../../wasm-pkg/sim_wasm.js";
 import paramsFile from "../../../params.json";
 import { actionFor, BINDINGS } from "../bindings";
 import { FixedStepLoop } from "../loop";
-import { draw, drawMatchHud, fitView, formatClock, keysToMove, toScreen, toWorld, TEAM_NAMES, type View } from "../render";
+import { draw, drawInputBadges, drawMatchHud, fitView, formatClock, keysToMove, toScreen, toWorld, TEAM_NAMES, type View } from "../render";
 import { DEFAULT_SETTINGS, loadSettings, PointerCapture, saveSettings, SENS_MAX, SENS_MIN, SENS_STEP, StickAim } from "../stick";
+import { brakeMove } from "../brake";
 import { flatParams, type ParamFile, type PlayerInput, type State } from "../types";
 import { BotDriver, loadPolicy, PolicyDriver, ScriptedDriver } from "./botRuntime";
 import { BOTS_DIR, loadProfiles, type Profile } from "./profiles";
@@ -62,7 +63,8 @@ $("controls-list").innerHTML = [
   ["W A S D", "skate (8 directions, screen-relative: W = up the screen)"],
   ["Mouse", "relative (default): click the rink to capture the mouse; moving it right swings the stick right, left swings it left (up/down does nothing). Cursor aim: the stick points at the cursor"],
   ["Shift", "dash (needs a move key) — UNVERIFIED binding"],
-  ["Space", "lift: hold it while the stick hits the puck — UNVERIFIED binding"],
+  ["E", "lift: hold it while the stick hits the puck — UNVERIFIED binding (was Space)"],
+  ["Space", "brake / stop: overrides WASD while held — UNVERIFIED binding; stopping time is a placeholder"],
   ["Enter", "rematch after game over"],
   ["Esc", "release the mouse; Esc again leaves the match"],
 ].map(([k, d]) => `<li><b>${k}</b> — ${d}</li>`).join("");
@@ -174,9 +176,13 @@ let matchesStarted = 0;
 
 function humanInput(): PlayerInput {
   const pl = state.players[0];
-  const [mx, my] = keysToMove(view, held.has("up"), held.has("down"), held.has("left"), held.has("right"));
+  // Space = brake: overrides WASD while held (brake.ts); dash and lift pass through unchanged.
+  const [mx, my] = held.has("brake")
+    ? brakeMove(pl.vx, pl.vy, P.player_accel, P.timestep)
+    : keysToMove(view, held.has("up"), held.has("down"), held.has("left"), held.has("right"));
   let stick: number;
-  if (mouseSettings.mode === "relative") stick = aim.worldAngle(view);
+  // Relative aim, held within MAX_LEAD of the stick's actual angle (stick.ts).
+  if (mouseSettings.mode === "relative") stick = aim.worldAngle(view, pl.stick_angle);
   else {
     const [wx, wy] = toWorld(view, mouse.x, mouse.y);
     stick = Math.atan2(wy - pl.y, wx - pl.x);
@@ -267,14 +273,9 @@ function showGameOver(): void {
   $("rematch").focus();
 }
 
-/** Small "LIFT" badge while Space is held (lift only acts at stick contact, so show that it registered). */
+/** LIFT / BRAKE badges while their keys are held (render.ts). */
 function drawLiftBadge(): void {
-  if (!held.has("lift")) return;
-  ctx.save();
-  ctx.font = "bold 14px system-ui, sans-serif";
-  ctx.fillStyle = "rgba(255, 200, 80, 0.95)";
-  ctx.fillText("LIFT", 16, canvas.height - 18);
-  ctx.restore();
+  drawInputBadges(ctx, canvas.height, held.has("lift"), held.has("brake"));
 }
 
 // ---------- verification stats ----------

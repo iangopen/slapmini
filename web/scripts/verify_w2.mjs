@@ -169,9 +169,9 @@ try {
     await lev((d) => window.lab.mouseDelta(d, 0), i % 2 ? -60 : 90);
     await lab.waitForTimeout(120);
   }
-  await lab.keyboard.down("Space");
+  await lab.keyboard.down("KeyE"); // lift (was Space before w3)
   await lab.waitForTimeout(200);
-  await lab.keyboard.up("Space");
+  await lab.keyboard.up("KeyE");
   await lab.keyboard.up("KeyW");
   await lab.waitForTimeout(200);
   await lab.keyboard.press("Escape"); // release the mouse, then the panel is clickable again

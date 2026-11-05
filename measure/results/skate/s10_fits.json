@@ -1,0 +1,502 @@
+{
+ "note": "s10 player fits: proportional coast + set-speed dash vs the old constant-drag + additive-impulse models.",
+ "new": {
+  "A": {
+   "wkeymovement": {
+    "fitted_on_others": {
+     "player_accel": 17.614867336410313,
+     "player_coast_rate": 1.0859089488567377,
+     "player_ice_drag": 0.0
+    },
+    "test": {
+     "pos_rmse_median_m": 0.1793,
+     "speed_rmse_median_m_s": 1.874,
+     "n": 4,
+     "per_run": {
+      "wkeymovement_00": [
+       0.188,
+       1.7
+      ],
+      "wkeymovement_01": [
+       0.229,
+       1.746
+      ],
+      "wkeymovement_02": [
+       0.106,
+       2.382
+      ],
+      "wkeymovement_03": [
+       0.171,
+       2.002
+      ]
+     }
+    }
+   },
+   "diagonalkeypresses": {
+    "fitted_on_others": {
+     "player_accel": 18.016664741371077,
+     "player_coast_rate": 1.1041776248398452,
+     "player_ice_drag": 0.0
+    },
+    "test": {
+     "pos_rmse_median_m": 0.2757,
+     "speed_rmse_median_m_s": 2.2446,
+     "n": 6,
+     "per_run": {
+      "diagonalkeypresses_00": [
+       2.047,
+       2.155
+      ],
+      "diagonalkeypresses_01": [
+       0.73,
+       2.07
+      ],
+      "diagonalkeypresses_02": [
+       0.261,
+       2.112
+      ],
+      "diagonalkeypresses_03": [
+       0.29,
+       2.611
+      ],
+      "diagonalkeypresses_04": [
+       0.242,
+       2.334
+      ],
+      "diagonalkeypresses_05": [
+       0.238,
+       2.39
+      ]
+     }
+    }
+   },
+   "whilemovingturning": {
+    "fitted_on_others": {
+     "player_accel": 16.4560254654442,
+     "player_coast_rate": 1.0546696882936006,
+     "player_ice_drag": 0.0
+    },
+    "test": {
+     "pos_rmse_median_m": 0.7455,
+     "speed_rmse_median_m_s": 2.1115,
+     "n": 5,
+     "per_run": {
+      "whilemovingturning_00": [
+       0.985,
+       2.111
+      ],
+      "whilemovingturning_01": [
+       0.9,
+       3.036
+      ],
+      "whilemovingturning_02": [
+       0.632,
+       2.135
+      ],
+      "whilemovingturning_03": [
+       0.483,
+       1.866
+      ],
+      "whilemovingturning_04": [
+       0.745,
+       1.95
+      ]
+     }
+    }
+   },
+   "final": {
+    "player_accel": 17.359403601025946,
+    "player_coast_rate": 1.0814621898974517,
+    "player_ice_drag": 0.0
+   }
+  },
+  "B": {
+   "dashatrest": {
+    "fitted_on_other": {
+     "dash_speed": 15.473236523104031,
+     "dash_ramp_time": 0.10833333333433491
+    },
+    "test": {
+     "pos_rmse_median_m": 0.1429,
+     "speed_rmse_median_m_s": 1.5503,
+     "n": 6,
+     "per_run": {
+      "dashatrest_00": [
+       0.179,
+       1.175
+      ],
+      "dashatrest_01": [
+       0.164,
+       1.741
+      ],
+      "dashatrest_02": [
+       0.119,
+       1.29
+      ],
+      "dashatrest_03": [
+       0.127,
+       1.359
+      ],
+      "dashatrest_04": [
+       0.151,
+       2.029
+      ],
+      "dashatrest_05": [
+       0.135,
+       1.854
+      ]
+     }
+    }
+   },
+   "dashwhilerunning": {
+    "fitted_on_other": {
+     "dash_speed": 14.717478494879222,
+     "dash_ramp_time": 0.13333333333433695
+    },
+    "test": {
+     "pos_rmse_median_m": 0.3413,
+     "speed_rmse_median_m_s": 2.1902,
+     "n": 4,
+     "per_run": {
+      "dashwhilerunning_00": [
+       0.333,
+       1.655
+      ],
+      "dashwhilerunning_01": [
+       0.349,
+       2.606
+      ],
+      "dashwhilerunning_02": [
+       0.237,
+       1.839
+      ],
+      "dashwhilerunning_03": [
+       0.48,
+       2.542
+      ]
+     }
+    }
+   },
+   "final": {
+    "dash_speed": 15.480282305132123,
+    "dash_ramp_time": 0.11631153959362002
+   }
+  }
+ },
+ "old": {
+  "A": {
+   "wkeymovement": {
+    "fitted_on_others": {
+     "player_accel": 17.17175442455122,
+     "player_ice_drag": 6.792310245843832
+    },
+    "test": {
+     "pos_rmse_median_m": 0.5766,
+     "speed_rmse_median_m_s": 2.0787,
+     "n": 4,
+     "per_run": {
+      "wkeymovement_00": [
+       0.587,
+       1.9
+      ],
+      "wkeymovement_01": [
+       0.583,
+       1.937
+      ],
+      "wkeymovement_02": [
+       0.523,
+       2.634
+      ],
+      "wkeymovement_03": [
+       0.57,
+       2.22
+      ]
+     }
+    }
+   },
+   "diagonalkeypresses": {
+    "fitted_on_others": {
+     "player_accel": 17.80193274319513,
+     "player_ice_drag": 7.007746053161696
+    },
+    "test": {
+     "pos_rmse_median_m": 0.6501,
+     "speed_rmse_median_m_s": 2.4541,
+     "n": 6,
+     "per_run": {
+      "diagonalkeypresses_00": [
+       2.11,
+       2.348
+      ],
+      "diagonalkeypresses_01": [
+       0.917,
+       2.323
+      ],
+      "diagonalkeypresses_02": [
+       0.627,
+       2.311
+      ],
+      "diagonalkeypresses_03": [
+       0.638,
+       2.807
+      ],
+      "diagonalkeypresses_04": [
+       0.647,
+       2.561
+      ],
+      "diagonalkeypresses_05": [
+       0.653,
+       2.581
+      ]
+     }
+    }
+   },
+   "whilemovingturning": {
+    "fitted_on_others": {
+     "player_accel": 15.772029944946123,
+     "player_ice_drag": 6.586253691371918
+    },
+    "test": {
+     "pos_rmse_median_m": 0.8272,
+     "speed_rmse_median_m_s": 2.1396,
+     "n": 5,
+     "per_run": {
+      "whilemovingturning_00": [
+       1.093,
+       2.267
+      ],
+      "whilemovingturning_01": [
+       1.023,
+       3.067
+      ],
+      "whilemovingturning_02": [
+       0.712,
+       2.14
+      ],
+      "whilemovingturning_03": [
+       0.566,
+       1.884
+      ],
+      "whilemovingturning_04": [
+       0.827,
+       1.979
+      ]
+     }
+    }
+   },
+   "final": {
+    "player_accel": 16.933427026635805,
+    "player_ice_drag": 6.796365915205998
+   }
+  },
+  "B": {
+   "dashatrest": {
+    "fitted_on_other": {
+     "dash_speed": 7.340692766277799,
+     "dash_duration": 0.0
+    },
+    "test": {
+     "pos_rmse_median_m": 4.9865,
+     "speed_rmse_median_m_s": 2.6981,
+     "n": 6,
+     "per_run": {
+      "dashatrest_00": [
+       3.403,
+       2.179
+      ],
+      "dashatrest_01": [
+       4.196,
+       2.751
+      ],
+      "dashatrest_02": [
+       5.105,
+       2.645
+      ],
+      "dashatrest_03": [
+       5.024,
+       2.511
+      ],
+      "dashatrest_04": [
+       4.949,
+       2.98
+      ],
+      "dashatrest_05": [
+       5.025,
+       2.834
+      ]
+     }
+    }
+   },
+   "dashwhilerunning": {
+    "fitted_on_other": {
+     "dash_speed": 11.0176959258962,
+     "dash_duration": 0.1387837808408781
+    },
+    "test": {
+     "pos_rmse_median_m": 4.0311,
+     "speed_rmse_median_m_s": 3.1529,
+     "n": 4,
+     "per_run": {
+      "dashwhilerunning_00": [
+       3.988,
+       2.914
+      ],
+      "dashwhilerunning_01": [
+       3.663,
+       3.483
+      ],
+      "dashwhilerunning_02": [
+       4.074,
+       2.894
+      ],
+      "dashwhilerunning_03": [
+       4.688,
+       3.392
+      ]
+     }
+    }
+   },
+   "final": {
+    "dash_speed": 10.28238108111369,
+    "dash_duration": 0.0
+   }
+  }
+ },
+ "placeholder": {
+  "wkeymovement": {
+   "pos_rmse_median_m": 6.1986,
+   "speed_rmse_median_m_s": 6.3291,
+   "n": 4,
+   "per_run": {
+    "wkeymovement_00": [
+     4.845,
+     7.884
+    ],
+    "wkeymovement_01": [
+     7.161,
+     7.723
+    ],
+    "wkeymovement_02": [
+     6.971,
+     4.935
+    ],
+    "wkeymovement_03": [
+     5.426,
+     3.262
+    ]
+   }
+  },
+  "diagonalkeypresses": {
+   "pos_rmse_median_m": 7.5018,
+   "speed_rmse_median_m_s": 3.3896,
+   "n": 6,
+   "per_run": {
+    "diagonalkeypresses_00": [
+     8.414,
+     3.784
+    ],
+    "diagonalkeypresses_01": [
+     7.569,
+     3.308
+    ],
+    "diagonalkeypresses_02": [
+     7.435,
+     3.767
+    ],
+    "diagonalkeypresses_03": [
+     7.829,
+     3.472
+    ],
+    "diagonalkeypresses_04": [
+     6.993,
+     3.223
+    ],
+    "diagonalkeypresses_05": [
+     4.75,
+     3.125
+    ]
+   }
+  },
+  "whilemovingturning": {
+   "pos_rmse_median_m": 10.067,
+   "speed_rmse_median_m_s": 4.1786,
+   "n": 5,
+   "per_run": {
+    "whilemovingturning_00": [
+     10.479,
+     3.921
+    ],
+    "whilemovingturning_01": [
+     10.364,
+     4.578
+    ],
+    "whilemovingturning_02": [
+     7.261,
+     4.179
+    ],
+    "whilemovingturning_03": [
+     7.564,
+     4.105
+    ],
+    "whilemovingturning_04": [
+     10.067,
+     4.912
+    ]
+   }
+  },
+  "dashatrest": {
+   "pos_rmse_median_m": 1.0668,
+   "speed_rmse_median_m_s": 2.1133,
+   "n": 6,
+   "per_run": {
+    "dashatrest_00": [
+     1.13,
+     2.068
+    ],
+    "dashatrest_01": [
+     0.989,
+     2.159
+    ],
+    "dashatrest_02": [
+     1.37,
+     1.972
+    ],
+    "dashatrest_03": [
+     1.07,
+     1.942
+    ],
+    "dashatrest_04": [
+     1.019,
+     2.409
+    ],
+    "dashatrest_05": [
+     1.064,
+     2.28
+    ]
+   }
+  },
+  "dashwhilerunning": {
+   "pos_rmse_median_m": 3.071,
+   "speed_rmse_median_m_s": 2.9833,
+   "n": 4,
+   "per_run": {
+    "dashwhilerunning_00": [
+     3.036,
+     2.71
+    ],
+    "dashwhilerunning_01": [
+     3.106,
+     3.173
+    ],
+    "dashwhilerunning_02": [
+     2.98,
+     2.793
+    ],
+    "dashwhilerunning_03": [
+     3.177,
+     3.19
+    ]
+   }
+  }
+ }
+}

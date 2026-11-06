@@ -21,6 +21,6 @@
   "opset": 17,
   "frame": "canonical: the acting player attacks +x; for team 1 rotate move index k>0 to ((k-1+4)%8)+1 and negate stick_dir",
   "physics_stamp": "8e01b0174c545b10",
-  "update": 982,
+  "update": 1351,
   "source": "runs\\t2_smoke\\latest.pt"
 }

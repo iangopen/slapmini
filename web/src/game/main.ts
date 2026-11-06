@@ -424,7 +424,7 @@ window.game = {
     if (!bot) return null;
     const ms = bot.stats.inferenceMs;
     return { label: bot.label, message: botMessage, travel: botTrack.travel, shots: botTrack.shots, decisions: bot.stats.decisions, skipped: bot.stats.skipped, mistakes: bot.stats.mistakes,
-      stickUp: !!state.players[bot.player]?.stick_up, upProbMean: bot instanceof PolicyDriver ? bot.upProbSum / Math.max(1, bot.stats.decisions) : null,
+      stickUp: !!state.players[bot.player]?.stick_up, upProbMean: bot instanceof PolicyDriver ? bot.upProbSum / Math.max(1, bot.stats.decisions) : null, brakeProbMean: bot instanceof PolicyDriver ? bot.brakeProbSum / Math.max(1, bot.stats.decisions) : null,
       upDecisions: bot instanceof PolicyDriver ? bot.upDecisions : null,
       inferenceMs: { n: ms.length, mean: ms.reduce((a, b) => a + b, 0) / Math.max(1, ms.length), p50: pct(ms, 0.5), p95: pct(ms, 0.95), max: Math.max(0, ...ms) } };
   },

@@ -2,7 +2,7 @@
 //! WASD (a 9-way digital move: stop or one of 8 directions), the mouse angle (stick target), and the
 //! dash and lift keys, and the left mouse button (raised stick).
 //!
-//! Flat layout (ACT_DIM = 5 floats, ACT_VERSION 3), the same in the C ABI and in Python:
+//! Flat layout (ACT_DIM = 6 floats, ACT_VERSION 4), the same in the C ABI and in Python:
 //!
 //! | idx | field | range |
 //! |---|---|---|
@@ -11,6 +11,7 @@
 //! | 2 | dash (pressed if > 0.5) | 0/1 |
 //! | 3 | lift (held if > 0.5) | 0/1 |
 //! | 4 | stick_up (raised if > 0.5; ACT v3) | 0/1 |
+//! | 5 | brake (slow walk if > 0.5; ACT v4) | 0/1 |
 //!
 //! Move indices (canonical frame, +x = toward the opponent net, +y = left of that):
 //! 0 stop, 1 +x, 2 +x+y, 3 +y, 4 −x+y, 5 −x, 6 −x−y, 7 −y, 8 +x−y (counterclockwise from +x).
@@ -18,15 +19,15 @@
 //! diagonal accelerates and tops out exactly like a straight key (tested in bots_tests).
 //!
 //! `to_input` applies the inverse rotation for team 1, so a policy trained as team 0 plays both sides.
-//! stick_up is not rotated (a flag). History: ACT v1 = 5 floats with a continuous move (dropped in ABI v2);
-//! ACT v2 = 4 floats (no stick_up); ACT v3 = 5 floats (t2).
+//! stick_up and brake are not rotated (flags). History: ACT v1 = 5 floats with a continuous move (dropped in ABI v2);
+//! ACT v2 = 4 floats (no stick_up); ACT v3 = 5 floats (t2); ACT v4 = 6 floats (m4).
 
 use crate::frame::{wrap_angle, Frame};
 use sim::PlayerInput;
 
-pub const ACT_DIM: usize = 5;
+pub const ACT_DIM: usize = 6;
 /// Action layout version (checkpoints and ONNX sidecars carry it).
-pub const ACT_VERSION: u32 = 3;
+pub const ACT_VERSION: u32 = 4;
 pub const N_MOVES: usize = 9;
 
 /// Key combination per move index (canonical frame).
@@ -53,12 +54,14 @@ pub struct Action {
     pub lift: bool,
     /// Raised stick (left mouse button), ACT v3.
     pub stick_up: bool,
+    /// Slow walk (Space), ACT v4. Scripted bots do not brake.
+    pub brake: bool,
 }
 
 impl Action {
     /// An action whose move is the digital snap of an analog wish (see `quantize_move`).
     pub fn digital(mx: f64, my: f64, stick_angle: f64, dash: bool, lift: bool) -> Self {
-        Action { move_dir: quantize_move(mx, my), stick_angle, dash, lift, stick_up: false }
+        Action { move_dir: quantize_move(mx, my), stick_angle, dash, lift, stick_up: false, brake: false }
     }
 
     pub fn from_slice(a: &[f32]) -> Self {
@@ -70,6 +73,7 @@ impl Action {
             dash: g(2) > 0.5,
             lift: g(3) > 0.5,
             stick_up: g(4) > 0.5,
+            brake: g(5) > 0.5,
         }
     }
 
@@ -79,6 +83,7 @@ impl Action {
         out[2] = if self.dash { 1.0 } else { 0.0 };
         out[3] = if self.lift { 1.0 } else { 0.0 };
         out[4] = if self.stick_up { 1.0 } else { 0.0 };
+        out[5] = if self.brake { 1.0 } else { 0.0 };
     }
 
     /// Canonical move vector (key combination).
@@ -91,7 +96,7 @@ impl Action {
         let f = Frame::for_team(team);
         let (cx, cy) = self.move_vec();
         let (mx, my) = f.vec(cx, cy);
-        PlayerInput { move_x: mx, move_y: my, stick_target_angle: f.angle(self.stick_angle), dash: self.dash, lift: self.lift, stick_up: self.stick_up, brake: false }
+        PlayerInput { move_x: mx, move_y: my, stick_target_angle: f.angle(self.stick_angle), dash: self.dash, lift: self.lift, stick_up: self.stick_up, brake: self.brake }
     }
 }
 
@@ -115,15 +120,16 @@ mod tests {
 
     #[test]
     fn flat_round_trip() {
-        let a = Action { move_dir: 6, stick_angle: 1.25, dash: true, lift: false, stick_up: true };
+        let a = Action { move_dir: 6, stick_angle: 1.25, dash: true, lift: false, stick_up: true, brake: true };
         let mut buf = [0f32; ACT_DIM];
         a.write(&mut buf);
         let b = Action::from_slice(&buf);
         assert_eq!(b.move_dir, 6);
         assert!((b.stick_angle - 1.25).abs() < 1e-6 && b.dash && !b.lift && b.stick_up);
         assert!(!Action::from_slice(&[0.0, 0.0, 0.0, 0.0]).stick_up, "a short (old) slice reads stick_up as false");
-        for team in 0..2 { assert!(b.to_input(team).stick_up); }
-        assert_eq!(Action::from_slice(&[12.7, 0.0, 0.0, 0.0, 0.0]).move_dir, 8);
-        assert_eq!(Action::from_slice(&[-3.0, f32::NAN, 0.0, 0.0, 0.0]).move_dir, 0);
+        assert!(!Action::from_slice(&[0.0; 5]).brake, "a short (old) slice reads brake as false");
+        for team in 0..2 { assert!(b.to_input(team).stick_up && b.to_input(team).brake); }
+        assert_eq!(Action::from_slice(&[12.7, 0.0, 0.0, 0.0, 0.0, 0.0]).move_dir, 8);
+        assert_eq!(Action::from_slice(&[-3.0, f32::NAN, 0.0, 0.0, 0.0, 0.0]).move_dir, 0);
     }
 }

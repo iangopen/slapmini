@@ -26,8 +26,8 @@ END_GOAL_FOR, END_GOAL_AGAINST, END_LIMIT = END_WIN, END_LOSS, END_TRUNCATED  # 
 # Info columns (sim-ffi env::INFO_DIM): end, episode playing sim steps, return, learner team, goals for,
 # goals against, opponent possession seconds, then the raw reward-term sums (names in VecEnv.reward_terms).
 I_END, I_STEPS, I_RET, I_TEAM, I_GF, I_GA, I_OPP_POSS, I_RAW = 0, 1, 2, 3, 4, 5, 6, 7
-ABI_VERSION = 3
-ACT_VERSION = 3  # bots::ACT_VERSION: move, stick angle, dash, lift, stick_up (5 floats)
+ABI_VERSION = 4
+ACT_VERSION = 4  # bots::ACT_VERSION: move, stick angle, dash, lift, stick_up, brake (6 floats)
 OBS_VERSION = 3  # bots::OBS_VERSION: 42 floats (32 base, style 32..40, stick_up own 40 / opponent 41)
 # Move indices (bots/src/action.rs): 0 stop, then 8 directions counterclockwise from +x (canonical frame).
 N_MOVES = 9
@@ -123,7 +123,7 @@ class VecEnv:
     """N 1v1 environments stepped together in Rust (rayon). Finished envs auto-reset.
 
     step(actions[N, 5], opp_actions[N, 5] | None) -> obs, rewards, dones(bool), info
-    Actions: move index 0..8, stick angle (rad, canonical), dash 0/1, lift 0/1, stick_up 0/1 (ACT v3, bots/src/action.rs).
+    Actions: move index 0..8, stick angle (rad, canonical), dash 0/1, lift 0/1, stick_up 0/1, brake 0/1 (ACT v4, bots/src/action.rs).
     info columns: see I_* above (end reason: 0 running, 1 win, 2 loss, 3 truncated).
     After step, .final_obs[i] holds the learner's observation of the last state of an episode that
     ended this step (before the auto-reset), for bootstrapping truncated episodes.

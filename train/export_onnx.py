@@ -13,6 +13,7 @@ Outputs, all float32:
   "dash_prob"  [N]     press dash if > 0.5
   "lift_prob"  [N]     hold lift if > 0.5
   "stick_up_prob" [N]  raise the stick if > 0.5 (ACT v3)
+  "brake_prob" [N]     slow walk if > 0.5 (ACT v4)
 A sidecar <out>.json records the layout versions and the physics stamp.
 For team 1 the caller rotates back to the world (180 degrees): move index k in 1..8 becomes
 ((k - 1 + 4) mod 8) + 1, and the stick direction negates.
@@ -31,7 +32,7 @@ import torch.nn as nn
 from train.ppo import ACT_VERSION, Policy, load_ckpt
 from train.slapenv import DEFAULT_PARAMS, dims
 
-OUTPUTS = ["move", "move_probs", "stick_dir", "dash_prob", "lift_prob", "stick_up_prob"]
+OUTPUTS = ["move", "move_probs", "stick_dir", "dash_prob", "lift_prob", "stick_up_prob", "brake_prob"]
 
 
 class Deterministic(nn.Module):
@@ -40,9 +41,9 @@ class Deterministic(nn.Module):
         self.policy = policy
 
     def forward(self, obs):
-        ml, sm, dl, ll, ul = self.policy.heads(obs)
+        ml, sm, dl, ll, ul, bl = self.policy.heads(obs)
         probs = torch.softmax(ml, dim=-1)
-        return probs.argmax(-1).to(torch.float32), probs, sm, torch.sigmoid(dl), torch.sigmoid(ll), torch.sigmoid(ul)
+        return probs.argmax(-1).to(torch.float32), probs, sm, torch.sigmoid(dl), torch.sigmoid(ll), torch.sigmoid(ul), torch.sigmoid(bl)
 
 
 def export(policy: Policy, out: Path, meta: dict | None = None, opset: int = 17) -> Path:

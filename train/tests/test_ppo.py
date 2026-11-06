@@ -12,9 +12,9 @@ from train.slapenv import DEFAULT_PARAMS, dims
 
 class Ppo(unittest.TestCase):
     def test_action_mapping(self):
-        raw = np.array([[2.0, 0.0, 1.0, 1.0, 0.0, 1.0]], np.float32)   # move 2, stick (0, 1), dash, no lift, stick up
+        raw = np.array([[2.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0]], np.float32)   # move 2, stick (0, 1), dash, no lift, stick up, brake
         a = ppo.to_env_actions(raw)
-        self.assertTrue(np.allclose(a[0], [2.0, np.pi / 2, 1.0, 0.0, 1.0]))
+        self.assertTrue(np.allclose(a[0], [2.0, np.pi / 2, 1.0, 0.0, 1.0, 1.0]))
         pol = ppo.Policy(dims()["obs"])
         raw, logp, v = pol.act(torch.zeros(5, dims()["obs"]))
         self.assertEqual(tuple(raw.shape), (5, ppo.RAW_DIM))
@@ -33,10 +33,10 @@ class Ppo(unittest.TestCase):
             pol.log_std.copy_(torch.tensor([-0.2, 0.3]))
         obs = torch.randn(500, dims()["obs"])
         raw, logp, _ = pol.act(obs)
-        mv, g, d, l, u = pol.dist(obs)
+        mv, g, d, l, u, b = pol.dist(obs)
         want = (mv.log_prob(raw[:, 0].long()) + g.log_prob(raw[:, 1:3]).sum(-1) + d.log_prob(raw[:, 3]) + l.log_prob(raw[:, 4])
-                + u.log_prob(raw[:, 5]))
-        want_ent = mv.entropy() + g.entropy().sum(-1) + d.entropy() + l.entropy() + u.entropy()
+                + u.log_prob(raw[:, 5]) + b.log_prob(raw[:, 6]))
+        want_ent = mv.entropy() + g.entropy().sum(-1) + d.entropy() + l.entropy() + u.entropy() + b.entropy()
         lp, ent, _ = pol.evaluate(obs, raw)
         self.assertTrue(torch.allclose(logp, want, atol=1e-5))
         self.assertTrue(torch.allclose(lp, want, atol=1e-5))
@@ -101,16 +101,16 @@ class Ppo(unittest.TestCase):
             ppo.main(base + ["--updates", "5", "--resume", str(run / "latest.pt"), "--params", str(other),
                              "--allow-physics-change"])
             self.assertEqual(torch.load(run / "latest.pt", weights_only=False)["update"], 5)
-            # An ACT v2 checkpoint (no stick_up head) is refused with a clear message.
+            # An ACT v3 checkpoint (no brake head) is refused with a clear message.
             old = torch.load(run / "latest.pt", weights_only=False)
-            self.assertEqual(old["act_version"], 3)
-            old["act_version"] = 2
+            self.assertEqual(old["act_version"], 4)
+            old["act_version"] = 3
             torch.save(old, Path(d) / "old.pt")
             with self.assertRaises(SystemExit) as cm:
                 ppo.load_ckpt(Path(d) / "old.pt")
             print(f"old checkpoint refused: {cm.exception}")
-            self.assertIn("ACT v2", str(cm.exception))
-            old["act_version"], old["obs_version"], old["obs_dim"] = 3, 2, 40
+            self.assertIn("ACT v3", str(cm.exception))
+            old["act_version"], old["obs_version"], old["obs_dim"] = 4, 2, 40
             torch.save(old, Path(d) / "old_obs.pt")
             with self.assertRaises(SystemExit) as cm:
                 ppo.load_ckpt(Path(d) / "old_obs.pt")

@@ -28,7 +28,8 @@ pub use reward::{RewardWeights, N_TERMS, TERM_NAMES};
 /// Bump when any exported signature or buffer layout changes.
 /// v2: 4-float action (9-way move), final_obs in slap_batch_step, INFO_DIM 14, 7 reward terms.
 /// v3 (t2): 5-float action (ACT v3, + stick_up), 42-float observation (OBS v3), slap_act_version.
-pub const ABI_VERSION: u32 = 3;
+/// v4 (m4): 6-float action (ACT v4, + brake).
+pub const ABI_VERSION: u32 = 4;
 
 thread_local! {
     static LAST_ERROR: RefCell<CString> = RefCell::new(CString::new("").unwrap());

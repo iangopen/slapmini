@@ -137,7 +137,7 @@ impl Bot for Scripted {
     }
     fn act(&mut self, s: &State, me: usize, p: &Params) -> Action {
         let w = self.wish(s, me, p);
-        Action { move_dir: dither(&mut self.acc, w.mx, w.my), stick_angle: w.stick, dash: false, lift: false, stick_up: false }
+        Action { move_dir: dither(&mut self.acc, w.mx, w.my), stick_angle: w.stick, dash: false, lift: false, stick_up: false, brake: false }
     }
     fn reset(&mut self) {
         match &mut self.inner {
@@ -244,6 +244,10 @@ struct Striker {
     /// Steps left in a committed swing (a swing is never aborted halfway).
     swing_left: u32,
     swing_angle: f64,
+    /// Calls spent stuck next to a still puck, and calls left of the way out. Two chasers wanting the same spot press
+    /// their bodies together beside the puck and neither ever swings: a stall lasted the whole match.
+    stall: u32,
+    punt_left: u32,
 }
 
 impl Striker {
@@ -251,6 +255,13 @@ impl Striker {
     fn act(&mut self, v: &View, goal: V2, p: &Params, loose: bool) -> Wish {
         let me = v.pos();
         let dist = v.puck_pos().sub(me).len();
+        self.stall = if dist < 2.2 && v.vel().len() < 1.0 && v.puck_vel().len() < 0.5 { self.stall + 1 } else { 0 };
+        if self.stall > (1.0 / p.timestep) as u32 {
+            self.stall = 0;
+            self.punt_left = (0.75 / p.timestep) as u32;
+        }
+        let loose = loose || self.punt_left > 0;
+        self.punt_left = self.punt_left.saturating_sub(1);
         let lead = (dist / p.player_max_speed).min(0.8);
         let pk = v.puck_at(lead, p);
         // The shot leaves at (incoming puck velocity + SHOT_SPEED along the blade normal), so the

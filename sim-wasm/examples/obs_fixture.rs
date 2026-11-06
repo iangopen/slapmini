@@ -42,7 +42,11 @@ fn main() {
                     observe(&s, player, style, &p, &mut o);
                     up[(o[bots::STICK_UP_IDX] as usize) + 2 * (o[bots::STICK_UP_IDX + 1] as usize)] += 1;
                     let bits: Vec<u32> = o.iter().map(|x| x.to_bits()).collect();
-                    println!("{}", serde_json::json!({"state": js, "player": player, "style": style, "bits": bits}));
+                    // ACT v4: a varied action and what the native rotation makes of it.
+                    let k = t / 53 + player as u64;
+                    let act = bots::Action { move_dir: (k % 9) as u8, stick_angle: (k % 17) as f64 * 0.37 - 3.0, dash: k % 2 == 0, lift: k % 3 == 0, stick_up: k % 5 < 2, brake: k % 4 == 1 };
+                    let input = serde_json::to_string(&act.to_input(s.players[player].team)).unwrap();
+                    println!("{}", serde_json::json!({"state": js, "player": player, "style": style, "bits": bits, "act": [act.move_dir, act.stick_angle, act.dash, act.lift, act.stick_up, act.brake], "input": input}));
                     n += 1;
                 }
             }

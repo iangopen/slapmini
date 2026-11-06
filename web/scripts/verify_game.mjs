@@ -143,6 +143,8 @@ try {
   // ACT v3: the policy's stick_up head reaches the sim through Sim.action_input.
   console.log(`  stick_up: mean P ${b.upProbMean?.toFixed(3)}, decisions with the stick up ${b.upDecisions} of ${b.decisions}, raised now ${b.stickUp}`);
   check(typeof b.upProbMean === "number" && b.upProbMean >= 0 && b.upProbMean <= 1, "the policy's stick_up_prob output is read every decision");
+  console.log(`  brake: mean P ${b.brakeProbMean?.toFixed(3)}`);
+  check(typeof b.brakeProbMean === "number" && b.brakeProbMean >= 0 && b.brakeProbMean <= 1, "the policy's brake_prob output is read every decision");
   // A raised bot stick drawn with the raised style: forced through the test hook (the policy decides it otherwise).
   await ev(() => { window.game.setSpeed(1); window.game.forceBotStickUp(true); });
   await page.waitForTimeout(400);
@@ -175,12 +177,12 @@ try {
   for (const [what, handler] of [
     ["missing", (route) => route.fulfill({ status: 404, body: "gone" })],
     ["corrupt", (route) => route.fulfill({ status: 200, contentType: "application/octet-stream", body: Buffer.from("this is not an onnx model") })],
-    ["old-format (ACT v2 / OBS v2 sidecar)", null],
+    ["old-format (ACT v3 sidecar)", null],
   ]) {
     const p2 = await browser.newPage({ viewport: { width: 1280, height: 760 } });
     p2.on("pageerror", (e) => { console.log("PAGE ERROR", e.message); failed = true; });
     if (handler) await p2.route("**/bots/smoke.onnx", handler);
-    else await p2.route("**/bots/smoke.json", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ obs_dim: 40, obs_version: 2, act_dim: 4, act_version: 2, outputs: ["move", "move_probs", "stick_dir", "dash_prob", "lift_prob"] }) }));
+    else await p2.route("**/bots/smoke.json", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ obs_dim: 42, obs_version: 3, act_dim: 5, act_version: 3, outputs: ["move", "move_probs", "stick_dir", "dash_prob", "lift_prob"] }) }));
     await p2.goto(BASE);
     await p2.waitForSelector("body[data-ready='1']");
     await p2.selectOption("#opponent", "smoke");

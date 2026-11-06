@@ -3,7 +3,7 @@ use sim_ffi::env::{Batch, END_LOSS, END_TRUNCATED, END_WIN, INFO_DIM, INFO_RAW};
 use sim_ffi::new_batch;
 use sim_ffi::reward::RewardWeights;
 
-/// Deterministic pseudo-random actions (ACT v3: move index, stick angle, dash, lift, stick_up).
+/// Deterministic pseudo-random actions (ACT v4: move index, stick angle, dash, lift, stick_up, brake).
 fn actions(n: usize, t: u64) -> Vec<f32> {
     let mut a = vec![0f32; n * ACT_DIM];
     for (i, v) in a.iter_mut().enumerate() {
@@ -162,7 +162,7 @@ fn final_obs_is_the_pre_reset_observation() {
     let mut b = new_batch("", r#"{"opponent": "idle", "max_steps": 40, "threads": 1, "learner_team": 0}"#, 1, 5).unwrap();
     let mut s = Bufs::new(1);
     b.reset_all(&mut s.obs, None);
-    let fwd = [1.0f32, 0.0, 0.0, 0.0, 0.0]; // skate +x
+    let fwd = [1.0f32, 0.0, 0.0, 0.0, 0.0, 0.0]; // skate +x
     let mut last_obs = s.obs.clone();
     for k in 0..10 {
         s.step(&mut b, &fwd, None);
@@ -191,7 +191,7 @@ fn external_opponent_and_opp_obs() {
     }
     // Opponent skates "forward" (canonical +x = world −x for team 1) for a second.
     let a = vec![0f32; ACT_DIM];
-    let oa = vec![1.0f32, 0.0, 0.0, 0.0, 0.0];
+    let oa = vec![1.0f32, 0.0, 0.0, 0.0, 0.0, 0.0];
     for _ in 0..30 {
         s.step(&mut b, &a, Some(&oa));
     }
@@ -208,7 +208,7 @@ fn stick_up_action_and_obs_flags() {
     let mut s = Bufs::new(1);
     b.reset_all(&mut s.obs, Some(&mut s.opp));
     assert_eq!((s.obs[bots::STICK_UP_IDX], s.obs[bots::STICK_UP_IDX + 1]), (0.0, 0.0));
-    let a = vec![0.0f32, 0.0, 0.0, 0.0, 1.0]; // learner raises
+    let a = vec![0.0f32, 0.0, 0.0, 0.0, 1.0, 0.0]; // learner raises
     let oa = vec![0.0f32; ACT_DIM];
     s.step(&mut b, &a, Some(&oa));
     assert!(b.envs[0].state.players[0].stick_up && !b.envs[0].state.players[1].stick_up);
@@ -387,10 +387,10 @@ fn c_abi_roundtrip() {
     use std::ffi::{CStr, CString};
     unsafe {
         assert_eq!(sim_ffi::slap_obs_dim() as usize, OBS_DIM);
-        assert_eq!(sim_ffi::slap_act_dim() as usize, 5);
+        assert_eq!(sim_ffi::slap_act_dim() as usize, 6);
         assert_eq!(sim_ffi::slap_obs_dim() as usize, 42);
-        assert_eq!((sim_ffi::slap_act_version(), sim_ffi::slap_obs_version()), (3, 3));
-        assert_eq!(sim_ffi::slap_abi_version(), 3);
+        assert_eq!((sim_ffi::slap_act_version(), sim_ffi::slap_obs_version()), (4, 3));
+        assert_eq!(sim_ffi::slap_abi_version(), 4);
         assert_eq!(CStr::from_ptr(sim_ffi::slap_reward_term_name(3)).to_str().unwrap(), "shot_on_net");
         assert_eq!(CStr::from_ptr(sim_ffi::slap_reward_term_name(6)).to_str().unwrap(), "match_win");
         let cfg = CString::new(r#"{"threads": 2}"#).unwrap();

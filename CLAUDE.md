@@ -934,7 +934,7 @@ action and observation formats are untouched.
 
 ### Why panel edits did not reach the gameplay (`npm run verify-params`, `web/scripts/param_audit.mjs`)
 Every parameter is changed through its DOM field, then a short scenario that depends on it runs. Before: lab 60/62, game 4/62.
-After: lab 62/62, game 61/62 (the 62nd, speed_display_scale, only feeds the lab readout; the game page has none).
+After, with player_turn_accel and player_brake_accel added: lab 64/64, game 63/64 (the last, speed_display_scale, only feeds the lab readout; the game page has none).
 | where | params affected | cause | fix |
 |---|---|---|---|
 | game | all but the 4 display-only ones | no panel on the page, `set_params` never called; `P` was a private copy of params.json, so lab edits never arrived | `web/src/panel.ts` shared by both pages; the game's panel calls `set_params` and updates `P` in place |

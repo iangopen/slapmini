@@ -2,6 +2,7 @@
 // while the canvas holds the lock), per-step stick angle / target / wrapped difference, and a summary of
 // stalls, reversals, the lead and the settle time. Also a slow-movement tracking check.
 // Run: node scripts/repro_stick.mjs [label]   (own Vite dev server)
+import { freePort } from "./free_port.mjs";
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -10,7 +11,7 @@ import path from "node:path";
 
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const label = process.argv[2] ?? "";
-const PORT = 5188;
+const PORT = await freePort();
 const server = spawn(`npx vite --port ${PORT} --strictPort`, { cwd: web, shell: true, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" });
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error("vite did not start")), 30000);

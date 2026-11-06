@@ -3,6 +3,7 @@
 // off in match mode, inputs ignored in the countdown, Enter = rematch, and record/replay across a
 // goal reset. Screenshots in web/verify-out/match-*.png; the recorded match scenario + CSV too.
 // Run: npm run wasm && npm run verify-match
+import { freePort } from "./free_port.mjs";
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -14,7 +15,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const webDir = path.resolve(here, "..");
 const out = path.join(webDir, "verify-out");
 mkdirSync(out, { recursive: true });
-const PORT = 5174;
+const PORT = await freePort();
 const URL_ = `http://localhost:${PORT}/lab.html?mode=match`;
 
 const server = spawn(`npx vite --port ${PORT} --strictPort`, {

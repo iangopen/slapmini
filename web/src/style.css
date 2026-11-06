@@ -26,7 +26,7 @@ button.on { background: #6b2430; border-color: #a33; }
 .badge.placeholder, .badge.approx { color: var(--warn); }
 .badge.fitted { color: var(--ok); }
 .badge.measured, .badge.measured-shape { color: var(--accent); }
-.badge.rule { color: #c9a0ff; }
+.badge.rule, .badge.tuned-by-feel { color: #c9a0ff; }
 .param { display: grid; grid-template-columns: 1fr 92px auto; gap: 6px; align-items: center; margin: 2px 0; }
 .param label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .param input { width: 92px; background: #0f1419; color: var(--text); border: 1px solid var(--line); border-radius: 3px; padding: 2px 4px; font: inherit; }

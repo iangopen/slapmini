@@ -1,6 +1,7 @@
 // w5b checks in the real game page with real keys: the F2 tuning panel changes the running match (player_accel, board
 // restitution), Export / Reset / Import, edits carried to the lab, and Space as a slow walk (game and lab).
 // Run: npm run verify-w5b (own Vite dev server). Screenshots: web/verify-out/w5b-*.png.
+import { freePort } from "./free_port.mjs";
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -10,7 +11,7 @@ import path from "node:path";
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.join(web, "verify-out");
 mkdirSync(out, { recursive: true });
-const PORT = 5192;
+const PORT = await freePort();
 const server = spawn(`npx vite --port ${PORT} --strictPort`, { cwd: web, shell: true, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" });
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error("vite did not start")), 30000);

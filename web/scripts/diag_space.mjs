@@ -2,6 +2,7 @@
 // hold the LIFT key in the game and in the lab through the real UI and print what the sim receives each
 // step; then press Space with a panel checkbox focused (the w2 bug: it toggled the checkbox). Run:
 // npm run verify-space (starts its own Vite dev server).
+import { freePort } from "./free_port.mjs";
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -9,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const PORT = 5181;
+const PORT = await freePort();
 const server = spawn(`npx vite --port ${PORT} --strictPort`, { cwd: web, shell: true, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" });
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error("vite did not start")), 30000);

@@ -1,5 +1,6 @@
 // w4 check with REAL mouse buttons: the raised stick (left button) in the game and the lab, the follow camera and
 // true-scale radii. Run: npm run wasm && npm run verify-w4   (own Vite dev server, VERIFY_PORT or 5191)
+import { freePort } from "./free_port.mjs";
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -10,7 +11,7 @@ import path from "node:path";
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.join(web, "verify-out");
 mkdirSync(out, { recursive: true });
-const PORT = Number(process.env.VERIFY_PORT) || 5191;
+const PORT = await freePort();
 const server = spawn(`npx vite --port ${PORT} --strictPort`, { cwd: web, shell: true, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" });
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error("vite did not start")), 30000);

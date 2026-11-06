@@ -4,6 +4,7 @@
 //  3. a stick flick (mouse jumps to the other side): speed-up vs the much harder stop.
 // Prints the curves and writes web/verify-out/s10-lab.png (lab mid-dash) and s10-curves.png (the curves).
 // Run: npm run wasm && npm run verify-s10
+import { freePort } from "./free_port.mjs";
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
@@ -14,7 +15,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const webDir = path.resolve(here, "..");
 const out = path.join(webDir, "verify-out");
 mkdirSync(out, { recursive: true });
-const server = spawn("npx vite --port 5176 --strictPort", {
+const PORT = await freePort();
+const server = spawn(`npx vite --port ${PORT} --strictPort`, {
   cwd: webDir, shell: true, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32",
 });
 await new Promise((res, rej) => {
@@ -40,7 +42,7 @@ try {
   browser = await launch();
   const page = await browser.newPage({ viewport: { width: 1400, height: 760 } });
   page.on("pageerror", (e) => { console.log("PAGE ERROR", e.message); failed = true; });
-  await page.goto("http://localhost:5176/lab.html?mouse=cursor"); // aims the stick with the cursor
+  await page.goto(`http://localhost:${PORT}/lab.html?mouse=cursor`); // aims the stick with the cursor
   await page.waitForSelector("body[data-ready='1']");
   const ev = (fn, arg) => page.evaluate(fn, arg);
   const P = await ev(() => window.lab.lab.p);

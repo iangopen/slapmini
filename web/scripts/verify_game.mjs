@@ -1,6 +1,7 @@
 // Game verification through the real UI. Serves the BUILT site (web/dist) from a subfolder
 // (/slapmini/, like GitHub Pages' /REPO/) so relative paths are tested too. Run: npm run build && npm run verify-game
 // Prints score / clock / phase, bot movement and shots, inference and frame times; screenshots to web/verify-out/.
+import { freePort } from "./free_port.mjs";
 import { chromium } from "playwright";
 import { createServer } from "node:http";
 import { existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
@@ -25,8 +26,9 @@ const server = createServer((req, res) => {
   if (!f.startsWith(dist) || !existsSync(f)) { res.writeHead(404).end("not found"); return; }
   res.writeHead(200, { "Content-Type": TYPES[path.extname(f)] ?? "application/octet-stream" }).end(readFileSync(f));
 });
-await new Promise((r) => server.listen(5180, r));
-const BASE = `http://localhost:5180${SUB}`;
+const PORT = await freePort();
+await new Promise((r) => server.listen(PORT, r));
+const BASE = `http://localhost:${PORT}${SUB}`;
 
 let failed = false;
 const check = (c, m) => { console.log(`${c ? "PASS" : "FAIL"}: ${m}`); if (!c) failed = true; };

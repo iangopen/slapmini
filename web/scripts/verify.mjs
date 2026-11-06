@@ -1,6 +1,7 @@
 // Headless feel-lab verification. Starts the Vite dev server, drives the page with Playwright,
 // prints traces and writes screenshots + recorded files to web/verify-out/.
 // Run: npm run wasm && npm run verify
+import { freePort } from "./free_port.mjs";
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -12,7 +13,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const webDir = path.resolve(here, "..");
 const out = path.join(webDir, "verify-out");
 mkdirSync(out, { recursive: true });
-const PORT = Number(process.env.VERIFY_PORT) || 5173;
+const PORT = await freePort();
 // ?mouse=cursor: these checks aim the stick by pointing the cursor at world points (the old mouse model).
 const URL_ = `http://localhost:${PORT}/lab.html?mouse=cursor`;
 

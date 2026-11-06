@@ -88,6 +88,11 @@ fn params_file_complete_and_provenance_known() {
     f.to_params().unwrap();
     assert_eq!(f.params.len(), Params::NAMES.len());
     for (k, e) in &f.params {
+        // Adopted with `npm run adopt-params`: only with its dated note; every other row stays pinned below.
+        if e.provenance == "tuned-by-feel" {
+            assert!(e.note.starts_with("tuned-by-feel 20"), "{k}: tuned-by-feel needs its dated note");
+            continue;
+        }
         let want = if MEASURED_SHAPE.contains(&k.as_str()) {
             "measured-shape"
         } else if FITTED.contains(&k.as_str()) {

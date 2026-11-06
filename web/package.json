@@ -19,7 +19,8 @@
     "verify-stick": "node scripts/repro_stick.mjs",
     "verify-w4": "node scripts/verify_w4.mjs",
     "verify-params": "node scripts/param_audit.mjs",
-    "verify-w5b": "node scripts/verify_w5b.mjs"
+    "verify-w5b": "node scripts/verify_w5b.mjs",
+    "adopt-params": "node scripts/adopt_params.mjs"
   },
   "devDependencies": {
     "playwright": "^1.50.0",

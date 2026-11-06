@@ -1,6 +1,7 @@
 // w3 checks in the lab through the real UI, updated in w5b when Space became the sim's slow walk (web/scripts/verify_w5b.mjs
 // has the full speed tables): Space (from top speed, during a dash, released mid-way), lift on E (Space no longer lifts), the lead readout, and record/replay with the relative mouse
 // and the brake. Run: npm run verify-w3 (own Vite dev server). Screenshot: web/verify-out/w3-lab-lead.png.
+import { freePort } from "./free_port.mjs";
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -11,7 +12,7 @@ import path from "node:path";
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.join(web, "verify-out");
 mkdirSync(out, { recursive: true });
-const PORT = Number(process.env.VERIFY_PORT) || 5189;
+const PORT = await freePort();
 const server = spawn(`npx vite --port ${PORT} --strictPort`, { cwd: web, shell: true, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" });
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error("vite did not start")), 30000);

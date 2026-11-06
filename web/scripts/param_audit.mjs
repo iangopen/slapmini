@@ -2,6 +2,7 @@
 // behaviour changed, in the lab and in the running game match. Run: npm run verify-params [-- --report-only]
 // The change goes through the panel's DOM input (#param-NAME) wherever a panel exists. A page without one (the game
 // before w5b) can only edit its local copy window.game.params, which is the "before" column of the table.
+import { freePort } from "./free_port.mjs";
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -12,7 +13,7 @@ const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.join(web, "verify-out");
 mkdirSync(out, { recursive: true });
 const reportOnly = process.argv.includes("--report-only");
-const PORT = 5191;
+const PORT = await freePort();
 const server = spawn(`npx vite --port ${PORT} --strictPort`, { cwd: web, shell: true, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" });
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error("vite did not start")), 30000);

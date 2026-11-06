@@ -1,5 +1,6 @@
 // w2 checks: the vertical view (game + lab), the relative mouse (pointer lock), Esc, and record/replay
 // in relative mode. Run: npm run verify-w2 (own Vite dev server). Screenshots in web/verify-out/w2-*.png.
+import { freePort } from "./free_port.mjs";
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -10,7 +11,7 @@ import path from "node:path";
 const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.join(web, "verify-out");
 mkdirSync(out, { recursive: true });
-const PORT = 5186;
+const PORT = await freePort();
 const server = spawn(`npx vite --port ${PORT} --strictPort`, { cwd: web, shell: true, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" });
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error("vite did not start")), 30000);

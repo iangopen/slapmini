@@ -1,5 +1,6 @@
 // Player/puck scale in the game: drawn radii (px) at the current camera, plus a screenshot with the puck
 // next to the player. Run: node scripts/scale_shot.mjs OUT.png [query]   (own Vite dev server)
+import { freePort } from "./free_port.mjs";
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
@@ -10,7 +11,7 @@ const web = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outFile = path.resolve(web, process.argv[2] ?? "verify-out/w4-scale.png");
 const query = process.argv[3] ?? "";
 mkdirSync(path.dirname(outFile), { recursive: true });
-const PORT = 5190;
+const PORT = await freePort();
 const server = spawn(`npx vite --port ${PORT} --strictPort`, { cwd: web, shell: true, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32" });
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error("vite did not start")), 30000);

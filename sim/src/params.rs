@@ -61,7 +61,7 @@ define_params!(
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ParamEntry {
     pub value: f64,
-    /// "placeholder" (invented), "fitted" (from calib), "measured"/"measured-shape", or "rule" (a match rule Ian set).
+    /// "placeholder" (invented), "fitted" (from calib), "measured"/"measured-shape", "rule" (a match rule Ian set), or "tuned-by-feel" (adopted from the panel).
     pub provenance: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub unit: String,

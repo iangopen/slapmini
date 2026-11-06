@@ -1,6 +1,7 @@
 // Skating check with the default params: hold W from rest (real keyboard events), print player speed over
 // sim time, check the ramp reaches player_max_speed in about max/accel seconds, then release and coast.
 // Run: npm run wasm && npm run verify-skate   (screenshot: web/verify-out/skate-top-speed.png)
+import { freePort } from "./free_port.mjs";
 import { chromium } from "playwright";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
@@ -11,7 +12,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const webDir = path.resolve(here, "..");
 const out = path.join(webDir, "verify-out");
 mkdirSync(out, { recursive: true });
-const server = spawn("npx vite --port 5174 --strictPort", {
+const PORT = await freePort();
+const server = spawn(`npx vite --port ${PORT} --strictPort`, {
   cwd: webDir, shell: true, stdio: ["ignore", "pipe", "pipe"], detached: process.platform !== "win32",
 });
 await new Promise((res, rej) => {
@@ -32,7 +34,7 @@ try {
   browser = await launch();
   const page = await browser.newPage({ viewport: { width: 1400, height: 760 } });
   page.on("pageerror", (e) => { console.log("PAGE ERROR", e.message); failed = true; });
-  await page.goto("http://localhost:5174/lab.html");
+  await page.goto(`http://localhost:${PORT}/lab.html`);
   await page.waitForSelector("body[data-ready='1']");
   const ev = (fn, arg) => page.evaluate(fn, arg);
   const P = await ev(() => window.lab.lab.p);

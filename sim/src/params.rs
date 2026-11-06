@@ -46,6 +46,8 @@ define_params!(
     player_coast_rate, dash_ramp_time, stick_max_ang_decel,
     // w4: raised stick (left mouse button) height range.
     stick_up_z_min, stick_up_z_max,
+    // w5b: slow walk while the brake input is held (Space).
+    brake_speed, brake_decel,
 );
 
 /// One entry of `params.json`.

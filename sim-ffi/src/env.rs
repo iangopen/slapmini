@@ -176,8 +176,8 @@ pub struct Env {
 }
 
 const FROZEN: [PlayerInput; 2] = [
-    PlayerInput { move_x: 0.0, move_y: 0.0, stick_target_angle: 0.0, dash: false, lift: false, stick_up: false },
-    PlayerInput { move_x: 0.0, move_y: 0.0, stick_target_angle: 0.0, dash: false, lift: false, stick_up: false },
+    PlayerInput { move_x: 0.0, move_y: 0.0, stick_target_angle: 0.0, dash: false, lift: false, stick_up: false, brake: false },
+    PlayerInput { move_x: 0.0, move_y: 0.0, stick_target_angle: 0.0, dash: false, lift: false, stick_up: false, brake: false },
 ];
 
 fn frozen(s: &State) -> bool {

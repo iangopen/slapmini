@@ -228,12 +228,22 @@ fn update_player_controls(pl: &mut Player, inp: &PlayerInput, p: &Params, dt: f6
         pl.vx *= ns / s0;
         pl.vy *= ns / s0;
     }
-    let cap = if ramping { p.player_max_speed.max(p.dash_speed) } else { p.player_max_speed };
+    // Brake (w5b): while held the cap drops to brake_speed and speed above it decays at brake_decel, counted from the
+    // speed before this step's key acceleration, so a held key steers but cannot hold the speed up. The keys still
+    // accelerate up to the lower cap. A dash ramp is not limited; the brake takes over when the ramp ends.
+    let slow = inp.brake && !ramping;
+    let cap = if ramping {
+        p.player_max_speed.max(p.dash_speed)
+    } else if slow {
+        p.player_max_speed.min(p.brake_speed)
+    } else {
+        p.player_max_speed
+    };
     let s = len(pl.vx, pl.vy);
     if s > cap {
         // A skating player is held at the cap (the per-step decay exceeds player_accel); after a dash
         // the extra speed fades at 2 x player_accel.
-        let ns = (s - p.player_accel * 2.0 * dt).max(cap);
+        let ns = if slow { (s0 - p.brake_decel * dt).max(cap).min(s) } else { (s - p.player_accel * 2.0 * dt).max(cap) };
         pl.vx *= ns / s;
         pl.vy *= ns / s;
     }

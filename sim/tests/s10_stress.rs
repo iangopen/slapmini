@@ -22,7 +22,7 @@ pub fn s10_inputs(s: &State, t: u64) -> Vec<PlayerInput> {
             // Near the puck: spin the stick hard (alternating sense every 2.5 s), else hold it.
             let sense = if (t / 300 + k as u64) % 2 == 0 { 1.0 } else { -1.0 };
             let stick = if d < 2.0 { pl.stick_angle + sense * 2.5 } else { pl.stick_angle };
-            PlayerInput { move_x: mx, move_y: my, stick_target_angle: stick, dash: phase % 150 < 3 && !coasting, lift: t % 700 < 15, stick_up: false }
+            PlayerInput { move_x: mx, move_y: my, stick_target_angle: stick, dash: phase % 150 < 3 && !coasting, lift: t % 700 < 15, stick_up: false, brake: false }
         })
         .collect()
 }

@@ -48,6 +48,7 @@ fn wild(t: u64) -> Vec<PlayerInput> {
             dash: t % 30 == k,
             lift: t % 50 < 10,
             stick_up: false,
+            brake: false,
         })
         .collect()
 }
@@ -237,6 +238,7 @@ fn crosscheck_hash_native_match() {
                 dash: t % 240 == k * 7,
                 lift: t % 500 < 20,
                 stick_up: false,
+                brake: false,
             })
             .collect();
         step(&mut s, &inp, &p);

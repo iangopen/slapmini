@@ -57,6 +57,10 @@ pub struct PlayerInput {
     /// Raise the stick while held (w4; the game's left mouse button). Default false when absent in JSON.
     #[serde(default)]
     pub stick_up: bool,
+    /// Slow walk while held (w5b; the game's Space): the speed cap drops to brake_speed. Default false when absent in
+    /// JSON. The bot action format has no brake field yet.
+    #[serde(default)]
+    pub brake: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]

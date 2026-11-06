@@ -3,6 +3,7 @@
 // and practice tools touch the state only outside recording/replay, so recorded runs replay exactly.
 
 import type { Sim } from "../wasm-pkg/sim_wasm.js";
+import { retimeMatch } from "./panel";
 import { flatParams, type InputEvent, type P, type ParamFile, type PlayerInput, type Sample, type Scenario, type State } from "./types";
 
 export type Mode = "play" | "record" | "replay";
@@ -44,7 +45,7 @@ export function parseCsv(text: string): Sample[] {
 }
 
 function sameInput(a: PlayerInput, b: PlayerInput): boolean {
-  return a.move_x === b.move_x && a.move_y === b.move_y && a.stick_target_angle === b.stick_target_angle && a.dash === b.dash && a.lift === b.lift && !!a.stick_up === !!b.stick_up; // w4: the raised stick is logged too
+  return a.move_x === b.move_x && a.move_y === b.move_y && a.stick_target_angle === b.stick_target_angle && a.dash === b.dash && a.lift === b.lift && !!a.stick_up === !!b.stick_up && !!a.brake === !!b.brake; // w4/w5b: raised stick and brake are logged too
 }
 
 /** `endHash`: sim state hash after the last recorded / replayed step (determinism check). */
@@ -94,8 +95,11 @@ export class Lab {
 
   setParamFile(file: ParamFile): void {
     this.sim.set_params(JSON.stringify(file));
+    const was = this.p;
     this.file = structuredClone(file);
     this.p = flatParams(this.file);
+    const s = structuredClone(this.state);
+    if (this.mode === "play" && retimeMatch(s.match_state, was, this.p)) this.writeState(s);
   }
 
   setParam(name: string, value: number): void {

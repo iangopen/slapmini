@@ -8,6 +8,8 @@ export interface PlayerInput {
   lift: boolean;
   /** w4: raised stick (left mouse button); absent = false. */
   stick_up?: boolean;
+  /** w5b: slow walk (Space); absent = false. */
+  brake?: boolean;
 }
 
 export interface Puck {

@@ -91,7 +91,7 @@ function runScenario(api, name) {
     case "flick": return run(base(), 60, () => ({ ...idle, stick_target_angle: 2.5 }));
     case "shot": return shot();
     case "shotnear": return shot({ x: -10 + 0.55 });
-    case "shothigh": return shot({ z: 0.5 });
+    case "shothigh": return shot({ z: 0.22 });
     case "shotlift": return shot({}, { lift: true });
     case "shotchip": return shot({}, { lift: true, dash: true, move_x: 1 });
     case "shotdash": return shot({}, { dash: true, move_x: 1 });

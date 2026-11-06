@@ -10,6 +10,14 @@ const PI: f64 = core::f64::consts::PI;
 const EPS: f64 = 1e-9;
 /// Landing vertical speeds below this stop bouncing.
 const MIN_BOUNCE_VZ: f64 = 0.5;
+/// Clearance left between the puck and a surface it was pushed out of.
+const SKIN: f64 = 1e-6;
+/// Overlap passes per substep (stick, body, nets, boards) before a pinch is declared.
+const SOLVE_PASSES: usize = 6;
+/// Smallest rebound of a pinched stick (rad/s) and player (m/s). Chosen, not measured: enough to clear the puck for a
+/// few steps against the stick and skating accelerations.
+const PINCH_REBOUND_OMEGA: f64 = 8.0;
+const PINCH_REBOUND_SPEED: f64 = 0.6;
 
 #[inline]
 fn wrap_angle(a: f64) -> f64 {
@@ -305,92 +313,233 @@ fn integrate_puck(puck: &mut Puck, p: &Params, h: f64) {
     puck.y += puck.vy * h;
 }
 
-fn stick_puck(pl: &mut Player, inp: &PlayerInput, puck: &mut Puck, p: &Params) {
+/// Per-step contact data for tests and tools (`step_with_stats`). Not part of the state.
+#[derive(Clone, Debug, Default)]
+pub struct ContactStats {
+    /// Player indices whose stick touched the puck during this step.
+    pub stick_contact: Vec<bool>,
+    /// Deepest stick/body overlap seen before it was resolved, this step (m).
+    pub max_penetration: f64,
+    /// Sticks stopped by a pinch this step, and bodies pushed back by one.
+    pub stick_blocks: u32,
+    pub body_blocks: u32,
+}
+
+/// Stick chain in the stick's local frame (+x = the stick_angle direction, +y = 90 deg CCW):
+/// hand, kink, heel, toe, and the half-width of the capsule after each of the first three.
+#[inline]
+fn stick_chain(p: &Params) -> ([(f64, f64); 4], [f64; 3]) {
+    (
+        [(p.stick_hand_x, p.stick_hand_y), (p.stick_kink_x, p.stick_kink_y), (p.stick_heel_x, p.stick_heel_y), (p.stick_toe_x, p.stick_toe_y)],
+        [p.stick_shaft_radius, p.stick_heel_radius, p.stick_thickness],
+    )
+}
+
+#[inline]
+fn stick_active(pl: &Player, z: f64, p: &Params) -> bool {
     // A raised stick (w4) uses its own height range: it passes over a puck on the ice.
     let (z_min, z_max) = if pl.stick_up { (p.stick_up_z_min, p.stick_up_z_max) } else { (p.stick_z_min, p.stick_z_max) };
-    if puck.z < z_min || puck.z > z_max {
-        return;
-    }
-    let (ux, uy) = (cos(pl.stick_angle), sin(pl.stick_angle));
-    let (ax, ay) = (pl.x + ux * p.stick_inner, pl.y + uy * p.stick_inner);
-    let (bx, by) = (pl.x + ux * p.stick_length, pl.y + uy * p.stick_length);
-    let (qx, qy) = closest_on_segment(ax, ay, bx, by, puck.x, puck.y);
-    let (dx, dy) = (puck.x - qx, puck.y - qy);
-    let d = len(dx, dy);
-    let reach = p.puck_radius + p.stick_thickness;
-    if d >= reach {
-        return;
-    }
-    let (px0, py0) = (puck.x, puck.y);
-    // Separation normal from stick to puck; if centered on the stick, push along the swing direction.
-    let side = if pl.stick_omega >= 0.0 { 1.0 } else { -1.0 };
-    let (nx, ny) = if d > EPS { (dx / d, dy / d) } else { (-uy * side, ux * side) };
-    puck.x += nx * (reach - d);
-    puck.y += ny * (reach - d);
+    z >= z_min && z <= z_max
+}
 
-    // Impulse (s10, "centre-on"): perpendicular to pivot -> puck centre, toward the puck's side of the
-    // stick, at the stick point under the puck centre (radius |puck - pivot|), as if the stick had met
-    // the puck centre-on. The measured exits leave within -7..+6 deg of that line; the old impulse
-    // along the separation normal (above) left ~15 deg off it, because the blade's edge touches the
-    // puck ~18 deg before the stick points at it.
-    let sgn = if (px0 - pl.x) * -uy + (py0 - pl.y) * ux >= 0.0 { 1.0 } else { -1.0 };
-    let (rx, ry) = (px0 - pl.x, py0 - pl.y);
-    let rl = len(rx, ry).max(EPS);
-    let (nx, ny) = (-ry / rl * sgn, rx / rl * sgn);
+/// World -> stick-local coordinates of a point, for a stick pose (x, y, angle).
+#[inline]
+fn to_local(pose: (f64, f64, f64), x: f64, y: f64) -> (f64, f64) {
+    let (c, s) = (cos(pose.2), sin(pose.2));
+    let (dx, dy) = (x - pose.0, y - pose.1);
+    (c * dx + s * dy, -s * dx + c * dy)
+}
+
+/// Smallest gap between a circle of radius `r` at local (lx, ly) and the chain (negative = overlap),
+/// with the local unit normal from the chain to the circle. A centre exactly on the chain's axis
+/// gets the capsule's left normal; callers flip it to the swing side.
+fn chain_gap(p: &Params, lx: f64, ly: f64, r: f64) -> (f64, f64, f64) {
+    let (pts, rad) = stick_chain(p);
+    let mut best = (f64::INFINITY, 0.0, 0.0);
+    for k in 0..3 {
+        let (a, b) = (pts[k], pts[k + 1]);
+        let (qx, qy) = closest_on_segment(a.0, a.1, b.0, b.1, lx, ly);
+        let (dx, dy) = (lx - qx, ly - qy);
+        let d = len(dx, dy);
+        let gap = d - r - rad[k];
+        if gap < best.0 {
+            let (nx, ny) = if d > EPS {
+                (dx / d, dy / d)
+            } else {
+                let (ex, ey) = (b.0 - a.0, b.1 - a.1);
+                let l = len(ex, ey).max(EPS);
+                (-ey / l, ex / l)
+            };
+            best = (gap, nx, ny);
+        }
+    }
+    best
+}
+
+/// Gap between the puck and a player's stick at the current pose (negative = overlap). Height is not
+/// checked here: see `stick_reaches`.
+pub fn stick_puck_gap(pl: &Player, puck: &Puck, p: &Params) -> f64 {
+    let (lx, ly) = to_local((pl.x, pl.y, pl.stick_angle), puck.x, puck.y);
+    chain_gap(p, lx, ly, p.puck_radius).0
+}
+
+/// True if this player's stick can touch the puck at its current height.
+pub fn stick_reaches(pl: &Player, puck: &Puck, p: &Params) -> bool {
+    stick_active(pl, puck.z, p)
+}
+
+/// Swept stick contact over one substep. The stick goes from `pose0` to the player's current pose
+/// while the puck goes from `q0` to its current position. In the stick's frame that is one straight
+/// move of the puck centre (a chord: the arc differs by < 3 mm at the top swing speed), swept against
+/// each capsule, so a fast swing cannot pass through the puck. Returns true on contact.
+fn stick_puck(pl: &mut Player, pose0: (f64, f64, f64), q0: (f64, f64), inp: &PlayerInput, puck: &mut Puck, p: &Params, h: f64) -> bool {
+    if !stick_active(pl, puck.z, p) {
+        return false;
+    }
+    let pose1 = (pl.x, pl.y, pl.stick_angle);
+    let (l0x, l0y) = to_local(pose0, q0.0, q0.1);
+    let (l1x, l1y) = to_local(pose1, puck.x, puck.y);
+    let (pts, rad) = stick_chain(p);
+    let mut hit: Option<(f64, f64, f64)> = None;
+    if chain_gap(p, l0x, l0y, p.puck_radius).0 >= 0.0 {
+        for k in 0..3 {
+            let (a, b) = (pts[k], pts[k + 1]);
+            if let Some(c) = sweep_segment(a.0, a.1, b.0, b.1, l0x, l0y, l1x - l0x, l1y - l0y, p.puck_radius + rad[k]) {
+                if hit.map_or(true, |o| c.0 < o.0) {
+                    hit = Some(c);
+                }
+            }
+        }
+    }
+    let (t, lnx, lny) = match hit {
+        Some(c) => c,
+        None => {
+            // Already overlapping at the start (a stick lowered onto the puck, a puck dropping into the
+            // height range) or at the end: treated as a contact at the end pose.
+            let (g, nx, ny) = chain_gap(p, l1x, l1y, p.puck_radius);
+            if g >= 0.0 {
+                return false;
+            }
+            (1.0, nx, ny)
+        }
+    };
+
+    // Contact pose.
+    let da = wrap_angle(pose1.2 - pose0.2);
+    let (cx, cy, ca) = (pose0.0 + (pose1.0 - pose0.0) * t, pose0.1 + (pose1.1 - pose0.1) * t, pose0.2 + da * t);
+    let (qx, qy) = (q0.0 + (puck.x - q0.0) * t, q0.1 + (puck.y - q0.1) * t);
+    let (co, si) = (cos(ca), sin(ca));
+    let (sx, sy) = (co * lnx - si * lny, si * lnx + co * lny); // surface normal, stick -> puck
+    let (rx, ry, nx, ny);
+    if p.stick_hit_rule >= 0.5 {
+        // Surface rule: along the contact normal, at the contact point.
+        (rx, ry) = (qx - sx * p.puck_radius - cx, qy - sy * p.puck_radius - cy);
+        (nx, ny) = (sx, sy);
+    } else {
+        // Centre-on rule (s10): perpendicular to pivot -> puck centre, on the puck's side of the surface.
+        (rx, ry) = (qx - cx, qy - cy);
+        let rl = len(rx, ry).max(EPS);
+        let (px_, py_) = (-ry / rl, rx / rl);
+        let sd = px_ * sx + py_ * sy;
+        let sgn = if sd.abs() > 1e-6 { sd.signum() } else if pl.stick_omega >= 0.0 { 1.0 } else { -1.0 };
+        (nx, ny) = (px_ * sgn, py_ * sgn);
+    }
 
     // Stick velocity at contact = player velocity + omega x r.
     let (svx, svy) = (pl.vx - pl.stick_omega * ry, pl.vy + pl.stick_omega * rx);
     let vrel = (puck.vx - svx) * nx + (puck.vy - svy) * ny;
-    if vrel >= 0.0 {
-        return;
-    }
-    // Rod pivoting at the player center: I = m L^2 / 3, effective mass at the contact.
-    let inertia = p.stick_mass * p.stick_length * p.stick_length / 3.0;
-    let r_cross_n = rx * ny - ry * nx;
-    let inv_m = 1.0 / p.puck_mass + r_cross_n * r_cross_n / inertia;
-    let j = -(1.0 + p.stick_restitution) * vrel / inv_m;
-    puck.vx += j / p.puck_mass * nx;
-    puck.vy += j / p.puck_mass * ny;
-    pl.stick_omega -= j * r_cross_n / inertia;
+    if vrel < 0.0 {
+        // Stick pivoting at the player center: I = m L^2 / 3, effective mass at the contact.
+        let inertia = p.stick_mass * p.stick_length * p.stick_length / 3.0;
+        let r_cross_n = rx * ny - ry * nx;
+        let inv_m = 1.0 / p.puck_mass + r_cross_n * r_cross_n / inertia;
+        let j = -(1.0 + p.stick_restitution) * vrel / inv_m;
+        puck.vx += j / p.puck_mass * nx;
+        puck.vy += j / p.puck_mass * ny;
+        pl.stick_omega -= j * r_cross_n / inertia;
 
-    // Shot classification and speed caps (air / ice-normal / ice-dash are separate in the real game).
-    let dashing = pl.dash_timer > 0.0;
-    let s = len(puck.vx, puck.vy);
-    let mut cap;
-    // PLACEHOLDER LOGIC (lift): lift held at contact launches the puck with vz proportional to
-    // horizontal speed; dash + lift is capped to a low-speed chip. Real mechanic is unmeasured.
-    if inp.lift {
-        puck.vz = (p.lift_vz_factor * s).min(p.lift_max_vz).max(puck.vz);
-        cap = p.max_puck_speed_air;
-        if dashing {
-            cap = cap.min(p.chip_max_speed);
+        // Shot classification and speed caps (air / ice-normal / ice-dash are separate in the real game).
+        let dashing = pl.dash_timer > 0.0;
+        let s = len(puck.vx, puck.vy);
+        let mut cap;
+        // PLACEHOLDER LOGIC (lift): lift held at contact launches the puck with vz proportional to
+        // horizontal speed; dash + lift is capped to a low-speed chip. Real mechanic is unmeasured.
+        if inp.lift {
+            puck.vz = (p.lift_vz_factor * s).min(p.lift_max_vz).max(puck.vz);
+            cap = p.max_puck_speed_air;
+            if dashing {
+                cap = cap.min(p.chip_max_speed);
+            }
+        } else if puck.z > 0.0 {
+            cap = p.max_puck_speed_air;
+        } else if dashing {
+            cap = p.max_puck_speed_ice_dash;
+        } else {
+            cap = p.max_puck_speed_ice_normal;
         }
-    } else if puck.z > 0.0 {
-        cap = p.max_puck_speed_air;
-    } else if dashing {
-        cap = p.max_puck_speed_ice_dash;
-    } else {
-        cap = p.max_puck_speed_ice_normal;
+        if s > cap {
+            puck.vx *= cap / s;
+            puck.vy *= cap / s;
+            // A capped puck is slower than the blade behind it: slow the stick to the puck's speed
+            // along the normal, otherwise it would catch the puck again on every substep.
+            let (svx, svy) = (pl.vx - pl.stick_omega * ry, pl.vy + pl.stick_omega * rx);
+            let left = (puck.vx - svx) * nx + (puck.vy - svy) * ny;
+            if left < 0.0 && r_cross_n.abs() > 1e-6 {
+                pl.stick_omega += left / r_cross_n;
+            }
+        }
     }
-    if s > cap {
-        puck.vx *= cap / s;
-        puck.vy *= cap / s;
-    }
+    // The rest of the substep at the new velocity; the overlap pass places it clear of the end pose.
+    puck.x = qx + puck.vx * h * (1.0 - t);
+    puck.y = qy + puck.vy * h * (1.0 - t);
+    true
 }
 
-fn player_puck_body(pl: &mut Player, puck: &mut Puck, p: &Params) {
+/// Moves the puck out of the stick along the contact normal and removes any velocity into the
+/// surface, so a puck can never stay inside or be re-hit by the same overlap. Returns the overlap.
+fn stick_separate(pl: &mut Player, puck: &mut Puck, p: &Params) -> f64 {
+    if !stick_active(pl, puck.z, p) {
+        return 0.0;
+    }
+    let pose = (pl.x, pl.y, pl.stick_angle);
+    let (lx, ly) = to_local(pose, puck.x, puck.y);
+    let (g, lnx, lny) = chain_gap(p, lx, ly, p.puck_radius);
+    if g >= 0.0 {
+        return 0.0;
+    }
+    let (co, si) = (cos(pose.2), sin(pose.2));
+    let (mut nx, mut ny) = (co * lnx - si * lny, si * lnx + co * lny);
+    let (rx, ry) = (puck.x - pl.x, puck.y - pl.y);
+    let (svx, svy) = (pl.vx - pl.stick_omega * ry, pl.vy + pl.stick_omega * rx);
+    // A centre on the axis has no side of its own: take the side the stick is moving toward.
+    if -g >= p.puck_radius + p.stick_thickness - 1e-9 && svx * nx + svy * ny < 0.0 {
+        nx = -nx;
+        ny = -ny;
+    }
+    puck.x += nx * (SKIN - g);
+    puck.y += ny * (SKIN - g);
+    let vrel = (puck.vx - svx) * nx + (puck.vy - svy) * ny;
+    if vrel < 0.0 {
+        puck.vx -= (1.0 + p.stick_restitution) * vrel * nx;
+        puck.vy -= (1.0 + p.stick_restitution) * vrel * ny;
+    }
+    -g
+}
+
+/// Returns the overlap it resolved.
+fn player_puck_body(pl: &mut Player, puck: &mut Puck, p: &Params) -> f64 {
     if puck.z > p.player_height {
-        return;
+        return 0.0;
     }
     let (dx, dy) = (puck.x - pl.x, puck.y - pl.y);
     let d = len(dx, dy);
     let reach = p.puck_radius + p.player_radius;
-    if d >= reach || d < EPS {
-        return;
+    if d >= reach {
+        return 0.0;
     }
-    let (nx, ny) = (dx / d, dy / d);
-    puck.x += nx * (reach - d);
-    puck.y += ny * (reach - d);
+    let (nx, ny) = if d > EPS { (dx / d, dy / d) } else { (1.0, 0.0) };
+    puck.x += nx * (reach + SKIN - d);
+    puck.y += ny * (reach + SKIN - d);
     let vrel = (puck.vx - pl.vx) * nx + (puck.vy - pl.vy) * ny;
     if vrel < 0.0 {
         let j = -(1.0 + p.player_restitution) * vrel / (1.0 / p.puck_mass + 1.0 / p.player_mass);
@@ -399,6 +548,7 @@ fn player_puck_body(pl: &mut Player, puck: &mut Puck, p: &Params) {
         pl.vx -= j / p.player_mass * nx;
         pl.vy -= j / p.player_mass * ny;
     }
+    reach - d
 }
 
 fn player_player(a: &mut Player, b: &mut Player, p: &Params) {
@@ -421,6 +571,116 @@ fn player_player(a: &mut Player, b: &mut Player, p: &Params) {
         a.vy -= j * ny;
         b.vx += j * nx;
         b.vy += j * ny;
+    }
+}
+
+/// Static surfaces: nets, then boards. They always win: the puck stays inside the rink.
+fn puck_statics(puck: &mut Puck, nets: &[(f64, f64, f64, f64); 6], p: &Params) -> bool {
+    let mut moved = false;
+    if puck.z < p.net_height {
+        for &(ax, ay, bx, by) in nets {
+            let (qx, qy) = closest_on_segment(ax, ay, bx, by, puck.x, puck.y);
+            let (dx, dy) = (puck.x - qx, puck.y - qy);
+            let d = len(dx, dy);
+            if d < p.puck_radius && d > EPS {
+                puck_static_bounce(puck, dx / d, dy / d, p.puck_radius - d, p.net_restitution, 0.0);
+                moved = true;
+            }
+        }
+    }
+    if let Some((nx, ny, pen)) = board_contact(p, puck.x, puck.y, p.puck_radius) {
+        puck_static_bounce(puck, nx, ny, pen, p.board_restitution, p.board_friction);
+        moved = true;
+    }
+    moved
+}
+
+/// Depth of the puck in a stick or body right now (0 = clear), for pinch detection.
+fn stick_depth(pl: &Player, puck: &Puck, p: &Params) -> f64 {
+    if stick_active(pl, puck.z, p) { (-stick_puck_gap(pl, puck, p)).max(0.0) } else { 0.0 }
+}
+
+fn body_depth(pl: &Player, puck: &Puck, p: &Params) -> f64 {
+    if puck.z > p.player_height {
+        return 0.0;
+    }
+    (p.puck_radius + p.player_radius - len(puck.x - pl.x, puck.y - pl.y)).max(0.0)
+}
+
+/// Pushes a player back along (nx, ny) by `d` (the puck stays) and removes its velocity into the puck.
+fn push_player(pl: &mut Player, nx: f64, ny: f64, d: f64) {
+    pl.x -= nx * (d + SKIN);
+    pl.y -= ny * (d + SKIN);
+    // Bounce off rather than lean on the pinned puck, so the contact ends instead of repeating every step.
+    let vn = pl.vx * nx + pl.vy * ny;
+    let out = -PINCH_REBOUND_SPEED.max(vn * 0.5);
+    if vn > out {
+        pl.vx += (out - vn) * nx;
+        pl.vy += (out - vn) * ny;
+    }
+}
+
+/// Clears every overlap of the puck. Pushes go along each contact normal; a wedge between two
+/// surfaces squeezes the puck out through these passes. If the puck has nowhere to go (a pinch against
+/// a board or net, or between stick and body) the puck stays and the player gives way: the stick
+/// turns back to the last angle that fits and stops, and a body or a translating stick is pushed off.
+fn resolve_overlaps(state: &mut State, poses: &[(f64, f64, f64)], nets: &[(f64, f64, f64, f64); 6], p: &Params, stats: &mut ContactStats) {
+    let puck = &mut state.puck;
+    for _ in 0..SOLVE_PASSES {
+        let mut any = false;
+        for (i, pl) in state.players.iter_mut().enumerate() {
+            let b = player_puck_body(pl, puck, p);
+            let s = stick_separate(pl, puck, p);
+            stats.max_penetration = stats.max_penetration.max(b).max(s);
+            if s > 0.0 {
+                stats.stick_contact[i] = true;
+            }
+            any |= b > 0.0 || s > 0.0;
+        }
+        // A static push may have moved the puck back into something: only a clean pass ends this.
+        if !puck_statics(puck, nets, p) && !any {
+            return;
+        }
+    }
+    // Pinched: the puck stays where the statics put it, players give way. Rounds, because moving one
+    // player off the puck can bring its own stick or body (or another player's) back onto it.
+    for _ in 0..3 {
+    for (i, pl) in state.players.iter_mut().enumerate() {
+        if stick_depth(pl, puck, p) > 0.0 {
+            // Largest fraction of this substep's turn that leaves the puck clear.
+            let da = wrap_angle(pl.stick_angle - poses[i].2);
+            let (mut lo, mut hi) = (0.0, 1.0);
+            for _ in 0..12 {
+                let mid = 0.5 * (lo + hi);
+                pl.stick_angle = wrap_angle(poses[i].2 + da * mid);
+                if stick_depth(pl, puck, p) > 0.0 { hi = mid } else { lo = mid }
+            }
+            pl.stick_angle = wrap_angle(poses[i].2 + da * lo);
+            // The stick springs back off the pinned puck (the chase would otherwise press it again next step).
+            let back = (p.stick_restitution * pl.stick_omega.abs()).max(PINCH_REBOUND_OMEGA);
+            pl.stick_omega = if da >= 0.0 { -back } else { back };
+            stats.stick_blocks += 1;
+        }
+        // Still inside at the start angle: the player's own motion did it. Push the player off.
+        for _ in 0..3 {
+            let d = stick_depth(pl, puck, p);
+            if d <= 0.0 {
+                break;
+            }
+            let (lx, ly) = to_local((pl.x, pl.y, pl.stick_angle), puck.x, puck.y);
+            let (_, lnx, lny) = chain_gap(p, lx, ly, p.puck_radius);
+            let (co, si) = (cos(pl.stick_angle), sin(pl.stick_angle));
+            push_player(pl, co * lnx - si * lny, si * lnx + co * lny, d);
+            stats.body_blocks += 1;
+        }
+        let d = body_depth(pl, puck, p);
+        if d > 0.0 {
+            let (dx, dy) = (puck.x - pl.x, puck.y - pl.y);
+            let l = len(dx, dy).max(EPS);
+            push_player(pl, dx / l, dy / l, d);
+            stats.body_blocks += 1;
+        }
+    }
     }
 }
 
@@ -457,8 +717,22 @@ pub fn step(state: &mut State, inputs: &[PlayerInput], p: &Params) {
     }
 }
 
+/// `step` for free play that also reports the contacts of this step.
+pub fn step_with_stats(state: &mut State, inputs: &[PlayerInput], p: &Params, stats: &mut ContactStats) {
+    physics_step_stats(state, inputs, p, stats);
+}
+
 /// One physics step (free play). Returns the team that scored this step, if any.
 pub(crate) fn physics_step(state: &mut State, inputs: &[PlayerInput], p: &Params) -> Option<u8> {
+    physics_step_stats(state, inputs, p, &mut ContactStats::default())
+}
+
+fn physics_step_stats(state: &mut State, inputs: &[PlayerInput], p: &Params, stats: &mut ContactStats) -> Option<u8> {
+    stats.stick_contact.clear();
+    stats.stick_contact.resize(state.players.len(), false);
+    stats.max_penetration = 0.0;
+    stats.stick_blocks = 0;
+    stats.body_blocks = 0;
     let dt = p.timestep;
     let n = p.substeps_n();
     let h = dt / n as f64;
@@ -470,8 +744,11 @@ pub(crate) fn physics_step(state: &mut State, inputs: &[PlayerInput], p: &Params
     }
 
     let nets = net_segments(p);
+    let mut poses: Vec<(f64, f64, f64)> = Vec::with_capacity(state.players.len());
     for _ in 0..n {
         // Players and sticks.
+        poses.clear();
+        poses.extend(state.players.iter().map(|pl| (pl.x, pl.y, pl.stick_angle)));
         for pl in state.players.iter_mut() {
             pl.x += pl.vx * h;
             pl.y += pl.vy * h;
@@ -499,23 +776,14 @@ pub(crate) fn physics_step(state: &mut State, inputs: &[PlayerInput], p: &Params
         integrate_puck(&mut state.puck, p, h);
         for (i, pl) in state.players.iter_mut().enumerate() {
             let inp = inputs.get(i).unwrap_or(&idle);
-            player_puck_body(pl, &mut state.puck, p);
-            stick_puck(pl, inp, &mut state.puck, p);
+            if stick_puck(pl, poses[i], start, inp, &mut state.puck, p, h) {
+                stats.stick_contact[i] = true;
+            }
         }
         if state.puck.z < p.net_height {
             sweep_puck_nets(&mut state.puck, start, &nets, p);
-            for &(ax, ay, bx, by) in &nets {
-                let (qx, qy) = closest_on_segment(ax, ay, bx, by, state.puck.x, state.puck.y);
-                let (dx, dy) = (state.puck.x - qx, state.puck.y - qy);
-                let d = len(dx, dy);
-                if d < p.puck_radius && d > EPS {
-                    puck_static_bounce(&mut state.puck, dx / d, dy / d, p.puck_radius - d, p.net_restitution, 0.0);
-                }
-            }
         }
-        if let Some((nx, ny, pen)) = board_contact(p, state.puck.x, state.puck.y, p.puck_radius) {
-            puck_static_bounce(&mut state.puck, nx, ny, pen, p.board_restitution, p.board_friction);
-        }
+        resolve_overlaps(state, &poses, &nets, p, stats);
     }
 
     let goal = update_goals(state, p);

@@ -130,8 +130,8 @@ Provenance tags: `measured` (model-free measurement), `measured-shape` (geometry
 | rink_width / rink_corner_radius | 41.5311 / 9.4851 m | measured-shape | s6 board outline (length/width 1.571) |
 | net_x / net_width / net_depth | 24.8082 / 6.4375 / 2.4206 m | measured-shape | goal line, parallax-corrected net roof (depth assumes a flat roof) |
 | blue_line_x, faceoff_x/y, faceoff_circle_radius | 8.7525, 17.7281 / 11.3362, 5.1193 m | measured-shape | display only |
-| puck_radius | 0.249853 m | measured-shape | resting puck's bright face (s6) |
-| player_radius | 0.4969 m | measured-shape | w4: body/puck radius ratio 1.989 (sd 0.078, n 18) in the same frames of hittingpuck × puck_radius (`measure/body_puck.py`) |
+| puck_radius | 0.2721 m | measured-shape | w5a: puck / rink 0.00417 in the sharp zoomed clip (see "Geometry and stick contact (w5a)") |
+| player_radius | 0.5329 m | measured-shape | w5a: height-corrected body / rink 0.00817 (`measure/size_ratios.py`) |
 | board_restitution / board_friction | 0.342796 / 0 | fitted | s5/s6 wall bounces, held out by clip |
 | ice_linear_drag / ice_friction_decel | 0.47254 1/s / 0 m/s^2 | fitted | glides; decel refit in real m/s^2 (below) |
 | player_accel | 17.3594 m/s^2 | fitted | s10 refit of the s7 key-display skating runs with the proportional coast |
@@ -140,7 +140,7 @@ Provenance tags: `measured` (model-free measurement), `measured-shape` (geometry
 | dash_speed / dash_ramp_time | 15.4803 m/s / 0.11631 s | fitted | s10 set-speed dash ramp (held out by clip) |
 | dash_duration / dash_cooldown | 0.25 s / 1 s | **placeholder** | not identifiable from the clips |
 | stick_max_ang_speed / accel / decel | 26.173 rad/s / 513.9 / 2316.1 rad/s^2 | fitted | s7b sweeps (cap plateau; flick starts); s10 stop decel |
-| stick_length / stick_thickness | 1.1825 / 0.058604 m | measured-shape | s7b, dolly-camera corrected; thickness = collision half-width |
+| stick chain (stick_hand/kink/heel/toe_x/y, stick_shaft_radius, stick_heel_radius, stick_thickness = blade half-width) | see w5a | measured-shape | w5a: three capsules; stick_length 1.1036 m (pivot to toe; inertia and bots only), stick_inner 0.7725 m (bots only) |
 | stick_restitution | 0.3597 | fitted, **conditional** | 7 hits, holds only for stick_mass 2 kg (placeholder) |
 | match_length_s / mercy_lead | 300 s / 5 | rule | Ian |
 | everything else | | placeholder | see "What the clips could not give" |
@@ -865,6 +865,91 @@ ACT/OBS were unchanged by w4; session t2 added the raised stick to them.
 - Raise/lower timing (instant here), the raised height range (0.35–1.5 m placeholder), and whether a raised stick can hit
   a puck in the air in the real game are unmeasured. Whether the real button is hold or toggle is unverified.
 - The follow camera's zoom and clamping are a reasoned choice, not measured from the real camera.
+
+## Geometry and stick contact (session w5a, 2026-11-06, branch w5a)
+Physics changed (radii, stick shape, contact), so all hashes and the physics stamp changed. ACT/OBS formats did not.
+
+### Size ratios (`python -m measure.size_ratios --clips DIR` -> `measure/results/size_ratios.json`)
+Radius / inner board length, both in px of one camera, so independent of the absolute scale. Normal zoom = hittingpuck (rink 949 px,
+18 resting episodes); zoomed = rotatinganddizzy (rink 4004 px, from the centre circle x 6.365, ice scale ratio q 4.219).
+| ratio | as seen, normal | as seen, zoomed | height corrected | old sim | new sim |
+|---|---|---|---|---|---|
+| body / rink | 0.00889 | 0.01242 | **0.00817 ± 0.00023** | 0.00762 | 0.00817 |
+| puck / rink | 0.00431 | **0.00417** | 0.00435 ± 0.00022 | 0.00383 | 0.00417 |
+| body / puck | 2.064 | 2.977 | 1.88 ± 0.11 (1.96 with the zoomed puck) | 1.989 | 1.958 |
+- Height correction: a thing at height h is magnified 1/(1 − h/H); two zooms of the same scene solve h and the ground size
+  (dolly model, Monte Carlo errors). Body top x = h/H_zoom = 0.342 ± 0.020. Puck x = −0.04 ± 0.07, i.e. no measurable height, so the
+  puck uses the sharp zoomed reading (16.7 px, blurred-disc fit), not the 4 px normal-zoom one.
+- **Reading**: body/puck agrees with the sim within error; both radii were low against the rink (body +7.2%, 2.3 sd; puck +8.9%).
+  So player_radius 0.4969 → **0.5329 m**, puck_radius 0.249853 → **0.2721 m**. rink_length and the absolute scale are unchanged:
+  a radius/rink ratio cannot test the scale, because radii and rink are both scaled by it. The old values came from soft
+  3.5 px half-max reads and from the ratio to that puck. Implied scale factor for Ian: none.
+- Why the body still looks bigger in the real game: it is DRAWN at its height, 0.00889 of the rink at normal zoom, 9% above its
+  ground size, more at closer zooms. The sim draws ground size. A display-only magnification is open.
+- Drawn radii: real game normal zoom (1920 wide) body 8.44, puck 4.09 px. Sim game 1280×760: follow camera 15.08 / 7.70 px (was
+  14.06 / 7.07), whole rink 5.82 / 2.97 px (was 5.42 / 2.73). Sim sizes at 28.29 and 10.91 px/m.
+
+### Stick shape (`python -m measure.stick_outline --clips DIR` -> `stick_shape.json` key `chain`; figure `python -m measure.stick_figure`)
+500 slow frames of rotatinganddizzy de-rotated into the stick frame (+x = tracked stick_angle). Held out by 5 frame blocks:
+| chain | held-out IoU | edge RMS px |
+|---|---|---|
+| 1 capsule | 0.472 | 18.59 |
+| 2 capsules | 0.834 | 1.17 |
+| **3 capsules (chosen)** | **0.890** (fold sd 0.020) | **0.93** |
+- Points (m, stick frame): hand (−0.0721, 0.5051), kink (0.4324, 0.1252), heel (0.7725, 0.0053), toe (1.1035, −0.0186). Half-widths: shaft
+  0.0496, heel section 0.0754, blade 0.0567 (`stick_thickness`). Shaft 0.632 m, heel section 0.361 m, blade 0.332 m, blade 32.8 deg off
+  the shaft line. The hand sits on the body rim, not at the centre: the shaft is a chord across the body. The blade's slight
+  curve is covered by the heel/blade bend; no separate curve term.
+- Ground mapping is per point: x falls from 0.342 at the hand to 0.101 at the heel and toe (the s7b tip value; that value is itself
+  soft). The toe is the most uncertain point.
+- `measure/results/stick_chain.png` is drawn from params.json only. `render.ts` `stickChain` reads the same params as `step.rs`.
+  The drawn blade is slate, not the game's white, which vanishes on the lab ice.
+- Pinned params files carry a straight rod in the chain format.
+
+### Hit rule (`stick_hit_rule`, kept 0 = centre-on; hitlab, 7 hits, measured omega; `measure/results/w5a_hits_*.csv`)
+| model | direction RMS vs measured | exit ratio range (measured 0.77–1.64) | contact lead |
+|---|---|---|---|
+| old rod, centre-on | 5.1 deg | 1.10–1.14 | 18–21 deg |
+| **new chain, centre-on (adopted)** | **5.1 deg** | 1.07–1.11 | 19–27 deg |
+| new chain, surface normal | 16.9 deg | 1.03–1.09 | 19–27 deg |
+- The true shape did NOT explain the early touch: the lead is mostly puck size (asin(reach / r)). Why real exits look centre-on
+  although the blade edge touches first is still unexplained. The 5.1 deg is simply the measured scatter (the rule gives 0 offset).
+
+### Contact guarantees (`sim/src/step.rs`, tests `sim/tests/contact_stress.rs`)
+- Swept stick: per substep the puck centre's path in the stick frame is swept against the three capsules (`stick_puck`).
+- `resolve_overlaps`: passes of body, stick, nets, boards along contact normals. If a pinch remains, boards/nets win: the stick
+  turns back to the last clear angle and springs back (≥ 8 rad/s), and a player is pushed off (≥ 0.6 m/s). Both rebounds are chosen, not measured.
+- A capped puck slows the stick to its normal speed so the blade does not re-catch it. `step_with_stats` reports contacts.
+- Stress run, 100,000 steps: see "Verified (w5a)". The longest runs are honest pushes: a stick spinning up from touching the puck
+  contacts it on each of its ~6 spin-up steps, then the puck leaves at full speed. The test bound is 10 steps, not fewer.
+- Max penetration 0.3755 m happens only when a raised stick is lowered instantly onto a puck (or a puck drops into the height
+  range): it is resolved in the same substep, and that is a jump of the puck, not a sweep failure.
+
+### Bots
+SHOT_SPEED 27.6 → **29.6 m/s**, SHOT_OVERTURN 0.018 kept. Shotlab 48/48 before and after, median |err| 0.001 rad (p90 0.002 → 0.003).
+Tournament 100×60 s before → after: chaser–chaser 0.53–0.39 → 0.49–0.41; chaser–defender 0.54–0.01 → **0.35–0.01** (the bigger body and
+puck block more; not retuned); chaser–cautious 16.98 → 17.01; chaser–idle 17.00 → 17.01; the rest 0–0.
+
+### Verified (w5a, Windows)
+- `cargo test --workspace --release` 69 passed; measure 31 and train 16 Python tests OK; `npm run build` and all 10 verify scripts OK
+  (`VERIFY_PORT=5273` here: other sessions held 5173 and 5189).
+- Contact stress, 100,000 steps: 658 contacts, 1,014 contact steps, 0 end-of-step overlaps, puck outside the rink 0, longest run 9 steps
+  (run lengths 1..9: 493, 88, 31, 13, 12, 11, 7, 2, 1), 286 sticks stopped by a pinch, 530 player push-offs.
+- Hashes after 100k steps, native = wasm (old → new): free play `1c20a120d579b8ae` → **`5a23bb0bc3f1459c`**, match `1562dade657130b9` →
+  **`57e74110caf19cc3`**, s10 shots `2ddbc98e6f2e54c3` → **`ae647c5567e009f7`**, raised stick `99709a2c0e5f2646` → **`b2dca12d4e66d29f`**.
+- Physics stamp `8e01b0174c545b10` → **`59c9fb4e8e4cc65b`**.
+
+### Changed expectations
+`sim-ffi/tests/ffi_tests.rs` match_mode_endings: defender sample 4 → 16 matches, overtime sample 16 → 64 (the fixed seeds no longer
+reached those endings). `verify_w4.mjs` radius ratio. `verify_w3.mjs` port via VERIFY_PORT. `hitlab` starts 1.2 rad short (was 0.3; the chain would start
+overlapped). `sim_tests` provenance list.
+
+### Open (w5a)
+- Calibrated values were NOT refit with the new radii (board/puck fits, shot speed data); stick_mass 2 kg is still a placeholder and the
+  inertia still uses a uniform rod of stick_length.
+- Display-only body magnification; collision radius vs drawn radius in the real game is unmeasured. Toe height. Stick vs board and
+  stick vs stick still do not collide. Pinch rebounds are invented. The defender is relatively stronger now.
+- The smoke bot and any policy were trained on the old physics stamp.
 
 ## Action and observation v3 (session t2, 2026-11-05, branch t2)
 Formats only: `git diff origin/main -- sim calib params.json` is empty. ACT v3, OBS v3, ABI v3.

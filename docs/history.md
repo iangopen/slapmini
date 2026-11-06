@@ -815,3 +815,6 @@ Measured the body/puck radius ratio (1.989) → player_radius 0.4969; true-scale
 
 ## t2 (2026-11-05)
 Raised stick in the bot formats (ACT v3, OBS v3, ABI v3). The first session crashed after a WIP commit; the resumed session reviewed it, added the missing checks and docs, retrained the smoke bot and reran all verification.
+
+## w5a (2026-11-06)
+Measured size ratios with an explicit height correction (radii up 7-9%), fitted a three-capsule stick, put it in the sim and renderer, kept the centre-on hit rule, added swept stick contact and a pinch solver with a 100k stress test, retuned SHOT_SPEED.

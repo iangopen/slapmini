@@ -11,4 +11,4 @@ pub mod step;
 pub use params::{ParamEntry, ParamFile, Params, DEFAULT_PARAMS_JSON};
 pub use rules::{MatchPhase, MatchState};
 pub use state::{Player, PlayerInput, Puck, State};
-pub use step::step;
+pub use step::{step, step_with_stats, stick_puck_gap, stick_reaches, ContactStats};

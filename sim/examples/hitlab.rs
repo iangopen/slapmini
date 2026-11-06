@@ -4,7 +4,7 @@
 //!   cargo run --release -p sim --example hitlab -- PARAMS.json HITS.json [name=value ...]
 //!
 //! HITS.json = measure/results/stick_hits.json (the measured table). For every hit the stick starts
-//! 0.3 rad short of the puck turning at the measured omega; the chase limits are set to 0 so omega
+//! 1.2 rad short (clear of the curved chain) of the puck turning at the measured omega; the chase limits are set to 0 so omega
 //! stays at the measured value until contact (the clip shows the swing speed, not the mouse), and
 //! ice drag is off so the exit velocity is the contact velocity. The contact phase within a substep
 //! is unknown, so each hit is run at 16 start phases spread over one substep of turning.
@@ -62,7 +62,7 @@ fn main() {
             q.y = py;
             q.facing = 0.0;
             q.stick_omega = w;
-            q.stick_angle = cdir - sg * (0.3 + w.abs() * h * k as f64 / PHASES as f64);
+            q.stick_angle = cdir - sg * (1.2 + w.abs() * h * k as f64 / PHASES as f64);
             let inp = [PlayerInput { stick_target_angle: q.stick_angle, ..Default::default() }];
             let mut lead = f64::NAN;
             let mut after = 0;

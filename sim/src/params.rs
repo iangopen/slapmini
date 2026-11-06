@@ -46,6 +46,11 @@ define_params!(
     player_coast_rate, dash_ramp_time, stick_max_ang_decel,
     // w4: raised stick (left mouse button) height range.
     stick_up_z_min, stick_up_z_max,
+    // w5a: stick shape, a chain of three capsules in the stick's frame (+x along stick_angle, +y 90 deg CCW),
+    // hand -> kink -> heel -> toe. Half-widths: shaft, heel, and stick_thickness for the blade.
+    // stick_hit_rule: 0 = centre-on (s10), 1 = contact point and surface normal.
+    stick_hand_x, stick_hand_y, stick_kink_x, stick_kink_y, stick_heel_x, stick_heel_y, stick_toe_x, stick_toe_y,
+    stick_shaft_radius, stick_heel_radius, stick_hit_rule,
 );
 
 /// One entry of `params.json`.

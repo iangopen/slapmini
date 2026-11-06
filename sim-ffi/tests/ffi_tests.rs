@@ -283,14 +283,14 @@ fn match_mode_endings() {
     assert!(m.seconds < 200.0, "mercy should end early: {m:?}");
     assert_eq!(m.match_win, 1.0);
     // Clock end with a leader: chaser vs defender over the full 5:00 (low scoring).
-    let (r, _) = play_match("", "defender", 12, 4);
+    let (r, _) = play_match("", "defender", 12, 16);
     let clock_end = r.iter().find(|m| m.seconds >= 299.9 && !m.overtime && m.gf != m.ga);
     assert!(clock_end.is_some(), "no regulation clock end in {r:?}");
     // Overtime: chaser vs chaser on a short clock (in-memory params only) until a tie goes to overtime.
     let mut p = sim::ParamFile::from_json(sim::DEFAULT_PARAMS_JSON).unwrap();
     p.params.get_mut("match_length_s").unwrap().value = 20.0;
     let short = serde_json::to_string(&p).unwrap();
-    let (r, _) = play_match(&short, "chaser", 13, 16);
+    let (r, _) = play_match(&short, "chaser", 13, 64);
     let ot = r.iter().find(|m| m.overtime && m.end != END_TRUNCATED);
     assert!(ot.is_some(), "no overtime goal in {r:?}");
     let ot = ot.unwrap();

@@ -268,23 +268,28 @@ export function draw(ctx: CanvasRenderingContext2D, v: View, p: P, st: State, o:
       line(pl.x, pl.y, pl.x + Math.cos(ta) * p.stick_length, pl.y + Math.sin(ta) * p.stick_length);
       ctx.setLineDash([]);
     }
-    // actual stick
+    // actual stick: the same capsule chain the sim collides with (params stick_hand..stick_toe, half-widths).
     const a = pl.stick_angle;
     const [c, s] = [Math.cos(a), Math.sin(a)];
+    const at = (lx: number, ly: number): [number, number] => [pl.x + c * lx - s * ly, pl.y + s * lx + c * ly];
+    const chain = stickChain(p);
     ctx.lineCap = "round";
+    chain.forEach(([ax, ay, bx, by, r], k) => {
+      const [x0, y0] = at(ax, ay);
+      const [x1, y1] = at(bx, by);
+      // Black shaft, slate blade (the game's white blade would vanish on this light ice); raised (w4) it is fainter.
+      ctx.globalAlpha = pl.stick_up ? 0.45 : 1;
+      ctx.strokeStyle = k === 0 ? "#1b232c" : "#46586b";
+      ctx.lineWidth = Math.max(pl.stick_up ? 1 : 1.5, r * 2 * v.s);
+      line(x0, y0, x1, y1);
+    });
+    ctx.globalAlpha = 1;
     if (pl.stick_up) {
-      // Raised (w4): lighter and thinner, with a thin line offset to one side (the blade lifted off the ice).
-      ctx.strokeStyle = "rgba(27, 35, 44, 0.45)";
-      ctx.lineWidth = Math.max(1.5, p.stick_thickness * v.s);
-      line(pl.x + c * p.stick_inner, pl.y + s * p.stick_inner, pl.x + c * p.stick_length, pl.y + s * p.stick_length);
-      const off = Math.max(0.12, 3 / v.s); // ≥ 3 px to the stick's left
+      const off = Math.max(0.12, 3 / v.s); // >= 3 px to the stick's left
       ctx.lineWidth = 1;
       ctx.strokeStyle = "rgba(27, 35, 44, 0.7)";
-      line(pl.x + c * p.stick_inner - s * off, pl.y + s * p.stick_inner + c * off, pl.x + c * p.stick_length - s * off, pl.y + s * p.stick_length + c * off);
-    } else {
-      ctx.strokeStyle = "#1b232c";
-      ctx.lineWidth = Math.max(3, p.stick_thickness * 2 * v.s);
-      line(pl.x + c * p.stick_inner, pl.y + s * p.stick_inner, pl.x + c * p.stick_length, pl.y + s * p.stick_length);
+      const [h0, h1] = [at(p.stick_heel_x, p.stick_heel_y + off), at(p.stick_toe_x, p.stick_toe_y + off)];
+      line(h0[0], h0[1], h1[0], h1[1]);
     }
     ctx.lineCap = "butt";
   });
@@ -309,6 +314,15 @@ export function draw(ctx: CanvasRenderingContext2D, v: View, p: P, st: State, o:
 // ---------- match HUD (screen space; drawn after the rink, independent of the view rotation) ----------
 
 /** On-screen radii in px of a player and a puck on the ice (the puck with its display-only minimum). */
+/** The stick's capsules in its local frame: [ax, ay, bx, by, half-width]. Same params as sim/src/step.rs stick_chain. */
+export function stickChain(p: P): [number, number, number, number, number][] {
+  return [
+    [p.stick_hand_x, p.stick_hand_y, p.stick_kink_x, p.stick_kink_y, p.stick_shaft_radius],
+    [p.stick_kink_x, p.stick_kink_y, p.stick_heel_x, p.stick_heel_y, p.stick_heel_radius],
+    [p.stick_heel_x, p.stick_heel_y, p.stick_toe_x, p.stick_toe_y, p.stick_thickness],
+  ];
+}
+
 export function drawnRadii(v: View, p: P, puckMinPx?: number): { player: number; puck: number } {
   return { player: p.player_radius * v.s, puck: Math.max(p.puck_radius * v.s, puckMinPx ?? PUCK_MIN_PX) };
 }

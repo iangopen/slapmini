@@ -41,7 +41,7 @@ try {
   const g = () => page.evaluate(() => ({ ...window.game.w4, locked: window.game.aim.locked, in0: window.game.lastInputs[0] ?? null }));
   let s = await g();
   console.log(`[camera] ${s.camera}, ${s.scale.toFixed(2)} px/m; drawn radii player ${s.radii.player.toFixed(2)} px, puck ${s.radii.puck.toFixed(2)} px (ratio ${(s.radii.player / s.radii.puck).toFixed(3)})`);
-  check(s.camera === "follow" && Math.abs(s.radii.player / s.radii.puck - 0.4969 / 0.249853) < 1e-6, "follow camera by default; player and puck drawn at true scale");
+  check(s.camera === "follow" && Math.abs(s.radii.player / s.radii.puck - 0.5329 / 0.2721) < 1e-6, "follow camera by default; player and puck drawn at true scale");
   const box = await page.locator("#rink").boundingBox();
   const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
   await page.mouse.move(cx, cy);

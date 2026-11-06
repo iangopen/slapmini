@@ -1,0 +1,218 @@
+{
+ "note": "Ratios are scale-free: radius / inner board length, both in px of one camera. 'as seen' = no height correction.",
+ "zoom": {
+  "rink_length_px_normal": 949.0,
+  "rink_width_px_normal": 604.0,
+  "rink_length_px_zoomed": 4004.0305500000004,
+  "q": 4.219210273972603,
+  "centre_circle_r_px_zoomed": 314.535
+ },
+ "puck_zoomed": {
+  "u": 34.94922213728062,
+  "v": 34.71198649748139,
+  "r": 16.698218108189405,
+  "sigma": 0.9559386706552698,
+  "contrast": 143.17377433582124,
+  "bg": 10.421000331326779,
+  "rms": 26.311253103144786,
+  "bbox_px": [
+   36,
+   34
+  ],
+  "frames": 45
+ },
+ "body_px_zoomed": 49.715,
+ "body_px_normal": {
+  "median": 8.436,
+  "sd": 0.18084371073503874,
+  "n": 18,
+  "se": 0.04262527139856145
+ },
+ "puck_px_normal_fixed_contrast": {
+  "median": 4.08693326057843,
+  "sd": 0.152918845724851,
+  "n": 18,
+  "se": 0.03604331759442055
+ },
+ "puck_px_normal_free": {
+  "median": 4.220478660615896,
+  "sd": 0.0681299258668835,
+  "n": 18,
+  "se": 0.016058377527403366
+ },
+ "episodes": [
+  {
+   "episode": 0,
+   "puck_r_fixed_contrast": 4.0841113354294585,
+   "puck_r_free": 4.222992631887664,
+   "free_contrast": 125.27526304217186,
+   "sigma": 0.9290182417705403,
+   "body_r": 8.45
+  },
+  {
+   "episode": 1,
+   "puck_r_fixed_contrast": 4.215502533163074,
+   "puck_r_free": 4.328447026238845,
+   "free_contrast": 118.20290851576594,
+   "sigma": 0.7406045511941607,
+   "body_r": 8.759
+  },
+  {
+   "episode": 2,
+   "puck_r_fixed_contrast": 4.053370599208763,
+   "puck_r_free": 4.182400110914729,
+   "free_contrast": 127.04506837510289,
+   "sigma": 0.9656055062050763,
+   "body_r": 8.373
+  },
+  {
+   "episode": 3,
+   "puck_r_fixed_contrast": 4.096252329890627,
+   "puck_r_free": 4.226322965084864,
+   "free_contrast": 126.01452855153774,
+   "sigma": 0.9187102745607446,
+   "body_r": 8.455
+  },
+  {
+   "episode": 4,
+   "puck_r_fixed_contrast": 4.1074842221076,
+   "puck_r_free": 4.238965089822125,
+   "free_contrast": 126.09712979715425,
+   "sigma": 0.9507641497315122,
+   "body_r": 8.295
+  },
+  {
+   "episode": 5,
+   "puck_r_fixed_contrast": 4.57307840188459,
+   "puck_r_free": 4.452540228056217,
+   "free_contrast": 161.01558734934878,
+   "sigma": 0.7218229865691129,
+   "body_r": 8.451
+  },
+  {
+   "episode": 6,
+   "puck_r_fixed_contrast": 4.048596829951943,
+   "puck_r_free": 4.18168669794454,
+   "free_contrast": 125.11863052561026,
+   "sigma": 1.0156419886827972,
+   "body_r": 8.525
+  },
+  {
+   "episode": 28,
+   "puck_r_fixed_contrast": 4.089755185727403,
+   "puck_r_free": 4.20876116525719,
+   "free_contrast": 127.76102701971224,
+   "sigma": 0.9657195518750246,
+   "body_r": 8.171
+  },
+  {
+   "episode": 29,
+   "puck_r_fixed_contrast": 4.096762955037759,
+   "puck_r_free": 4.236508051113782,
+   "free_contrast": 124.73512935862345,
+   "sigma": 0.975567434793721,
+   "body_r": 8.234
+  },
+  {
+   "episode": 30,
+   "puck_r_fixed_contrast": 4.070157891465656,
+   "puck_r_free": 4.188290704759761,
+   "free_contrast": 128.60698817029336,
+   "sigma": 0.9294831696112408,
+   "body_r": 8.526
+  },
+  {
+   "episode": 31,
+   "puck_r_fixed_contrast": 4.064964211642828,
+   "puck_r_free": 4.180943476510137,
+   "free_contrast": 128.05277000656122,
+   "sigma": 0.9208783052339785,
+   "body_r": 8.407
+  },
+  {
+   "episode": 32,
+   "puck_r_fixed_contrast": 4.093069922445603,
+   "puck_r_free": 4.216292562917977,
+   "free_contrast": 127.19842472669652,
+   "sigma": 0.9578813172733652,
+   "body_r": 8.422
+  },
+  {
+   "episode": 33,
+   "puck_r_fixed_contrast": 4.405211672036385,
+   "puck_r_free": 4.299813232731923,
+   "free_contrast": 163.76622583149657,
+   "sigma": 0.6699174815739134,
+   "body_r": 8.216
+  },
+  {
+   "episode": 34,
+   "puck_r_fixed_contrast": 4.361590895913972,
+   "puck_r_free": 4.26090858037746,
+   "free_contrast": 161.30533784946408,
+   "sigma": 0.5849800555743416,
+   "body_r": 8.282
+  },
+  {
+   "episode": 35,
+   "puck_r_fixed_contrast": 3.981601000222841,
+   "puck_r_free": 4.174294365884545,
+   "free_contrast": 120.2606630770614,
+   "sigma": 1.106244932933703,
+   "body_r": 8.496
+  },
+  {
+   "episode": 36,
+   "puck_r_fixed_contrast": 4.070572758302231,
+   "puck_r_free": 4.21796468934413,
+   "free_contrast": 124.95740776064007,
+   "sigma": 1.063375145188793,
+   "body_r": 8.372
+  },
+  {
+   "episode": 37,
+   "puck_r_fixed_contrast": 4.040149265547423,
+   "puck_r_free": 4.206954037993972,
+   "free_contrast": 124.08646743546338,
+   "sigma": 1.0363507180253824,
+   "body_r": 8.759
+  },
+  {
+   "episode": 38,
+   "puck_r_fixed_contrast": 4.06321668090391,
+   "puck_r_free": 4.273518745433698,
+   "free_contrast": 113.10474524486166,
+   "sigma": 1.0059198270131702,
+   "body_r": 8.776
+  }
+ ],
+ "height": {
+  "body_x": 0.3421087845437495,
+  "body_x_sd": 0.020453543770542218,
+  "puck_x": -0.0423492714764582,
+  "puck_x_sd": 0.06670014976053995
+ },
+ "ratios": {
+  "body_over_rink_as_seen_normal": 0.008889357218124342,
+  "body_over_rink_as_seen_zoomed": 0.012416238932043112,
+  "body_over_rink_ground": 0.00816900676413056,
+  "body_over_rink_ground_sd": 0.00023378255854945387,
+  "puck_over_rink_as_seen_normal": 0.0043065682408624135,
+  "puck_over_rink_as_seen_zoomed": 0.004170352323657821,
+  "puck_over_rink_ground": 0.004349875677110666,
+  "puck_over_rink_ground_sd": 0.0002189040783713554,
+  "body_over_puck_as_seen_normal": 2.064139407748988,
+  "body_over_puck_as_seen_zoomed": 2.9772637821527788,
+  "body_over_puck_ground": 1.8772488410654287,
+  "body_over_puck_ground_sd": 0.10893072549689121,
+  "rink_length_over_width": 1.5711920529801324
+ },
+ "sim": {
+  "player_radius": 0.4969,
+  "puck_radius": 0.249853,
+  "rink_length": 65.2358,
+  "body_over_rink": 0.007616983312843562,
+  "puck_over_rink": 0.003829998252493263,
+  "body_over_puck": 1.9887693964050863
+ }
+}

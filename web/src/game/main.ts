@@ -433,6 +433,11 @@ window.game = {
     sim.set_state(JSON.stringify(s));
     state = JSON.parse(sim.get_state());
   },
+  /** Test hook: one synchronous sim step of the real match sim with these inputs (scripts/param_audit.mjs). */
+  drillStep(inputs: PlayerInput[]) {
+    sim.step(JSON.stringify(inputs));
+    state = JSON.parse(sim.get_state());
+  },
   /** Test hook: make the next goals end the match quickly (state edit: score). */
   setScore(a: number, b: number) {
     const s = JSON.parse(sim.get_state());

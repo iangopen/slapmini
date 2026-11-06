@@ -10,6 +10,7 @@ fn main() {
     let p = Params::default();
     let styles: [&[f32]; 3] = [&[], &[0.5, -1.0, 0.25, 1.0], &[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.75]];
     let mut n = 0;
+    let mut up = [0usize; 4];
     for (g, (a, b, matched)) in [(Kind::Chaser, Kind::Defender, true), (Kind::Chaser, Kind::Chaser, false), (Kind::Cautious, Kind::Chaser, true)].into_iter().enumerate() {
         let mut s = if matched { State::new_match(&p, 2) } else { State::new_default(&p, 2) };
         let mut bots = [Scripted::new(a), Scripted::new(b)];
@@ -20,6 +21,8 @@ fn main() {
                 // Sprinkle dashes and lifts so those fields vary.
                 inputs[i].dash = (t + 37 * i as u64) % 400 == 0;
                 inputs[i].lift = (t / 200 + i as u64) % 7 == 0;
+                // OBS v3: raised sticks in 60-step blocks, so neither / one / both players raised all occur.
+                inputs[i].stick_up = ((t / 60) * 2 + i as u64).wrapping_mul(2654435761) % 5 < 2;
             }
             let before: u32 = s.score.iter().sum();
             sim::step(&mut s, &inputs, &p);
@@ -37,6 +40,7 @@ fn main() {
                     let style = styles[(t as usize / 53 + player + g) % styles.len()];
                     let mut o = [0f32; OBS_DIM];
                     observe(&s, player, style, &p, &mut o);
+                    up[(o[bots::STICK_UP_IDX] as usize) + 2 * (o[bots::STICK_UP_IDX + 1] as usize)] += 1;
                     let bits: Vec<u32> = o.iter().map(|x| x.to_bits()).collect();
                     println!("{}", serde_json::json!({"state": js, "player": player, "style": style, "bits": bits}));
                     n += 1;
@@ -44,5 +48,5 @@ fn main() {
             }
         }
     }
-    eprintln!("obs_fixture: {n} observations");
+    eprintln!("obs_fixture: {n} observations (stick_up: none {}, own only {}, opponent only {}, both {})", up[0], up[1], up[2], up[3]);
 }

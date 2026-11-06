@@ -3,7 +3,8 @@
 // into sim-wasm (bots::observe, bots::Action::to_input, bots::Scripted): nothing is re-implemented here.
 //
 // Policy timing matches training: one decision per 4 sim steps (30 Hz at 120 Hz), the action held
-// in between, the deterministic outputs (argmax move, mean stick direction, dash/lift prob > 0.5).
+// in between, the deterministic outputs (argmax move, mean stick direction, dash/lift/stick_up prob > 0.5).
+// Formats: OBS v3 (42 floats: own / opponent stick_up at 40 / 41) and ACT v3 (+ stick_up), checked against the sidecar.
 // onnxruntime-web's run() is asynchronous, so a decision's action applies from the first sim step
 // after it resolves (in practice the next frame); a decision is skipped if the previous one is
 // still running (counted in stats.skipped).
@@ -14,7 +15,9 @@ import type { PlayerInput } from "../types";
 import { handicapFor, type Handicap } from "./skill";
 
 export const DECISION_STEPS = 4;
-const IDLE: PlayerInput = { move_x: 0, move_y: 0, stick_target_angle: 0, dash: false, lift: false };
+const IDLE: PlayerInput = { move_x: 0, move_y: 0, stick_target_angle: 0, dash: false, lift: false, stick_up: false };
+/** The action layout the game feeds policies (bots::ACT_VERSION; ACT v3 = move, stick, dash, lift, stick_up). */
+export const ACT_VERSION = 3;
 
 let ortReady = false;
 function setupOrt(): void {
@@ -33,8 +36,8 @@ export async function loadPolicy(url: string, obsDim: number, obsVersion: number
   const side = await fetch(url.replace(/\.onnx$/, ".json"));
   if (side.ok) {
     const s = await side.json();
-    if (s.obs_dim !== obsDim || s.obs_version !== obsVersion || (s.act_version ?? 1) !== 2) {
-      throw new Error(`policy layout obs v${s.obs_version}/${s.obs_dim} act v${s.act_version ?? 1} does not match the game (obs v${obsVersion}/${obsDim}, act v2)`);
+    if (s.obs_dim !== obsDim || s.obs_version !== obsVersion || (s.act_version ?? 1) !== ACT_VERSION || !(s.outputs ?? []).includes("stick_up_prob")) {
+      throw new Error(`policy layout obs v${s.obs_version}/${s.obs_dim} act v${s.act_version ?? 1} does not match the game (obs v${obsVersion}/${obsDim}, act v${ACT_VERSION} with stick_up_prob)`);
     }
   }
   const buf = await fetch(url);
@@ -69,6 +72,8 @@ export abstract class BotDriver {
   private mistakeDir = 0;
   private noise = 0;
   stats: BotStats = { decisions: 0, skipped: 0, inferenceMs: [], mistakes: 0 };
+  /** Test hook only (verification screenshots): force the bot's stick up regardless of its own choice. */
+  forceStickUp = false;
 
   constructor(protected sim: Sim, readonly player: number, skill: number, seed = 1) {
     this.hc = handicapFor(skill);
@@ -124,7 +129,7 @@ export class ScriptedDriver extends BotDriver {
     inp.stick_target_angle += this.stickNoise();
     const m = this.mistake();
     if (m >= 0) {
-      const a = JSON.parse(this.sim.action_input(this.player, m, 0, false, false)) as PlayerInput;
+      const a = JSON.parse(this.sim.action_input(this.player, m, 0, false, false, false)) as PlayerInput;
       inp.move_x = a.move_x;
       inp.move_y = a.move_y;
       inp.dash = false;
@@ -133,7 +138,7 @@ export class ScriptedDriver extends BotDriver {
     this.step++;
     this.queue.push(inp);
     const out = this.queue.length > this.hc.delaySteps ? this.queue.shift()! : { ...IDLE };
-    return out;
+    return this.forceStickUp ? { ...out, stick_up: true } : out;
   }
   reset(): void {
     super.reset();
@@ -146,19 +151,26 @@ export class PolicyDriver extends BotDriver {
   private obsHist: Float32Array[] = [];
   private pending = false;
   private held: PlayerInput = { ...IDLE };
-  private action = { move: 0, angle: 0, dash: false, lift: false };
+  private action = { move: 0, angle: 0, dash: false, lift: false, stickUp: false };
   readonly style: Float32Array;
+  private readonly obsDim: number;
+  /** Raised-stick usage (ACT v3): sum of stick_up_prob over decisions and the decisions with the stick up. */
+  upProbSum = 0;
+  upDecisions = 0;
 
   constructor(sim: Sim, player: number, private session: ort.InferenceSession, readonly name: string, style: number[], skill: number, seed = 1) {
     super(sim, player, skill, seed);
     this.style = new Float32Array(style);
+    this.obsDim = (sim.constructor as unknown as { obs_dim(): number }).obs_dim();
   }
   get label(): string {
     return `policy ${this.name}`;
   }
   input(): PlayerInput {
     // Perception delay: the policy decides on the observation from `delaySteps` ago.
-    this.obsHist.push(this.sim.observe(this.player, this.style));
+    const o = this.sim.observe(this.player, this.style);
+    if (o.length !== this.obsDim) throw new Error(`observation length ${o.length}, the policy expects ${this.obsDim}`);
+    this.obsHist.push(o);
     if (this.obsHist.length > this.hc.delaySteps + 1) this.obsHist.shift();
     if (this.step % DECISION_STEPS === 0) {
       if (this.pending) this.stats.skipped++;
@@ -166,9 +178,9 @@ export class PolicyDriver extends BotDriver {
     }
     const m = this.mistake();
     let out = this.held;
-    if (m >= 0) out = JSON.parse(this.sim.action_input(this.player, m, this.action.angle, false, false));
+    if (m >= 0) out = JSON.parse(this.sim.action_input(this.player, m, this.action.angle, false, false, this.action.stickUp));
     this.step++;
-    return out;
+    return this.forceStickUp ? { ...out, stick_up: true } : out;
   }
   private decide(obs: Float32Array): void {
     this.pending = true;
@@ -185,9 +197,12 @@ export class PolicyDriver extends BotDriver {
           angle: Math.atan2(sd[1], sd[0]) + noise,
           dash: (r.dash_prob.data as Float32Array)[0] > 0.5,
           lift: (r.lift_prob.data as Float32Array)[0] > 0.5,
+          stickUp: (r.stick_up_prob.data as Float32Array)[0] > 0.5,
         };
+        this.upProbSum += (r.stick_up_prob.data as Float32Array)[0];
+        if (this.action.stickUp) this.upDecisions++;
         // bots::Action::to_input (team rotation) in Rust.
-        this.held = JSON.parse(this.sim.action_input(this.player, this.action.move, this.action.angle, this.action.dash, this.action.lift));
+        this.held = JSON.parse(this.sim.action_input(this.player, this.action.move, this.action.angle, this.action.dash, this.action.lift, this.action.stickUp));
       })
       .catch((e) => console.error("policy run failed", e))
       .finally(() => {

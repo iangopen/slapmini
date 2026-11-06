@@ -264,7 +264,7 @@ m/s), the stick height range (stick_z_min 0 / stick_z_max 0.25 m), dash_duration
   matches beyond 2 players), a goal exactly at 0:00 (counted: goals on the last step score first), the opponent player still idle.
 
 ## Bots and training (bots/, sim-ffi/, train/)
-1v1, no goalie. Formats are versioned: ACT v2, OBS_VERSION 2, ABI_VERSION 2; checkpoints record the physics stamp (sha256 of
+1v1, no goalie. Formats are versioned: **ACT v3, OBS_VERSION 3, ABI_VERSION 3** (session t2, see "Action and observation v3"); checkpoints record the physics stamp (sha256 of
 the params.json values), the obs version and the act version, and refuse to load across any change (old checkpoints from
 before the s10 + t1 integration are refused by the physics stamp: intended, do not resume them).
 
@@ -272,13 +272,14 @@ before the s10 + t1 integration are refused by the physics stamp: intended, do n
 - **Canonical frame** (`frame.rs`): every player sees the world as if it attacks +x. Team 0 = identity; team 1 = the world
   rotated 180° ((x, y) → (−x, −y), angles + π); a rotation, not a mirror, so one policy plays both sides.
   `rotate_swap(state)` rotates the whole state and swaps teams, scores and the match state's team indices (tests).
-- **Observation** (`obs.rs`, OBS_DIM 40, OBS_VERSION 2, f32, fixed normalization constants, `observe(state, me, style, params, out)`):
+- **Observation** (`obs.rs`, OBS_DIM 42, OBS_VERSION 3, f32, fixed normalization constants, `observe(state, me, style, params, out)`):
   0–1 own x/30, y/20; 2–3 own v/14; 4–5 cos/sin facing; 6–7 cos/sin stick angle; 8 stick ω/14; 9 dash window/0.25 s;
   10 dash cooldown/1 s; 11–12 puck x/30, y/20; 13 puck z/2; 14–15 puck v/30; 16 puck vz/10; 17–18 (puck − own)/10;
   19–20 opponent x/30, y/20; 21–22 opponent v/14; 23–24 cos/sin opponent stick; 25 opponent ω/14; 26–27 (opponent − own)/10;
   **28 (own − opponent goals)/5; 29 overtime flag; 30 regulation time left/300 s** (0 in free play); 31 dash ready (0/1);
-  32–39 style slot (STYLE_DIM 8). Change any field or constant → bump OBS_VERSION.
-- **Action**: the 9-way WASD format, see "Action format" in "Training on the real game" below.
+  32–39 style slot (STYLE_DIM 8); **40 own stick_up, 41 opponent stick_up (0/1, OBS v3)**. Change any field or constant →
+  bump OBS_VERSION.
+- **Action**: the 9-way WASD format plus stick_up (ACT v3), see "Action and observation v3 (session t2)" below.
 - **Scripted bots** (`scripted.rs`, trait `Bot`, `Scripted` by `Kind` id 0 chaser, 1 defender, 2 cautious, 3 idle). Each bot
   plans an analog `Wish` (move, stick); `Scripted::act` turns the move into 9-way key presses with a sigma-delta dither (t1).
   - shared `Striker`: picks a hitting spot beside the (predicted) puck, holds the stick cocked and swings through the puck
@@ -486,7 +487,7 @@ Tools: `python -m measure.s10_skate --old-calib <calib.exe built from the pre-s1
 ## Training on the real game (session t1, 2026-11-04; Ian's Windows machine: RTX 3070 Ti, 12 cores)
 Measured on the t1 branch (before the s10 physics); the merged numbers are in "Verified (s10 + t1 integration)".
 
-### Action format (bots/src/action.rs, ACT_DIM 4, canonical frame)
+### Action format (ACT v2 as of t1; superseded by ACT v3, see "Action and observation v3")
 | idx | field |
 |---|---|
 | 0 | move index 0..8 (rounded, clamped): 0 stop, 1 +x, 2 +x+y, 3 +y, 4 −x+y, 5 −x, 6 −x−y, 7 −y, 8 +x−y (counterclockwise) |
@@ -503,7 +504,7 @@ Measured on the t1 branch (before the s10 physics); the merged numbers are in "V
   hitting spot and stopped scoring. No physics constant was touched.
 - Policy heads (train/ppo.py): move Categorical(9), stick 2D Gaussian direction (angle = atan2), dash and lift Bernoulli.
 
-### Observation (OBS_VERSION 2, `observe(state, me, style, params, out)`)
+### Observation (OBS_VERSION 2 as of t1; superseded by OBS v3)
 Same as v1 except: **28 = (own goals − opponent goals) / 5** (mercy at ±5 → ±1), **29 = 1 in overtime**, **30 = regulation
 time left / 300 s** (1.0 at the start of a 5:00 match, 0 in overtime, 0 in free play). 32–39 style slot.
 

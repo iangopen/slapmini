@@ -137,7 +137,7 @@ impl Bot for Scripted {
     }
     fn act(&mut self, s: &State, me: usize, p: &Params) -> Action {
         let w = self.wish(s, me, p);
-        Action { move_dir: dither(&mut self.acc, w.mx, w.my), stick_angle: w.stick, dash: false, lift: false }
+        Action { move_dir: dither(&mut self.acc, w.mx, w.my), stick_angle: w.stick, dash: false, lift: false, stick_up: false }
     }
     fn reset(&mut self) {
         match &mut self.inner {

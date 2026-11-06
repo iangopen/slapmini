@@ -191,7 +191,10 @@ cargo build --release -p calib
   JSON configuration. Loaded from Python with `ctypes` (no PyO3, no maturin, no Visual Studio tools).
 - `train/` – `slapenv.py` (ctypes + numpy vector env), `ppo.py` (single-file PPO with self-play), `export_onnx.py`.
 
-Formats, reward terms and the style hooks are documented in CLAUDE.md ("Bots and training").
+Formats, reward terms and the style hooks are documented in CLAUDE.md ("Bots and training"; the current layouts are
+**ACT v3** = 5 floats: move index, stick angle, dash, lift, stick_up, and **OBS v3** = 42 floats: 32 base fields, the style
+slot at 32..40, own / opponent stick_up at 40 / 41; C ABI v3). Checkpoints and ONNX sidecars from the older layouts
+(ACT v2 / OBS v2, before session t2) are refused: retrain, then re-export.
 
 ### Rust side (same in PowerShell and bash)
 
@@ -313,8 +316,12 @@ Is it working? In the console and `metrics.csv` (rolling over the last 400 episo
 - `win` against the mix rises and `goal_diff` per episode climbs above 0 within the first hour (first-goal phase); after
   the switch to matches (purple line in the plot) the numbers reset and should climb again, more slowly.
 - `ep_seconds` in match mode: early matches end by mercy or the clock; `truncated` (overtime cap) should stay rare.
-- `entropy` falls slowly (starts near 5.4 = log 9 + the stick Gaussian + two coin flips); a crash toward 0 in minutes means collapse. `kl` stays below ~0.03.
+- `entropy` falls slowly (starts near 6.1 = log 9 + the stick Gaussian + three coin flips: dash, lift, stick_up); a crash toward 0 in minutes means collapse. `kl` stays below ~0.03.
 - `dec/s` stays flat (a drop means something else is using the CPU).
+- `stick_up_prob` / `stick_up_frac` (console `up p … raised …`): mean P(stick up) and the share of decisions with the
+  stick raised. It starts at 0.5 (a fresh coin flip). If it climbs toward 1 the policy is keeping the stick up most of
+  the time (a raised stick never touches a puck on the ice, so it avoids accidental own contacts); check that before
+  adding any reward term.
 - The ladder's ratings for the kept checkpoints rise with the update number and pass the chaser (1000); per-style rows
   differ (shots per match higher for style 0,1,0,0; possession share higher for 0,0,1,0).
 Signs of trouble: win rate stuck at 0 after an hour in first-goal mode, entropy collapse, NaN losses, or ratings that fall

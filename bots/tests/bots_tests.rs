@@ -80,7 +80,7 @@ fn observation_carries_the_match_clock() {
 
 #[test]
 fn action_maps_with_inverse_rotation() {
-    let a = Action { move_dir: 8, stick_angle: 0.4, dash: true, lift: false }; // +x −y
+    let a = Action { move_dir: 8, stick_angle: 0.4, dash: true, lift: false, stick_up: false }; // +x −y
     let i0 = a.to_input(0);
     let i1 = a.to_input(1);
     assert_eq!((i0.move_x, i0.move_y, i0.stick_target_angle), (1.0, -1.0, 0.4));

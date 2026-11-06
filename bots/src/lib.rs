@@ -8,7 +8,7 @@ pub mod game;
 pub mod obs;
 pub mod scripted;
 
-pub use action::{Action, ACT_DIM};
+pub use action::{Action, ACT_DIM, ACT_VERSION};
 pub use frame::{rotate_swap, wrap_angle, Frame};
-pub use obs::{observe, opponent_of, BASE_DIM, OBS_DIM, OBS_VERSION, STYLE_DIM};
+pub use obs::{observe, opponent_of, BASE_DIM, FLAGS_DIM, OBS_DIM, OBS_VERSION, STICK_UP_IDX, STYLE_DIM};
 pub use scripted::{Bot, Kind, Scripted};

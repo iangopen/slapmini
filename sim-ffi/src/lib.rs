@@ -22,12 +22,13 @@ use env::{opponent_id, Batch, Config, INFO_DIM};
 use std::cell::RefCell;
 use std::ffi::{c_char, CStr, CString};
 
-pub use bots::{ACT_DIM, OBS_DIM, OBS_VERSION, STYLE_DIM};
+pub use bots::{ACT_DIM, ACT_VERSION, OBS_DIM, OBS_VERSION, STYLE_DIM};
 pub use reward::{RewardWeights, N_TERMS, TERM_NAMES};
 
 /// Bump when any exported signature or buffer layout changes.
 /// v2: 4-float action (9-way move), final_obs in slap_batch_step, INFO_DIM 14, 7 reward terms.
-pub const ABI_VERSION: u32 = 2;
+/// v3 (t2): 5-float action (ACT v3, + stick_up), 42-float observation (OBS v3), slap_act_version.
+pub const ABI_VERSION: u32 = 3;
 
 thread_local! {
     static LAST_ERROR: RefCell<CString> = RefCell::new(CString::new("").unwrap());
@@ -82,6 +83,10 @@ pub extern "C" fn slap_abi_version() -> u32 {
 #[no_mangle]
 pub extern "C" fn slap_obs_version() -> u32 {
     OBS_VERSION
+}
+#[no_mangle]
+pub extern "C" fn slap_act_version() -> u32 {
+    ACT_VERSION
 }
 #[no_mangle]
 pub extern "C" fn slap_obs_dim() -> u32 {

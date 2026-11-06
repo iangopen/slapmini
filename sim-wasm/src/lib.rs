@@ -109,12 +109,16 @@ impl Sim {
     pub fn obs_version() -> u32 {
         bots::OBS_VERSION
     }
+    /// Action layout version (ACT v3: + stick_up).
+    pub fn act_version() -> u32 {
+        bots::ACT_VERSION
+    }
 
     /// A policy action (canonical frame, the training action format) → world PlayerInput JSON for
     /// `player` (bots::Action::to_input applies the team rotation). `move_dir` 0..8 (bots::MOVE_DIRS).
-    pub fn action_input(&self, player: usize, move_dir: u32, stick_angle: f64, dash: bool, lift: bool) -> Result<String, JsError> {
+    pub fn action_input(&self, player: usize, move_dir: u32, stick_angle: f64, dash: bool, lift: bool, stick_up: bool) -> Result<String, JsError> {
         let pl = self.state.players.get(player).ok_or_else(|| JsError::new("player index out of range"))?;
-        let a = bots::Action { move_dir: move_dir.min(8) as u8, stick_angle: bots::wrap_angle(stick_angle), dash, lift };
+        let a = bots::Action { move_dir: move_dir.min(8) as u8, stick_angle: bots::wrap_angle(stick_angle), dash, lift, stick_up };
         Ok(serde_json::to_string(&a.to_input(pl.team)).expect("input serializes"))
     }
 

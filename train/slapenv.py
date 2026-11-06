@@ -26,7 +26,9 @@ END_GOAL_FOR, END_GOAL_AGAINST, END_LIMIT = END_WIN, END_LOSS, END_TRUNCATED  # 
 # Info columns (sim-ffi env::INFO_DIM): end, episode playing sim steps, return, learner team, goals for,
 # goals against, opponent possession seconds, then the raw reward-term sums (names in VecEnv.reward_terms).
 I_END, I_STEPS, I_RET, I_TEAM, I_GF, I_GA, I_OPP_POSS, I_RAW = 0, 1, 2, 3, 4, 5, 6, 7
-ABI_VERSION = 2
+ABI_VERSION = 3
+ACT_VERSION = 3  # bots::ACT_VERSION: move, stick angle, dash, lift, stick_up (5 floats)
+OBS_VERSION = 3  # bots::OBS_VERSION: 42 floats (32 base, style 32..40, stick_up own 40 / opponent 41)
 # Move indices (bots/src/action.rs): 0 stop, then 8 directions counterclockwise from +x (canonical frame).
 N_MOVES = 9
 
@@ -57,7 +59,7 @@ def lib() -> C.CDLL:
     f32p, u8p, vp, cp = C.POINTER(C.c_float), C.POINTER(C.c_uint8), C.c_void_p, C.c_char_p
     sig = {
         "slap_abi_version": ([], C.c_uint32), "slap_obs_version": ([], C.c_uint32),
-        "slap_obs_dim": ([], C.c_uint32), "slap_act_dim": ([], C.c_uint32),
+        "slap_obs_dim": ([], C.c_uint32), "slap_act_dim": ([], C.c_uint32), "slap_act_version": ([], C.c_uint32),
         "slap_style_dim": ([], C.c_uint32), "slap_info_dim": ([], C.c_uint32),
         "slap_reward_terms": ([], C.c_uint32), "slap_reward_term_name": ([C.c_uint32], cp),
         "slap_last_error": ([], cp),
@@ -94,7 +96,7 @@ def _ptr(a: np.ndarray | None, ctype=C.c_float):
 def dims() -> dict:
     L = lib()
     return {
-        "abi": L.slap_abi_version(), "obs_version": L.slap_obs_version(), "obs": L.slap_obs_dim(),
+        "abi": L.slap_abi_version(), "obs_version": L.slap_obs_version(), "act_version": L.slap_act_version(), "obs": L.slap_obs_dim(),
         "act": L.slap_act_dim(), "style": L.slap_style_dim(), "info": L.slap_info_dim(),
         "reward_terms": [L.slap_reward_term_name(i).decode() for i in range(L.slap_reward_terms())],
     }
@@ -117,7 +119,7 @@ class VecEnv:
     """N 1v1 environments stepped together in Rust (rayon). Finished envs auto-reset.
 
     step(actions[N, 4], opp_actions[N, 4] | None) -> obs, rewards, dones(bool), info
-    Actions: move index 0..8, stick angle (rad, canonical), dash 0/1, lift 0/1 (bots/src/action.rs).
+    Actions: move index 0..8, stick angle (rad, canonical), dash 0/1, lift 0/1, stick_up 0/1 (ACT v3, bots/src/action.rs).
     info columns: see I_* above (end reason: 0 running, 1 win, 2 loss, 3 truncated).
     After step, .final_obs[i] holds the learner's observation of the last state of an episode that
     ended this step (before the auto-reset), for bootstrapping truncated episodes.

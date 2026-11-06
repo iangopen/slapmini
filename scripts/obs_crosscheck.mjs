@@ -11,11 +11,15 @@ const path = process.argv[2] ?? "target/obs_fixture.jsonl";
 const lines = readFileSync(path, "utf8").split("\n").filter((l) => l.trim());
 const sim = new Sim("", 2);
 let fields = 0, mismatches = 0, matchStates = 0;
+const up = [0, 0, 0, 0]; // stick_up cases: none, own only, opponent only, both (OBS v3 fields 40, 41)
+if (Sim.obs_dim() !== 42 || Sim.obs_version() !== 3) throw new Error(`wasm obs v${Sim.obs_version()}/${Sim.obs_dim()}, expected v3/42`);
 for (const line of lines) {
   const rec = JSON.parse(line);
   sim.set_state(rec.state); // the native State JSON text, unchanged
   if (JSON.parse(rec.state).match_state) matchStates++;
   const got = new Uint32Array(sim.observe(rec.player, new Float32Array(rec.style)).buffer);
+  const st = JSON.parse(rec.state), me = st.players[rec.player], op = st.players.find((p) => p.team !== me.team);
+  up[(me.stick_up ? 1 : 0) + (op?.stick_up ? 2 : 0)]++;
   if (got.length !== rec.bits.length) throw new Error(`length ${got.length} vs ${rec.bits.length}`);
   for (let k = 0; k < got.length; k++) {
     fields++;
@@ -25,5 +29,5 @@ for (const line of lines) {
     }
   }
 }
-console.log(`obs crosscheck: ${lines.length} observations (${matchStates} in match mode), ${fields} fields, ${mismatches} bit mismatches -> ${mismatches ? "FAIL" : "IDENTICAL"}`);
-process.exit(mismatches || lines.length === 0 ? 1 : 0);
+console.log(`obs crosscheck: ${lines.length} observations (${matchStates} in match mode; stick up: none ${up[0]}, own only ${up[1]}, opponent only ${up[2]}, both ${up[3]}), ${fields} fields, ${mismatches} bit mismatches -> ${mismatches ? "FAIL" : "IDENTICAL"}`);
+process.exit(mismatches || lines.length === 0 || up.some((c) => c === 0) ? 1 : 0);

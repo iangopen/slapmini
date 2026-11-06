@@ -28,9 +28,12 @@
 //! | 30 | regulation time left (s): 1.0 at the start of a 5:00 match, 0 in overtime; 0 in free play | / TIME |
 //! | 31 | 1 if the dash is ready (cooldown 0), else 0 | 1 |
 //! | 32..40 | style vector (caller-supplied, zeros by default) | as given |
+//! | 40 | own stick raised (0/1), OBS v3 | 1 (not normalized) |
+//! | 41 | opponent stick raised (0/1; 0 with no opponent), OBS v3 | 1 (not normalized) |
 //!
 //! Angles are encoded as (cos, sin) so the 180° rotation is an exact sign flip. Rotation keeps
-//! angular velocity unchanged. With no opponent, fields 19..=27 are 0.
+//! angular velocity unchanged. With no opponent, fields 19..=27 and 41 are 0.
+//! OBS v3 (t2) appended 40/41 AFTER the style slot, so the style stays at 32..40.
 
 use crate::frame::Frame;
 use sim::{Params, State};
@@ -39,10 +42,14 @@ use sim::{Params, State};
 pub const BASE_DIM: usize = 32;
 /// Length of the style slot appended to every observation.
 pub const STYLE_DIM: usize = 8;
+/// Flags appended after the style slot (OBS v3): own and opponent stick_up.
+pub const FLAGS_DIM: usize = 2;
+/// Index of the first appended flag (own stick_up).
+pub const STICK_UP_IDX: usize = BASE_DIM + STYLE_DIM;
 /// Full observation length.
-pub const OBS_DIM: usize = BASE_DIM + STYLE_DIM;
+pub const OBS_DIM: usize = BASE_DIM + STYLE_DIM + FLAGS_DIM;
 /// Bump when the layout or a normalization constant changes (checkpoints record it).
-pub const OBS_VERSION: u32 = 2;
+pub const OBS_VERSION: u32 = 3;
 
 pub const POS_X: f64 = 30.0;
 pub const POS_Y: f64 = 20.0;
@@ -126,4 +133,9 @@ pub fn observe(state: &State, me: usize, style: &[f32], p: &Params, out: &mut [f
     for k in 0..STYLE_DIM {
         out[BASE_DIM + k] = style.get(k).copied().unwrap_or(0.0);
     }
+    out[STICK_UP_IDX] = if pl.stick_up { 1.0 } else { 0.0 };
+    out[STICK_UP_IDX + 1] = match opponent_of(state, me) {
+        Some(j) if state.players[j].stick_up => 1.0,
+        _ => 0.0,
+    };
 }

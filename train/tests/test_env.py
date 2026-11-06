@@ -10,10 +10,11 @@ from train.slapenv import (DEFAULT_PARAMS, END_LOSS, END_TRUNCATED, I_END, I_GA,
 
 
 def rand_actions(rng, n):
-    a = np.empty((n, 4), np.float32)
+    a = np.empty((n, 5), np.float32)   # ACT v3: move, stick angle, dash, lift, stick_up
     a[:, 0] = rng.integers(0, 9, n)
     a[:, 1] = rng.uniform(-3.14, 3.14, n)
-    a[:, 2:] = rng.uniform(0, 1, (n, 2)) < 0.2
+    a[:, 2:4] = rng.uniform(0, 1, (n, 2)) < 0.2
+    a[:, 4] = rng.uniform(0, 1, n) < 0.3
     return a
 
 
@@ -31,9 +32,9 @@ def rollout(env, steps, seed=0):
 class Env(unittest.TestCase):
     def test_dims(self):
         d = dims()
-        self.assertEqual(d["obs"], 40)
-        self.assertEqual(d["act"], 4)
-        self.assertEqual(d["obs_version"], 2)
+        self.assertEqual(d["obs"], 42)
+        self.assertEqual(d["act"], 5)
+        self.assertEqual((d["obs_version"], d["act_version"], d["abi"]), (3, 3, 3))
         self.assertEqual(d["reward_terms"], ["goal_for", "goal_against", "puck_progress", "shot_on_net", "possession",
                                              "defensive_position", "match_win"])
 
@@ -59,7 +60,7 @@ class Env(unittest.TestCase):
         # An idle learner against the chaser concedes: done with end reason 2 (loss) and reward <= -1.
         ends = []
         for _ in range(400):
-            _, r, d, info = env.step(np.zeros((2, 4), np.float32))
+            _, r, d, info = env.step(np.zeros((2, 5), np.float32))
             ends += [(info[i, 0], r[i]) for i in np.nonzero(d)[0]]
         self.assertTrue(ends)
         for reason, r in ends:
@@ -72,7 +73,7 @@ class Env(unittest.TestCase):
         env.reset()
         done_rows = []
         for _ in range(30 * 300):
-            _, r, d, info = env.step(np.zeros((2, 4), np.float32))
+            _, r, d, info = env.step(np.zeros((2, 5), np.float32))
             for i in np.nonzero(d)[0]:
                 done_rows.append(info[i].copy())
             if len(done_rows) >= 2:
@@ -85,7 +86,7 @@ class Env(unittest.TestCase):
         # Idle vs idle with a short limit: truncated, and final_obs is the pre-reset observation.
         env = VecEnv(1, seed=3, config={"opponent": "idle", "threads": 1, "max_steps": 40, "learner_team": 0})
         env.reset()
-        fwd = np.array([[1, 0, 0, 0]], np.float32)
+        fwd = np.array([[1, 0, 0, 0, 0]], np.float32)
         for k in range(10):
             o, r, d, info = env.step(fwd)
         self.assertTrue(d[0])
@@ -102,6 +103,8 @@ class Env(unittest.TestCase):
             print(f"style zero {mode}: default {ha[-1]:016x} style-zero {hb[-1]:016x}")
             self.assertEqual(ha, hb, mode)
             self.assertTrue(np.array_equal(oa.view(np.uint32), ob.view(np.uint32)))
+            # The random actions raise sticks, so the OBS v3 flags are exercised (own 40, opponent 41).
+            self.assertTrue(oa[..., 40].any() and set(np.unique(oa[..., 40:42])) <= {0.0, 1.0}, mode)
 
     def test_reward_weights_and_style(self):
         env = VecEnv(2, seed=1, config={"reward": {"puck_progress": 0, "shot_on_net": 0, "possession": 0},
@@ -109,12 +112,12 @@ class Env(unittest.TestCase):
         env.reset()
         env.set_style(None, [1, 2, 3])
         env.set_reward_weights(0, {"goal_against": -5.0})
-        obs, r, d, info = env.step(np.zeros((2, 4), np.float32))
+        obs, r, d, info = env.step(np.zeros((2, 5), np.float32))
         self.assertTrue(np.allclose(obs[:, 32:35], [1, 2, 3]))
         self.assertTrue(np.allclose(obs[:, 35:], 0))
         got = {0: [], 1: []}
         for _ in range(400):
-            _, r, d, info = env.step(np.zeros((2, 4), np.float32))
+            _, r, d, info = env.step(np.zeros((2, 5), np.float32))
             for i in np.nonzero(d)[0]:
                 got[i].append(r[i])
         self.assertTrue(got[0] and got[1])

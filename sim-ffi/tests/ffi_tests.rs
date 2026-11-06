@@ -3,7 +3,7 @@ use sim_ffi::env::{Batch, END_LOSS, END_TRUNCATED, END_WIN, INFO_DIM, INFO_RAW};
 use sim_ffi::new_batch;
 use sim_ffi::reward::RewardWeights;
 
-/// Deterministic pseudo-random actions (v2 format: move index, stick angle, dash, lift).
+/// Deterministic pseudo-random actions (ACT v3: move index, stick angle, dash, lift, stick_up).
 fn actions(n: usize, t: u64) -> Vec<f32> {
     let mut a = vec![0f32; n * ACT_DIM];
     for (i, v) in a.iter_mut().enumerate() {
@@ -162,7 +162,7 @@ fn final_obs_is_the_pre_reset_observation() {
     let mut b = new_batch("", r#"{"opponent": "idle", "max_steps": 40, "threads": 1, "learner_team": 0}"#, 1, 5).unwrap();
     let mut s = Bufs::new(1);
     b.reset_all(&mut s.obs, None);
-    let fwd = [1.0f32, 0.0, 0.0, 0.0]; // skate +x
+    let fwd = [1.0f32, 0.0, 0.0, 0.0, 0.0]; // skate +x
     let mut last_obs = s.obs.clone();
     for k in 0..10 {
         s.step(&mut b, &fwd, None);
@@ -191,7 +191,7 @@ fn external_opponent_and_opp_obs() {
     }
     // Opponent skates "forward" (canonical +x = world −x for team 1) for a second.
     let a = vec![0f32; ACT_DIM];
-    let oa = vec![1.0f32, 0.0, 0.0, 0.0];
+    let oa = vec![1.0f32, 0.0, 0.0, 0.0, 0.0];
     for _ in 0..30 {
         s.step(&mut b, &a, Some(&oa));
     }
@@ -199,6 +199,24 @@ fn external_opponent_and_opp_obs() {
     assert!(op.vx < -5.0 && op.x < 14.0, "opponent should skate toward −x: {op:?}");
     assert!(s.opp[2] > 0.3, "opponent sees itself moving forward: {}", s.opp[2]);
     assert!(s.obs[21] < -0.3, "learner sees the opponent coming at it (toward −x): {}", s.obs[21]);
+}
+
+/// ACT v3 / OBS v3: action field 4 raises the stick; obs 40 = own, 41 = opponent raised.
+#[test]
+fn stick_up_action_and_obs_flags() {
+    let mut b = new_batch("", r#"{"opponent": "external", "learner_team": 0, "threads": 1, "jitter_puck": 0, "jitter_player": 0}"#, 1, 1).unwrap();
+    let mut s = Bufs::new(1);
+    b.reset_all(&mut s.obs, Some(&mut s.opp));
+    assert_eq!((s.obs[bots::STICK_UP_IDX], s.obs[bots::STICK_UP_IDX + 1]), (0.0, 0.0));
+    let a = vec![0.0f32, 0.0, 0.0, 0.0, 1.0]; // learner raises
+    let oa = vec![0.0f32; ACT_DIM];
+    s.step(&mut b, &a, Some(&oa));
+    assert!(b.envs[0].state.players[0].stick_up && !b.envs[0].state.players[1].stick_up);
+    assert_eq!((s.obs[bots::STICK_UP_IDX], s.obs[bots::STICK_UP_IDX + 1]), (1.0, 0.0), "learner: own raised");
+    assert_eq!((s.opp[bots::STICK_UP_IDX], s.opp[bots::STICK_UP_IDX + 1]), (0.0, 1.0), "opponent sees the learner's raised stick");
+    s.step(&mut b, &oa, Some(&a)); // now only the opponent raises
+    assert_eq!((s.obs[bots::STICK_UP_IDX], s.obs[bots::STICK_UP_IDX + 1]), (0.0, 1.0));
+    assert_eq!(&s.obs[bots::BASE_DIM..bots::BASE_DIM + bots::STYLE_DIM], &[0.0; 8], "the style slot stays at 32..40");
 }
 
 #[test]
@@ -369,8 +387,10 @@ fn c_abi_roundtrip() {
     use std::ffi::{CStr, CString};
     unsafe {
         assert_eq!(sim_ffi::slap_obs_dim() as usize, OBS_DIM);
-        assert_eq!(sim_ffi::slap_act_dim() as usize, 4);
-        assert_eq!(sim_ffi::slap_abi_version(), 2);
+        assert_eq!(sim_ffi::slap_act_dim() as usize, 5);
+        assert_eq!(sim_ffi::slap_obs_dim() as usize, 42);
+        assert_eq!((sim_ffi::slap_act_version(), sim_ffi::slap_obs_version()), (3, 3));
+        assert_eq!(sim_ffi::slap_abi_version(), 3);
         assert_eq!(CStr::from_ptr(sim_ffi::slap_reward_term_name(3)).to_str().unwrap(), "shot_on_net");
         assert_eq!(CStr::from_ptr(sim_ffi::slap_reward_term_name(6)).to_str().unwrap(), "match_win");
         let cfg = CString::new(r#"{"threads": 2}"#).unwrap();

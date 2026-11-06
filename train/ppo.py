@@ -9,7 +9,7 @@
 Policy (canonical frame, see bots/src/obs.rs and bots/src/action.rs):
   obs[OBS_DIM] -> (optional running normalization) -> MLP -> move (Categorical over 9: stop + 8
   WASD directions), stick (2D Gaussian direction; the env gets atan2 of it as the stick target
-  angle: no wrap-around at +-pi), dash (Bernoulli), lift (Bernoulli).
+  angle: no wrap-around at +-pi), dash (Bernoulli), lift (Bernoulli), stick_up (Bernoulli; ACT v3).
 Episodes: --mode first_goal (ends at the first goal; the curriculum) or match (full 5:00 matches
 with the sim's rules); --curriculum-minutes M trains first_goal for M minutes, then match.
 Value targets: a TRUNCATED episode (step limit) bootstraps from V(final observation); a real end
@@ -42,9 +42,12 @@ import torch.nn as nn
 from train.slapenv import (DEFAULT_PARAMS, END_LOSS, END_TRUNCATED, END_WIN, I_END, I_GA, I_GF, I_OPP_POSS, I_RAW,
                            I_RET, I_STEPS, N_MOVES, OPPONENTS, SCRIPTED, VecEnv, dims, params_values, physics_stamp)
 
-RAW_DIM = 5      # sampled action: move index, stick_x, stick_y, dash, lift
+RAW_DIM = 6      # sampled action: move index, stick_x, stick_y, dash, lift, stick_up
+ACT_DIM = 5      # env action (bots::ACT_DIM): move index, stick angle, dash, lift, stick_up
+ACT_VERSION = 3  # bots::ACT_VERSION; checkpoints and pool snapshots carry it (v3 = + stick_up)
 _HALF_LOG_2PI = 0.5 * math.log(2 * math.pi)
 BASE_DIM = 32    # observation fields before the style slot (bots::BASE_DIM); only these are normalized
+                 # (the style slot 32..40 and the OBS v3 stick_up flags 40, 41 pass through unchanged)
 
 
 # ----------------------------------------------------------------------------------------------
@@ -95,7 +98,7 @@ class Policy(nn.Module):
         super().__init__()
         self.obs_dim, self.hidden, self.obs_norm = obs_dim, hidden, obs_norm
         self.norm = RunningNorm(obs_dim, min(BASE_DIM, obs_dim)) if obs_norm else None
-        self.pi = mlp(obs_dim, hidden, N_MOVES + 4)   # move logits (9), stick mean (2), dash logit, lift logit
+        self.pi = mlp(obs_dim, hidden, N_MOVES + 5)   # move logits (9), stick mean (2), dash, lift, stick_up logits
         self.vf = mlp(obs_dim, hidden, 1)
         self.log_std = nn.Parameter(torch.tensor([-0.5, -0.5]))
         with torch.no_grad():  # small initial outputs: near-uniform start
@@ -108,15 +111,16 @@ class Policy(nn.Module):
 
     def heads(self, obs):
         out = self.pi(self.prep(obs))
-        return out[:, :N_MOVES], out[:, N_MOVES:N_MOVES + 2], out[:, N_MOVES + 2], out[:, N_MOVES + 3]
+        return out[:, :N_MOVES], out[:, N_MOVES:N_MOVES + 2], out[:, N_MOVES + 2], out[:, N_MOVES + 3], out[:, N_MOVES + 4]
 
     def dist(self, obs):
         """The action distribution as torch.distributions objects (reference / tests; the hot paths
         below compute the same log-probabilities and entropies by hand, ~3x faster per call)."""
-        ml, sm, dl, ll = self.heads(obs)
+        ml, sm, dl, ll, ul = self.heads(obs)
         std = self.log_std.clamp(-3.0, 1.0).exp().expand_as(sm)
         return (torch.distributions.Categorical(logits=ml), torch.distributions.Normal(sm, std),
-                torch.distributions.Bernoulli(logits=dl), torch.distributions.Bernoulli(logits=ll))
+                torch.distributions.Bernoulli(logits=dl), torch.distributions.Bernoulli(logits=ll),
+                torch.distributions.Bernoulli(logits=ul))
 
     def value(self, obs):
         return self.vf(self.prep(obs)).squeeze(-1)
@@ -125,60 +129,63 @@ class Policy(nn.Module):
         o = self.prep(obs)
         out = self.pi(o)
         return (out[:, :N_MOVES], out[:, N_MOVES:N_MOVES + 2], out[:, N_MOVES + 2], out[:, N_MOVES + 3],
-                self.vf(o).squeeze(-1))
+                out[:, N_MOVES + 4], self.vf(o).squeeze(-1))
 
-    def _logp_ent(self, ml, sm, dl, ll, raw, want_ent: bool):
+    def _logp_ent(self, ml, sm, dl, ll, ul, raw, want_ent: bool):
         lsm = torch.log_softmax(ml, -1)
         log_std = self.log_std.clamp(-3.0, 1.0)
         z = (raw[:, 1:3] - sm) / log_std.exp()
         lp_stick = (-0.5 * z * z - log_std - _HALF_LOG_2PI).sum(-1)
         # Bernoulli(logits l): log p(x) = x*l - softplus(l)
         lp = (lsm.gather(1, raw[:, 0:1].long()).squeeze(1) + lp_stick
-              + raw[:, 3] * dl - nn.functional.softplus(dl) + raw[:, 4] * ll - nn.functional.softplus(ll))
+              + raw[:, 3] * dl - nn.functional.softplus(dl) + raw[:, 4] * ll - nn.functional.softplus(ll)
+              + raw[:, 5] * ul - nn.functional.softplus(ul))
         if not want_ent:
             return lp, None
         ent_move = -(lsm.exp() * lsm).sum(-1)
         ent_stick = (0.5 + _HALF_LOG_2PI + log_std).sum()
         ent_b = lambda l: nn.functional.softplus(l) - l * torch.sigmoid(l)
-        return lp, ent_move + ent_stick + ent_b(dl) + ent_b(ll)
+        return lp, ent_move + ent_stick + ent_b(dl) + ent_b(ll) + ent_b(ul)
 
     @torch.no_grad()
     def act(self, obs, deterministic=False):
-        """Returns (raw [N, 5], logp [N], value [N])."""
-        ml, sm, dl, ll, v = self._forward(obs)
+        """Returns (raw [N, 6], logp [N], value [N])."""
+        ml, sm, dl, ll, ul, v = self._forward(obs)
         if deterministic:
             m = ml.argmax(-1).float()
             st = sm
-            dash, lift = (dl > 0).float(), (ll > 0).float()
+            dash, lift, up = (dl > 0).float(), (ll > 0).float(), (ul > 0).float()
         else:
             m = torch.multinomial(torch.softmax(ml, -1), 1).squeeze(1).float()
             st = sm + self.log_std.clamp(-3.0, 1.0).exp() * torch.randn_like(sm)
-            u = torch.rand((obs.shape[0], 2), device=obs.device)
+            u = torch.rand((obs.shape[0], 3), device=obs.device)
             dash, lift = (u[:, 0] < torch.sigmoid(dl)).float(), (u[:, 1] < torch.sigmoid(ll)).float()
-        raw = torch.cat([m[:, None], st, dash[:, None], lift[:, None]], dim=1)
-        return raw, self._logp_ent(ml, sm, dl, ll, raw, False)[0], v
+            up = (u[:, 2] < torch.sigmoid(ul)).float()
+        raw = torch.cat([m[:, None], st, dash[:, None], lift[:, None], up[:, None]], dim=1)
+        return raw, self._logp_ent(ml, sm, dl, ll, ul, raw, False)[0], v
 
     def evaluate(self, obs, raw):
-        ml, sm, dl, ll, v = self._forward(obs)
-        lp, ent = self._logp_ent(ml, sm, dl, ll, raw, True)
+        ml, sm, dl, ll, ul, v = self._forward(obs)
+        lp, ent = self._logp_ent(ml, sm, dl, ll, ul, raw, True)
         return lp, ent, v
 
 
 def to_env_actions(raw: np.ndarray) -> np.ndarray:
-    """[N, 5] sampled -> [N, 4] env format (move index, stick angle, dash, lift)."""
-    a = np.empty((raw.shape[0], 4), np.float32)
+    """[N, 6] sampled -> [N, 5] env format (move index, stick angle, dash, lift, stick_up)."""
+    a = np.empty((raw.shape[0], ACT_DIM), np.float32)
     a[:, 0] = raw[:, 0]
     a[:, 1] = np.arctan2(raw[:, 2], raw[:, 1])
     a[:, 2] = raw[:, 3]
     a[:, 3] = raw[:, 4]
+    a[:, 4] = raw[:, 5]
     return a
 
 
 def random_actions(n: int, rng: np.random.Generator) -> np.ndarray:
-    a = np.empty((n, 4), np.float32)
+    a = np.empty((n, ACT_DIM), np.float32)
     a[:, 0] = rng.integers(0, N_MOVES, n)
     a[:, 1] = rng.uniform(-math.pi, math.pi, n)
-    a[:, 2:4] = (rng.uniform(0, 1, (n, 2)) < 0.5)
+    a[:, 2:5] = (rng.uniform(0, 1, (n, 3)) < 0.5)
     return a
 
 
@@ -196,7 +203,7 @@ def save_ckpt(path: Path, policy: Policy, opt, state: dict):
     tmp = path.with_suffix(".tmp")
     torch.save({"policy": policy.state_dict(), "optimizer": opt.state_dict() if opt else None,
                 "hidden": policy.hidden, "obs_dim": policy.obs_dim, "obs_norm": policy.obs_norm,
-                "act_version": 2, **state}, tmp)
+                "act_version": ACT_VERSION, **state}, tmp)
     os.replace(tmp, path)
 
 
@@ -206,8 +213,9 @@ def load_ckpt(path, params_path=DEFAULT_PARAMS, allow_physics_change=False, devi
     if ck.get("obs_version") != d["obs_version"] or ck.get("obs_dim") != d["obs"]:
         raise SystemExit(f"{path}: observation layout v{ck.get('obs_version')}/{ck.get('obs_dim')} does not match "
                          f"the library's v{d['obs_version']}/{d['obs']}; cannot load")
-    if ck.get("act_version", 1) != 2:
-        raise SystemExit(f"{path}: old continuous-move action format (act v1); cannot load")
+    if ck.get("act_version", 1) != ACT_VERSION:
+        raise SystemExit(f"{path}: action format ACT v{ck.get('act_version', 1)}, this trainer uses ACT v{ACT_VERSION} "
+                         f"(5 floats, + stick_up); old checkpoints cannot be loaded: train a new run")
     stamp = physics_stamp(params_path)
     if ck.get("physics_stamp") != stamp:
         msg = (f"{path}: trained under physics {ck.get('physics_stamp')}, current params give {stamp}")
@@ -278,7 +286,7 @@ class OpponentMixer:
         if pool_dir and pool_dir.exists():
             for p in sorted(pool_dir.glob("snap_*.pt")):
                 s = torch.load(p, map_location="cpu", weights_only=False)
-                if s.get("act_version", 1) == 2:
+                if s.get("act_version", 1) == ACT_VERSION and s.get("obs_dim") == env.obs_dim:
                     self.pool.append(s)
             self.pool = self.pool[-pool_max:]
 
@@ -292,7 +300,7 @@ class OpponentMixer:
     def add_snapshot(self, policy: Policy, tag: int):
         sd = {k: v.detach().cpu().clone() for k, v in policy.state_dict().items()}
         self.pool.append({"state": sd, "hidden": policy.hidden, "obs_dim": policy.obs_dim,
-                          "obs_norm": policy.obs_norm, "act_version": 2, "tag": tag})
+                          "obs_norm": policy.obs_norm, "act_version": ACT_VERSION, "tag": tag})
         self.pool = self.pool[-self.pool_max:]
         if self.pool_dir:
             self.pool_dir.mkdir(parents=True, exist_ok=True)
@@ -327,7 +335,7 @@ class OpponentMixer:
     def actions(self, opp_obs: np.ndarray) -> np.ndarray | None:
         if not (self.slot >= 0).any():
             return None
-        out = np.zeros((self.env.n, 4), np.float32)
+        out = np.zeros((self.env.n, ACT_DIM), np.float32)
         for s, m in enumerate(self.active):
             idx = np.nonzero(self.slot == s)[0]
             if len(idx):
@@ -499,7 +507,7 @@ def train(args):
     if new_log:
         log.writerow(["update", "decisions", "minutes", "episodes", "win", "loss", "draw", "goal_diff",
                       "ep_seconds", "ep_return", "pi_loss", "v_loss", "entropy", "kl", "sps", "mode", "truncated",
-                      "goals_for", "goals_against", "shots_per_ep", "possession_share"])
+                      "goals_for", "goals_against", "shots_per_ep", "possession_share", "stick_up_prob", "stick_up_frac"])
     prof = Prof(args.profile, device.type == "cuda" or rdev.type == "cuda")
     rust0 = env.profile()
     prof_decisions = 0
@@ -625,6 +633,10 @@ def train(args):
                 # Keep the stats on the device (one sync per update instead of four per minibatch).
                 stats.append(torch.stack([pl.detach(), vl.detach(), ent.mean().detach(), (g_logp[j] - logp).mean().detach()]))
         pl_, vl_, en_, kl_ = torch.stack(stats).mean(0).tolist()
+        # Raised-stick usage this rollout (ACT v3): mean P(stick_up) and the fraction of decisions sampled raised.
+        with torch.no_grad():
+            up_p = float(torch.sigmoid(policy.heads(g_obs)[4]).mean())
+        up_f = float(g_raw[:, 5].mean())
         update += 1
         policy.eval()
         prof.mark("update")
@@ -651,12 +663,12 @@ def train(args):
                       f"{gd:.4f}", f"{eps_s:.2f}", f"{er:.4f}", f"{pl_:.4f}", f"{vl_:.4f}", f"{en_:.4f}",
                       f"{kl_:.5f}", f"{sps:.0f}", mode, f"{s.get('truncated', nan):.4f}",
                       f"{s.get('goals_for', nan):.3f}", f"{s.get('goals_against', nan):.3f}",
-                      f"{s.get('shots_per_ep', nan):.3f}", f"{s.get('possession_share', nan):.3f}"])
+                      f"{s.get('shots_per_ep', nan):.3f}", f"{s.get('possession_share', nan):.3f}", f"{up_p:.4f}", f"{up_f:.4f}"])
         logf.flush()
         if update % args.print_every == 0 or update == 1:
             print(f"upd {update:5d} | {minutes:5.2f} min | {global_steps:9d} dec | eps {total_eps:6d} | {mode[:5]} | "
                   f"win {win:.2f} loss {loss_:.2f} draw {draw:.2f} | goal diff/ep {gd:+.2f} | ep {eps_s:5.1f}s | "
-                  f"ret {er:+.3f} | ent {en_:.2f} | {sps:.0f} dec/s", flush=True)
+                  f"ret {er:+.3f} | ent {en_:.2f} | up p {up_p:.2f} raised {up_f:.2f} | {sps:.0f} dec/s", flush=True)
         if update % args.save_every == 0:
             st = ckpt_state(args, update, global_steps, t0, t_offset, stamp, d, env_cfg)
             save_ckpt(run / "latest.pt", policy, opt, st)

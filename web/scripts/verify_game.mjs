@@ -140,6 +140,17 @@ try {
   b = await botInfo();
   console.log(`  at 6x: ${line(await summary())} | travelled ${b.travel.toFixed(0)} m, shots ${b.shots}, decisions ${b.decisions}, skipped ${b.skipped}`);
   check(b.shots >= 1, `the ONNX bot shoots (${b.shots} shots)`);
+  // ACT v3: the policy's stick_up head reaches the sim through Sim.action_input.
+  console.log(`  stick_up: mean P ${b.upProbMean?.toFixed(3)}, decisions with the stick up ${b.upDecisions} of ${b.decisions}, raised now ${b.stickUp}`);
+  check(typeof b.upProbMean === "number" && b.upProbMean >= 0 && b.upProbMean <= 1, "the policy's stick_up_prob output is read every decision");
+  // A raised bot stick drawn with the raised style: forced through the test hook (the policy decides it otherwise).
+  await ev(() => { window.game.setSpeed(1); window.game.forceBotStickUp(true); });
+  await page.waitForTimeout(400);
+  const forced = await ev(() => ({ up: window.game.state.players[1].stick_up, inp: window.game.lastInputs[1]?.stick_up }));
+  await page.screenshot({ path: path.join(out, "game-bot-stick-up.png") });
+  console.log(`  forced raised bot stick: sim stick_up ${forced.up}, input ${forced.inp} (screenshot game-bot-stick-up.png)`);
+  check(forced.up === true && forced.inp === true, "a raised bot stick reaches the sim (test hook)");
+  await ev(() => window.game.forceBotStickUp(false));
   await page.keyboard.press("Escape");
 
   // ---- 4. clock end: vs the defender (it rarely attacks), human leads 1-0 (test hook), 40x ----

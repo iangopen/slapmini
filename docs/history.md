@@ -812,3 +812,6 @@ env at runtime (`set_reward_weights`, a vector in TERM_NAMES order).
 
 ## w4 (2026-11-05)
 Measured the body/puck radius ratio (1.989) → player_radius 0.4969; true-scale drawing in the game; follow camera; raised stick (left mouse, stick_up input/state, stick_up_z_min/max placeholders); verify-w4. Hashes and the physics stamp changed (radius only).
+
+## t2 (2026-11-05)
+Raised stick in the bot formats (ACT v3, OBS v3, ABI v3). The first session crashed after a WIP commit; the resumed session reviewed it, added the missing checks and docs, retrained the smoke bot and reran all verification.

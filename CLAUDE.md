@@ -301,7 +301,7 @@ before the s10 + t1 integration are refused by the physics stamp: intended, do n
   + `overtime_cap_s` 120), `action_repeat` 4, `learner_team` −1, `jitter_puck` 1.5, `jitter_player` 1.0,
   `jitter_every_faceoff` true, `opponent`, `reward` {weights}, `style` [floats], `style_mode` "off" | "fixed" | "sample",
   `threads` 0, `chunk` 16, `profile` false.
-- **C ABI v2** (`lib.rs`): `slap_batch_new`, `_free`, `_reset(obs, opp_obs)`, `_step(actions, opp_actions, obs, opp_obs,
+- **C ABI v3** (`lib.rs`; `slap_act_version` added in v3): `slap_batch_new`, `_free`, `_reset(obs, opp_obs)`, `_step(actions, opp_actions, obs, opp_obs,
   final_obs, rewards, dones, info)`, `_set_opponent`, `_set_style`, `_set_reward_weights` (base weights), `_hash`, `_env_hash`,
   `_get_state/_set_state`, `_profile`, dims/version getters, `slap_last_error`. Info row (INFO_DIM 14): end (0 running, 1 win,
   2 loss, 3 truncated), playing sim steps, return, learner team, goals for, goals against, opponent possession s, 7 raw sums.
@@ -534,7 +534,7 @@ time left / 300 s** (1.0 at the start of a 5:00 match, 0 in overtime, 0 in free 
   Test: matches numpy mean/var over 3 batches; resume keeps the statistics.
 - Checkpoints: physics stamp and obs version checks kept; also `act_version` 2 and `obs_norm`. Ctrl+C finishes the
   update, saves latest.pt and exits. `--keep-every N` keeps `ckpts/upd_N.pt` for the ladder.
-- ONNX outputs: `move` [N] (argmax index), `move_probs` [N, 9], `stick_dir` [N, 2], `dash_prob`, `lift_prob`; team 1:
+- ONNX outputs: `move` [N] (argmax index), `move_probs` [N, 9], `stick_dir` [N, 2], `dash_prob`, `lift_prob`, `stick_up_prob` (t2); team 1:
   move k>0 → ((k−1+4) mod 8)+1, negate stick_dir. Parity vs PyTorch on 2000 random obs: 3.3e-6 (3.8e-6 with obs norm), move
   index identical.
 
@@ -614,8 +614,8 @@ free play `ed2b9c3b2c52da91`, match `ef5c44a7fc4de600`, s10 `b19f6906467b50c1`).
 - `?speed=N` and `window.game` (summary, bot stats, frame stats, `setSpeed`, `setScore` test hook) for verification.
 
 ### Same observation as training (`sim-wasm`)
-- `Sim.observe(player, style)` = `bots::observe` (Float32Array, OBS_DIM 40, obs v2); `Sim.action_input(player, move, angle,
-  dash, lift)` = `bots::Action::to_input` (team rotation in Rust); `Sim.set_scripted(player, kind)` + `Sim.scripted_input(player)`
+- `Sim.observe(player, style)` = `bots::observe` (Float32Array, OBS_DIM 42, obs v3); `Sim.action_input(player, move, angle,
+  dash, lift, stick_up)` = `bots::Action::to_input` (team rotation in Rust); `Sim.set_scripted(player, kind)` + `Sim.scripted_input(player)`
   = `bots::Scripted` (reset at goal resets / a new match, as in training). The browser never re-implements the observation.
 - **Equality test**: `cargo run --release -p sim-wasm --example obs_fixture > target/obs_fixture.jsonl` (states from scripted free
   play and matches with goals, dashes, lifts, three style vectors) then `node scripts/obs_crosscheck.mjs target/obs_fixture.jsonl`:
@@ -635,7 +635,7 @@ free play `ed2b9c3b2c52da91`, match `ef5c44a7fc4de600`, s10 `b19f6906467b50c1`).
 - onnxruntime-web **1.31.1** (pinned, `onnxruntime-web/wasm` entry, single-threaded: no cross-origin isolation needed). Vite
   emits its runtime (`ort-wasm-simd-threaded-*.wasm`, 14.8 MB, 3.8 MB gzipped) into `dist/assets/` with a relative URL: no CDN.
 - One decision per 4 sim steps (30 Hz), action held in between, deterministic heads (argmax move, mean stick direction,
-  dash/lift prob > 0.5); the sidecar `.json` is checked (obs v2 / 40 / act v2). `run()` is async: a decision's action applies
+  dash/lift/stick_up prob > 0.5); the sidecar `.json` is checked (obs v3 / 42 / act v3 with `stick_up_prob`). `run()` is async: a decision's action applies
   from the next sim step after it resolves (≈ one frame); if one is still pending at the next decision it is skipped and counted.
 - **Measured (Playwright, headless Chromium on Ian's machine, smoke policy)**: inference per decision mean 0.82 ms, p50 0.70,
   p95 0.90 ms (one 40 ms first-call warm-up); 326 decisions in ~10.9 s at real time, 0 skipped. Frame interval p50/p95 16.7 ms;
@@ -645,10 +645,8 @@ free play `ed2b9c3b2c52da91`, match `ef5c44a7fc4de600`, s10 `b19f6906467b50c1`).
   ("Could not load the … model (…). Playing the scripted chaser instead.") and plays the profile's scripted `fallback`.
 
 ### Opponents shipped
-chaser, defender, cautious (scripted, no model file) and **Smoke-test bot** (`smoke.onnx`, 321 KB, + `smoke.json` sidecar,
-physics stamp `ad14b1064ab382dc`): PPO trained ~10 min on CPU (first_goal 6 min then match, vs the chaser, 128 envs; 4.9M
-decisions because the CPU was shared with builds), ONNX vs PyTorch 3.6e-7. It loses every match to the chaser: labelled
-"smoke test, weak" in the menu; it only shows that a trained policy runs in the browser.
+chaser, defender, cautious (scripted, no model file) and **Smoke-test bot** (`smoke.onnx`, 317 KB, + `smoke.json` sidecar,
+ACT v3 / OBS v3, physics stamp `8e01b0174c545b10`): a SMOKE TEST, labelled so in the menu. See "Action and observation v3".
 
 ### Adding a policy
 `python -m train.export_onnx --ckpt runs/NAME/latest.pt --out web/public/bots/NAME.onnx` (writes NAME.json), write
@@ -805,7 +803,7 @@ Web only (web/src, web/index.html, web/scripts). sim/, params and bots untouched
 
 ## Scale, raised stick, follow camera (session w4, 2026-11-05, branch w4)
 Physics changed (player_radius + the raised stick), so the crosscheck hashes and the physics stamp changed (listed below).
-ACT/OBS are unchanged: the bots and the training envs never raise the stick.
+ACT/OBS were unchanged by w4; session t2 added the raised stick to them.
 
 ### Player to puck scale
 - Cause of "the player looks too small": the lab's 6 px minimum puck radius drew the puck (6 px) larger than the player
@@ -863,9 +861,65 @@ ACT/OBS are unchanged: the bots and the training envs never raise the stick.
   verify script needed changes (none depended on the radius or the camera).
 
 ### Open (w4)
-- **The raised stick is not in the bot ACT/OBS yet.** Before the first long training run a follow-up must add an action head
-  and an obs field for it and bump ACT and OBS versions.
+- The raised stick is in the bot formats since session t2 (ACT v3 / OBS v3); no scripted bot raises it.
 - Raise/lower timing (instant here), the raised height range (0.35–1.5 m placeholder), and whether a raised stick can hit
   a puck in the air in the real game are unmeasured. Whether the real button is hold or toggle is unverified.
 - The follow camera's zoom and clamping are a reasoned choice, not measured from the real camera.
 
+## Action and observation v3 (session t2, 2026-11-05, branch t2)
+Formats only: `git diff origin/main -- sim calib params.json` is empty. ACT v3, OBS v3, ABI v3.
+
+### ACT v3 (bots/src/action.rs, ACT_DIM 5, canonical frame)
+| idx | field |
+|---|---|
+| 0 | move index 0..8 (table in "Action format") |
+| 1 | stick target angle (rad, canonical, wrapped) |
+| 2 | dash (> 0.5) |
+| 3 | lift (> 0.5) |
+| 4 | **stick_up (> 0.5), new; the team rotation leaves it unchanged** |
+
+Policy: one more Bernoulli head, in log-prob and entropy like dash and lift (fresh entropy 6.11). ONNX: new output `stick_up_prob`.
+
+### OBS v3 (bots/src/obs.rs, OBS_DIM 42)
+| idx | field |
+|---|---|
+| 0..31 | unchanged (see "Bots and training") |
+| 32..39 | style slot, not moved |
+| 40 | **own stick_up (0/1), not normalized** |
+| 41 | **opponent stick_up (0/1; 0 with no opponent), not normalized** |
+
+The running normalizer covers 0..31 only, so the style slot and both flags pass through.
+
+### Guards
+- `load_ckpt` refuses other versions. Real checkpoints: `../slapmini-int/runs/merged_match/latest.pt: observation layout v2/40
+  does not match the library's v3/42; cannot load`. With only the act version old: `action format ACT v2, this trainer uses ACT v3`.
+- `slapenv.lib()` checks the ABI first (an old DLL lacks `slap_act_version`), then ACT/OBS versions.
+- `botRuntime.ts` rejects a sidecar that is not obs v3 / 42 / act v3 with `stick_up_prob`, and falls back to the scripted bot.
+- `window.game.forceBotStickUp(on)` is a test hook; `window.game.bot` reports `upProbMean`, `upDecisions`, `stickUp`.
+
+### Verified (t2, Windows, CPU training)
+- `cargo test --workspace --release` 65 passed; train 16, measure 31 Python tests OK; `npm run build` and all 10 verify scripts OK.
+- Unchanged, native = wasm: free play `1c20a120d579b8ae`, match `1562dade657130b9`, s10 `2ddbc98e6f2e54c3`, stick_up
+  `99709a2c0e5f2646`; physics stamp `8e01b0174c545b10`.
+- Obs equality: 684 observations (456 in match mode; stick up none 278, own 137, opponent 137, both 132), 28,728 fields, 0 mismatches.
+- Env hashes, main (w4) → t2; each pair is equal within a build (default = style zero, threads 1 = 4):
+  Rust style zero first_goal `dc708fe6a65489fe` → `cb51246743fa603c`, match `296872e2fc8dac9a` → `17957d0ef396c0e7`;
+  Python style zero first_goal `4f89564afd66a3a5` → `fea9a0aaedb09abc`, match `8699123d354feb39` → `3ac8233222b808a1`;
+  threads first_goal `267aba83ad2eb3bc` → `a496861986a021b1`, match `a5b3f62c490033a7` → `7ce05fbe915791be`.
+- ONNX parity, 2000 random obs: max 2.9e-6 (3.3e-6 with obs norm), stick_up_prob 4.2e-7 (3.6e-7), move index identical.
+- 3 min match smoke (128 envs, CPU, vs chaser, `train/results/t2_match3_*`): goal diff −5.00 → −4.53, return −7.0 → −6.3,
+  loss 1.00 → 0.97, win 0.01; stick_up prob 0.40–0.55, raised share about the same.
+- Smoke bot (`train/results/t2_smoke_*`, retrained on the final code; first_goal 6 min, then match; 22.1M decisions): training end
+  win 0.56, goal diff +1.10, stick_up prob 0.46–0.54. `train.ppo eval` vs chaser, 64 matches: win 0.625, loss 0.19, draw 0.19,
+  goals 3.27–1.81. An earlier same-length run on shared CPU (16M decisions) ended at win 0.14, so this is not a stable
+  result; it has only played the chaser and has not been rated on the ladder.
+- Browser, smoke bot: mean stick_up_prob 0.631, stick up in 519 of 808 decisions (64%, threshold 0.5, one sped-up match
+  stretch). Fallback OK for a missing model, a corrupt model and an old-format sidecar.
+  `web/verify-out/game-bot-stick-up.png` inspected: the forced raised bot stick shows the raised drawing.
+
+### Open (t2)
+- **No scripted bot raises its stick**, so self-play is the first time a policy meets a raised stick.
+- Stick-up usage: sampled share near 0.5 (the untrained coin flip), so the head has probably learned little. It is not degenerate,
+  but the deterministic bot holds the stick up 64% of the time. If the long run climbs toward 1, a likely reason is that a
+  raised stick avoids accidental own contacts. No reward term was added.
+- The first long run (README "Long run on Ian's machine") has not started.

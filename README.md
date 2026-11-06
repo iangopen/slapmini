@@ -63,6 +63,8 @@ npm run build     # wasm + typecheck + static site in web/dist (relative paths, 
 npm run verify-game    # the game through the real UI, served from web/dist under /slapmini/ (needs npm run build first)
 npm run verify    # feel-lab checks; screenshots in web/verify-out
 npm run verify-match   # three full matches in match mode (mercy, clock, overtime), sped-up loop; match-*.png
+npm run verify-params  # every panel parameter changed through the DOM, lab and game: effect table
+npm run verify-w5b     # F2 panel in a running match, Export/Import, Space as a slow walk
 npm run verify-skate   # hold W from rest: player speed vs time, ramp to the cap; skate-top-speed.png
 ```
 

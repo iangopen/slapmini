@@ -815,3 +815,8 @@ Measured the body/puck radius ratio (1.989) → player_radius 0.4969; true-scale
 
 ## t2 (2026-11-05)
 Raised stick in the bot formats (ACT v3, OBS v3, ABI v3). The first session crashed after a WIP commit; the resumed session reviewed it, added the missing checks and docs, retrained the smoke bot and reran all verification.
+
+## Session w5b (2026-11-06)
+Reported by Ian: panel edits not showing in play, too much slide, Space stopping dead. Found the game had no path to `set_params`, the lab's number fields ate WASD and match timers kept old
+ticks. One panel now serves both pages (F2 in the game). Four skating candidates compared; the sideways term as specified broke board slides, so the speed-keeping form was adopted. Space became a sim input.
+Details in CLAUDE.md "Tuning panel, skating and slow walk (w5b)".

@@ -35,7 +35,8 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     let matches: u32 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(40);
     let seconds: f64 = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(60.0);
-    let p = Params::default();
+    // Optional third argument: a params file (for what-if comparisons).
+    let p = args.get(3).map_or_else(Params::default, |f| Params::from_json(&std::fs::read_to_string(f).expect("params file")).expect("params"));
     let steps = (seconds / p.timestep).round() as u64;
     let kinds = [Kind::Chaser, Kind::Defender, Kind::Cautious, Kind::Idle];
     println!("{matches} matches per pairing, {seconds} s each, jittered faceoffs, sides swapped every other match");

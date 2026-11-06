@@ -219,7 +219,7 @@ fn move_to(v: &View, target: V2, p: &Params, max_speed: f64) -> (f64, f64) {
 /// `cargo run --release -p bots --example shotlab` at the current params (re-measure after physics changes).
 const SHOT_OVERTURN: f64 = 0.020;
 /// Launch speed of a swung shot from rest (m/s), measured the same way.
-const SHOT_SPEED: f64 = 29.6;
+const SHOT_SPEED: f64 = 26.5;
 
 /// Time for the stick to turn `theta` radians from rest under the bang-bang chase (accelerate,
 /// then cruise at the max angular speed).
@@ -229,9 +229,10 @@ fn swing_time(theta: f64, p: &Params) -> f64 {
     if theta <= theta_acc { sqrt(2.0 * theta / a) } else { w / a + (theta - theta_acc) / w }
 }
 
-/// Mid-blade distance from the player center: where the stick should meet the puck.
+/// Distance from the player center where the stick should meet the puck: 0.13 m out along the blade from the heel.
+/// Near the toe (the old formula, 1.09 m on the measured chain) the chaser scored 0.39 against the defender; here 0.48 (400 matches).
 fn hit_radius(p: &Params) -> f64 {
-    0.5 * (p.stick_inner + p.stick_length) + 0.15
+    p.stick_inner + 0.13
 }
 
 /// Stick-swing striker shared by all bots: approach a spot beside the puck, stick cocked back,

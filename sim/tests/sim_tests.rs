@@ -30,6 +30,7 @@ fn scripted_inputs(tick: u64, n: usize) -> Vec<PlayerInput> {
                 dash: next() < 0.02,
                 lift: next() < 0.2,
                 stick_up: false,
+                brake: false,
             }
         })
         .collect()
@@ -66,9 +67,9 @@ const MEASURED_SHAPE: [&str; 24] = [
 ];
 
 /// Fitted to real clips: puck (measure holdout), player/dash (s7 measure.skatefit), stick (s7b measure.stick).
-const FITTED: [&str; 13] = [
+const FITTED: [&str; 14] = [
     "board_restitution", "board_friction", "ice_linear_drag", "ice_friction_decel",
-    "player_accel", "player_ice_drag", "dash_speed", "player_coast_rate", "dash_ramp_time", "stick_max_ang_decel",
+    "player_accel", "player_ice_drag", "dash_speed", "player_coast_rate", "player_turn_accel", "dash_ramp_time", "stick_max_ang_decel",
     "stick_max_ang_speed", "stick_max_ang_accel", "stick_restitution",
 ];
 
@@ -230,6 +231,7 @@ pub fn crosscheck_inputs(t: u64) -> Vec<PlayerInput> {
             dash: t % 240 == k * 7,
             lift: t % 500 < 20,
             stick_up: false,
+            brake: false,
         })
         .collect()
 }

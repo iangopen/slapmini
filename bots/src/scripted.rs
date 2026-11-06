@@ -217,7 +217,7 @@ fn move_to(v: &View, target: V2, p: &Params, max_speed: f64) -> (f64, f64) {
 
 /// Extra rotation of a swung shot beyond the perpendicular to (puck − player) (rad), measured with
 /// `cargo run --release -p bots --example shotlab` at the current params (re-measure after physics changes).
-const SHOT_OVERTURN: f64 = 0.018;
+const SHOT_OVERTURN: f64 = 0.020;
 /// Launch speed of a swung shot from rest (m/s), measured the same way.
 const SHOT_SPEED: f64 = 29.6;
 

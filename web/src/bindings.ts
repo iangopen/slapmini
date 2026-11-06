@@ -9,7 +9,7 @@ export const BINDINGS = {
   dash: "ShiftLeft",
   /** UNVERIFIED GUESS: the real game's lift binding has not been checked (was Space before w3). */
   lift: "KeyE",
-  /** UNVERIFIED GUESS: stop / brake (web-layer brake, see brake.ts; the real game's braking is unmeasured). */
+  /** UNVERIFIED GUESS: slow walk while held (sim input PlayerInput.brake; the real game's braking is unmeasured). */
   brake: "Space",
   // The raised stick is a MOUSE button: see MOUSE_BINDINGS below.
 
@@ -22,6 +22,9 @@ export const BINDINGS = {
   reset: "KeyR",
   /** Call the puck toward the stick's forehand. */
   call: "KeyQ",
+
+  /** Game page: open or close the tuning panel. */
+  tune: "F2",
 
   // Match mode.
   /** Start a new match after game over (rematch). */
@@ -41,6 +44,18 @@ export const ALIASES: Partial<Record<keyof typeof BINDINGS, string[]>> = {
   rematch: ["NumpadEnter"],
 };
 
+/** Key events that belong to a focused field instead of the game. Text fields keep every key; number fields (the tuning
+ * panel) only the keys they can use, so WASD, Shift and Space still drive the player right after an edit. */
+export function fieldOwnsKey(e: KeyboardEvent): boolean {
+  const el = e.target as HTMLElement | null;
+  if (!el) return false;
+  if (el.tagName === "TEXTAREA" || el.isContentEditable) return true;
+  if (el.tagName !== "INPUT") return false;
+  const type = (el as HTMLInputElement).type;
+  if (type === "number") return e.code === "KeyE" || e.code === "Enter" || e.code === "NumpadEnter";
+  return ["text", "search", "email", "password", "url"].includes(type);
+}
+
 export function actionFor(code: string): keyof typeof BINDINGS | undefined {
   for (const [k, v] of Object.entries(BINDINGS)) if (v === code) return k as keyof typeof BINDINGS;
   for (const [k, v] of Object.entries(ALIASES)) if (v?.includes(code)) return k as keyof typeof BINDINGS;
@@ -52,7 +67,7 @@ export const KEY_HELP: [string, string][] = [
   ["Mouse", "stick target angle"],
   ["Shift", "dash (binding unverified guess)"],
   ["E", "lift (binding unverified guess)"],
-  ["Space", "brake / stop (binding unverified guess; stopping time is a placeholder)"],
+  ["Space", "slow walk while held: WASD still steers (binding unverified guess; speeds are placeholders)"],
   ["Left mouse", "raise the stick while held: a puck on the ice passes under it (unverified; heights are placeholders)"],
   ["F", "set puck spawn at cursor, hold to raise height (approx.)"],
   ["G", "set puck target at cursor (approx.)"],

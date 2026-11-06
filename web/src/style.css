@@ -30,7 +30,11 @@ button.on { background: #6b2430; border-color: #a33; }
 .param { display: grid; grid-template-columns: 1fr 92px auto; gap: 6px; align-items: center; margin: 2px 0; }
 .param label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .param input { width: 92px; background: #0f1419; color: var(--text); border: 1px solid var(--line); border-radius: 3px; padding: 2px 4px; font: inherit; }
-.param.changed label { color: var(--accent); }
+.param.changed label { color: var(--accent); font-weight: 600; }
+.param.changed input { border-color: var(--accent); }
+.param-note { margin: 0 0 6px; font-size: 11px; line-height: 1.25; }
+.tune-head { font-size: 12px; margin: 10px 0 4px; }
+.tune-bar { flex-wrap: wrap; gap: 6px; }
 #readout { font-variant-numeric: tabular-nums; }
 #readout .big { font-size: 18px; }
 #ghost-scrub { flex: 1; }

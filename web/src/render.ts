@@ -327,14 +327,14 @@ export function drawnRadii(v: View, p: P, puckMinPx?: number): { player: number;
   return { player: p.player_radius * v.s, puck: Math.max(p.puck_radius * v.s, puckMinPx ?? PUCK_MIN_PX) };
 }
 
-/** Bottom-left LIFT / BRAKE / STICK UP badges while those inputs are held (lift only acts at stick contact; the brake
+/** Bottom-left LIFT / SLOW / STICK UP badges while those inputs are held (lift only acts at stick contact; the brake
  * is web-side; the raised stick is the left mouse button). */
 export function drawInputBadges(ctx: CanvasRenderingContext2D, canvasH: number, lift: boolean, brake: boolean, stickUp = false): void {
   if (!lift && !brake && !stickUp) return;
   ctx.save();
   ctx.font = "bold 14px system-ui, sans-serif";
   let x = 16;
-  for (const [on, text, color] of [[lift, "LIFT", "rgba(255, 200, 80, 0.95)"], [brake, "BRAKE", "rgba(255, 110, 110, 0.95)"], [stickUp, "STICK UP", "rgba(120, 200, 255, 0.95)"]] as const) {
+  for (const [on, text, color] of [[lift, "LIFT", "rgba(255, 200, 80, 0.95)"], [brake, "SLOW", "rgba(255, 110, 110, 0.95)"], [stickUp, "STICK UP", "rgba(120, 200, 255, 0.95)"]] as const) {
     if (!on) continue;
     ctx.fillStyle = color;
     ctx.fillText(text, x, canvasH - 64);

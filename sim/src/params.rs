@@ -51,6 +51,10 @@ define_params!(
     // stick_hit_rule: 0 = centre-on (s10), 1 = contact point and surface normal.
     stick_hand_x, stick_hand_y, stick_kink_x, stick_kink_y, stick_heel_x, stick_heel_y, stick_toe_x, stick_toe_y,
     stick_shaft_radius, stick_heel_radius, stick_hit_rule,
+    // w5b: slow walk while the brake input is held (Space).
+    brake_speed, brake_decel,
+    // w5b: separate acceleration against sideways velocity and against the velocity.
+    player_turn_accel, player_brake_accel,
 );
 
 /// One entry of `params.json`.

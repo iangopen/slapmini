@@ -63,10 +63,12 @@ npm run build     # wasm + typecheck + static site in web/dist (relative paths, 
 npm run verify-game    # the game through the real UI, served from web/dist under /slapmini/ (needs npm run build first)
 npm run verify    # feel-lab checks; screenshots in web/verify-out
 npm run verify-match   # three full matches in match mode (mercy, clock, overtime), sped-up loop; match-*.png
+npm run verify-params  # every panel parameter changed through the DOM, lab and game: effect table
+npm run verify-w5b     # F2 panel in a running match, Export/Import, Space as a slow walk
 npm run verify-skate   # hold W from rest: player speed vs time, ramp to the cap; skate-top-speed.png
 ```
 
-Controls: WASD move; the mouse sets the stick target; Shift dash and Space lift (both unverified guesses).
+Controls: WASD move; the mouse sets the stick target; Shift dash, E lift and Space slow walk (all unverified guesses). F2 in the game opens the tuning panel.
 Practice tools (approximate): F spawn (hold to raise), G target, R reset puck, Q call puck to forehand.
 Match mode (checkbox, or `?mode=match`): 1v1 rules from the sim (5:00 clock, mercy lead 5, sudden-death overtime),
 scoreboard + OVERTIME banner + game-over overlay, Enter = rematch, practice tools off. `?speed=N` runs the loop N× real time.

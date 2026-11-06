@@ -134,9 +134,12 @@ Provenance tags: `measured` (model-free measurement), `measured-shape` (geometry
 | player_radius | 0.5329 m | measured-shape | w5a: height-corrected body / rink 0.00817 (`measure/size_ratios.py`) |
 | board_restitution / board_friction | 0.342796 / 0 | fitted | s5/s6 wall bounces, held out by clip |
 | ice_linear_drag / ice_friction_decel | 0.47254 1/s / 0 m/s^2 | fitted | glides; decel refit in real m/s^2 (below) |
-| player_accel | 17.3594 m/s^2 | fitted | s10 refit of the s7 key-display skating runs with the proportional coast |
+| player_accel | 16.9508 m/s^2 | fitted | w5b refit with the turn term (was 17.3594); see "Tuning panel, skating and slow walk (w5b)" |
+| player_turn_accel | 3.2792 m/s^2 | fitted | w5b, turning clip (leave-one-run-out 2.9–3.7) |
+| player_brake_accel | 16.9508 m/s^2 | **placeholder** | w5b, = player_accel: no clip presses against the velocity |
+| brake_speed / brake_decel | 1.5 m/s / 25 m/s^2 | **placeholder** | w5b slow walk (Space) |
 | player_max_speed | 11.6935 m/s | **measured** | model-free hard cap 10.755 (sd 0.035, n = 15) × 1.0873; the fit's 10.62 not used |
-| player_coast_rate / player_ice_drag | 1.08146 1/s / 0 m/s^2 | fitted | s10 coast dv/dt = −rate·v − ice_drag (held out by clip) |
+| player_coast_rate / player_ice_drag | 1.0751 1/s / 0 m/s^2 | fitted | coast dv/dt = −rate·v − ice_drag; rate refit in w5b (was 1.08146) |
 | dash_speed / dash_ramp_time | 15.4803 m/s / 0.11631 s | fitted | s10 set-speed dash ramp (held out by clip) |
 | dash_duration / dash_cooldown | 0.25 s / 1 s | **placeholder** | not identifiable from the clips |
 | stick_max_ang_speed / accel / decel | 26.173 rad/s / 513.9 / 2316.1 rad/s^2 | fitted | s7b sweeps (cap plateau; flick starts); s10 stop decel |
@@ -776,6 +779,7 @@ Web only (web/src, web/index.html, web/scripts). sim/, params and bots untouched
   last 8 sim steps (`StickAim.clamped`), plus the mouse mode and sensitivity.
 
 ### Brake (Space) and lift (E)
+**Superseded in w5b:** Space is now the sim input `PlayerInput.brake` (a slow walk); `web/src/brake.ts` is gone. Lift on E stands.
 - Bindings (`web/src/bindings.ts`, all UNVERIFIED guesses): **lift moved from Space to E**, **Space = brake**. The Controls
   screen and the lab's key list show both, marked unverified.
 - `web/src/brake.ts` builds the brake from the sim's own controls (the sim has no brake input; adding one would change the
@@ -1008,3 +1012,87 @@ The running normalizer covers 0..31 only, so the style slot and both flags pass 
   but the deterministic bot holds the stick up 64% of the time. If the long run climbs toward 1, a likely reason is that a
   raised stick avoids accidental own contacts. No reward term was added.
 - The first long run (README "Long run on Ian's machine") has not started.
+
+## Tuning panel, skating and slow walk (session w5b, 2026-11-06, branch w5b)
+Physics changed (skating model, brake input), so hashes and the physics stamp changed. Stick and puck contact, sizes and the bot
+action and observation formats are untouched.
+
+### Why panel edits did not reach the gameplay (`npm run verify-params`, `web/scripts/param_audit.mjs`)
+Every parameter is changed through its DOM field, then a short scenario that depends on it runs. Before: lab 60/62, game 4/62.
+After, with player_turn_accel and player_brake_accel added: lab 64/64, game 63/64 (the last, speed_display_scale, only feeds the lab readout; the game page has none).
+| where | params affected | cause | fix |
+|---|---|---|---|
+| game | all but the 4 display-only ones | no panel on the page, `set_params` never called; `P` was a private copy of params.json, so lab edits never arrived | `web/src/panel.ts` shared by both pages; the game's panel calls `set_params` and updates `P` in place |
+| lab → game | all | edits lived only in the lab page | edits stored in localStorage (`slapmini.params.edits.v1`, overlay on params.json), loaded by both pages until Reset; the game shows a TUNED badge |
+| lab | all, for the player | after an edit the focus stayed in the number field and it swallowed WASD (speed 0.00 m/s after 0.35 s of W) | `fieldOwnsKey` in bindings.ts: number fields keep only E and Enter; after: 6.37 m/s |
+| lab, game | match_length_s, countdown_s (and timestep, goal_pause_s in their phase) | the match stores its timers in ticks when the phase starts | `retimeMatch` in panel.ts moves the running timers |
+- player_spawn_x, mercy_lead and everything else already apply as they are read (spawn at the next faceoff). `timestep` ≤ 0 is refused (it would hang the loop).
+- Training reads params.json when the env is created: panel edits are experiments and reach it only through Export into params.json.
+
+### Game tuning panel (F2)
+Same panel as the lab, hidden by default, on any screen; opening it releases the mouse (a click on the rink captures it again), Esc or F2
+closes it. Edits apply live to the running match and keep their provenance tag; changed rows are highlighted. Reset, Export JSON, Import
+JSON (values only; unknown names or bad values refuse the whole file). The "Skating feel" group is on top, with notes.
+
+### Skating model comparison (`python -m measure.w5b_skate compare` → `measure/results/skate/w5b_fits.json`; needs `docs/experiments/skate_candidates.patch`)
+Held-out median pos / speed RMSE per clip (fit on the other two clips, player_max_speed fixed, best of several starts):
+| candidate | wkeymovement | diagonalkeypresses | whilemovingturning | fitted |
+|---|---|---|---|---|
+| current (accel along key, coast, cap) | 0.180 m / 1.874 m/s | 0.274 / 2.244 | 0.746 / 2.111 | accel 17.37, coast 1.080 |
+| split as specified (sideways velocity shrinks at turn accel) | 0.189 / 1.873 | 1.419 / 2.322 | 0.746 / 2.111 | turn 0–3.2 |
+| **chosen: split, shrink keeps the speed** | **0.162 / 1.873** | **0.257 / 2.237** | 0.746 / 2.111 | see below |
+| steer (velocity → target, time constant) | 0.257 / 1.873 | 0.427 / 2.270 | 1.591 / 2.243 | tau 0.34 s, coast 1.070 |
+- The turning clip's clip-held-out row cannot show a turn term: it is the only clip with real turns, so that fold fits turn 0 and all three
+  turn-free results tie. Leave one turning run out instead (turn value from the other four): current 0.640 m / 2.119 m/s, chosen **0.378 m /
+  2.124 m/s**, fits 2.9–3.7. Speed RMSE is finite-difference noise of the tracked player in every row, as in s10.
+- The split as specified fails on boards: pressing a key diagonally into the boards, the slide along them counts as sideways and
+  dies (at turn 12 the median diagonal error is 32 m). Keeping the speed turns the velocity instead, and the slide survives.
+- Final values: turn 3.2792 (turning clip), then accel 16.9508, coast 1.0751 (all clips); pos 0.100 / 0.263 / 0.405 m in sample (was 0.145 / 0.243 / 0.665).
+- **Ian's report against the data** (`python -m measure.w5b_skate direct`, clip and sim through the same smoothing): turning is stronger in the
+  real game: a 45° key turn at top speed reaches within 10° of the key in **0.833 s** (median of 5 turns held ≥ 1.5 s; old sim 1.067 s, new 0.900 s).
+  Straight-line acceleration is not: rest to 95% of the cap takes 0.733 s in the clips, 0.667 s in the sim (n 15). Stopping and reversing have no data.
+
+### Coast rate: 1.08 against 0.85
+The direct 0.85 was too low, the fit was right. It is the ln(speed) slope of unsmoothed speed: tracker noise adds a floor to |v| at low speed and flattens
+the slope (the raw estimator gives 0.50 on the same coasts with a shorter difference). With local quadratic velocity: median 0.997 1/s (0.89–1.41, n 11), and
+decel/speed is flat from 1 to 13 m/s (0.96–1.06); regression dv/dt = −1.067 v + 0.069. So the coast is proportional with no constant
+term, and the refit 1.0751 stands.
+
+### Movement times (`cargo run --release -p sim --example movelab`)
+| time (s) | old | new | clips |
+|---|---|---|---|
+| rest to 95% of top speed | 0.642 | 0.658 | 0.733 (with smoothing; sim 0.667) |
+| rest to top speed | 0.675 | 0.692 | |
+| stop: top speed, opposite key | 0.675 | 0.692 | none |
+| reverse: top speed to top speed the other way | 1.350 | 1.383 | none |
+| turn 90° at top speed, within 10° of the key | 1.650 | 1.283 | none |
+| turn 90°, within 1° | 3.217 | 1.667 | none |
+| turn 45°, within 10° | 1.058 | 0.900 | 0.833 |
+| coast: top speed to half | 0.642 | 0.650 | |
+| coast: top speed to 1 m/s | 2.267 | 2.283 | |
+
+### Slow walk (Space)
+`PlayerInput.brake` (serde default false; not in the hash, no state). While held the cap is min(player_max_speed, brake_speed); speed above it falls at
+brake_decel, counted from the speed before the keys act, so a held key steers but cannot hold the speed up. Keys accelerate up to the cap. A dash ramp ignores the brake,
+then the slow walk takes over. With no key, below brake_speed the normal coast applies (0.09 m/s after 3 s). Recordings log the flag. Badge SLOW.
+**Follow-up before the first long training run: add a brake field to the bot action format (ACT); bots cannot brake now.**
+Adding the input alone left all four hashes unchanged (commit ffa384c), native = wasm.
+
+### Verified (w5b, Windows)
+- `cargo test --workspace --release` 73 passed; measure 31 and train Python tests OK; `npm run build`; verify, verify-match, verify-skate, verify-s10, verify-game, verify-w2,
+  verify-space, verify-w3, verify-stick, verify-w4, verify-params, verify-w5b all OK. Script changes: verify_w3.mjs (Space now settles at brake_speed; brake events by the flag).
+- Hashes after 100k steps, native = wasm (old → new): free play `1c20a120d579b8ae` → **`ae6c7583bdfa71a1`**, match `1562dade657130b9` → **`58bed9e36379bfe8`**,
+  s10 `2ddbc98e6f2e54c3` → **`ceb7a5505abcf52c`**, stick_up `99709a2c0e5f2646` → **`f0c2622881cf7214`**. Physics stamp `8e01b0174c545b10` → **`521ac120c10ddad2`**.
+  These replace the hashes in the earlier "Verified" sections. The smoke policy was not retrained or re-exported.
+- Bots: **SHOT_OVERTURN 0.018 → 0.020, SHOT_SPEED 27.6 → 27.8** (shotlab 48/48, median |err| 0.003 → 0.001 rad). Tournament 100×60 s, before → after: chaser–defender
+  0.54–0.01 → 0.51–0.02, chaser–chaser 0.53–0.39 → 0.47–0.34, chaser–cautious 16.98 → 16.03, chaser–idle 17.00 → 16.05. With turn 0 the same code gives 16.85, so most of the drop comes from the turn term;
+  the cause in the bots' steering was not investigated.
+- Params: appended brake_speed, brake_decel, player_turn_accel, player_brake_accel (also in the pinned files, there with turn 0 and brake = their accel).
+
+### Open (w5b)
+- **Bot brake action** (above). The panel is not recordable: a recording does not store its params.
+- How well the data pins the feel: player_turn_accel rests on one clip (5 runs, 45° turns only); 90° times are extrapolated. The diagonal clip's short (1,0) key tails turn less than the
+  model (diagonalkeypresses_00: 2.0 → about 2.6 m), unexplained. player_brake_accel, brake_speed, brake_decel are unmeasured; an s6 estimate of ~28 m/s^2 (unknown inputs) hints at a harder real
+  brake than 16.95. Recording wish: W then S at top speed, and 90° turns.
+- Whether the real game has a slow walk on Space at all; with no key the player drifts to rest on the coast (a faster stop would be one line).
+- measure/s10_skate.py still fits the s10 parameter set; use measure/w5b_skate.py.

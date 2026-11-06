@@ -91,7 +91,7 @@ impl Action {
         let f = Frame::for_team(team);
         let (cx, cy) = self.move_vec();
         let (mx, my) = f.vec(cx, cy);
-        PlayerInput { move_x: mx, move_y: my, stick_target_angle: f.angle(self.stick_angle), dash: self.dash, lift: self.lift, stick_up: self.stick_up }
+        PlayerInput { move_x: mx, move_y: my, stick_target_angle: f.angle(self.stick_angle), dash: self.dash, lift: self.lift, stick_up: self.stick_up, brake: false }
     }
 }
 

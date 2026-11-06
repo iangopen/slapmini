@@ -2,13 +2,12 @@
 
 import init, { Sim } from "../wasm-pkg/sim_wasm.js";
 import paramsFile from "../../params.json";
-import { actionFor, BINDINGS, KEY_HELP, MOUSE_BINDINGS } from "./bindings";
+import { actionFor, BINDINGS, fieldOwnsKey, KEY_HELP, MOUSE_BINDINGS } from "./bindings";
 import { Lab, parseCsv, toCsv, type Recording } from "./lab";
 import { FixedStepLoop } from "./loop";
-import { buildParamPanel, download } from "./panel";
+import { buildTuningPanel, download, withStoredEdits } from "./panel";
 import { draw, drawInputBadges, drawMatchHud, fitView, formatClock, keysToMove, toScreen, toWorld, TEAM_NAMES, type View } from "./render";
 import { loadSettings, MAX_LEAD, PointerCapture, saveSettings, SENS_MAX, SENS_MIN, SENS_STEP, StickAim, StickRaise } from "./stick";
-import { brakeMove } from "./brake";
 import type { ParamFile, Sample, Scenario } from "./types";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -16,7 +15,7 @@ const qs = new URLSearchParams(location.search);
 
 await init();
 const ORIGINAL = paramsFile as ParamFile;
-const lab = new Lab(Sim, ORIGINAL, 2);
+const lab = new Lab(Sim, withStoredEdits(ORIGINAL), 2);
 
 // ---------- mouse model (stick.ts; settings shared with the game through localStorage) ----------
 const mouseSettings = loadSettings();
@@ -90,17 +89,9 @@ sens.addEventListener("input", () => {
 });
 refreshMouse();
 
-/** Text-entry fields keep their keys; checkboxes, sliders, selects and buttons do not get game keys.
- * (Before w2 any focused <input> swallowed every key: after clicking a panel checkbox, Space toggled
- * the checkbox instead of lifting.) */
-function typing(t: EventTarget | null): boolean {
-  const el = t as HTMLElement | null;
-  if (!el) return false;
-  if (el.tagName === "TEXTAREA" || el.isContentEditable) return true;
-  return el.tagName === "INPUT" && ["text", "number", "search", "email", "password", "url"].includes((el as HTMLInputElement).type);
-}
 function onKey(e: KeyboardEvent, down: boolean): void {
-  if (typing(e.target)) return;
+  // A key released inside a field still counts as released (it may have been pressed outside it).
+  if (down && fieldOwnsKey(e)) return;
   if (down && e.code === "Escape" && capture.locked) return void capture.release(); // the browser does this too
   const act = actionFor(e.code);
   if (!act) return;
@@ -127,10 +118,7 @@ window.addEventListener("blur", () => {
 function readHumanInput(): void {
   const pl = lab.state.players[0];
   if (!pl) return;
-  // Space = brake: overrides WASD while held (brake.ts); dash and lift pass through unchanged.
-  const [mx, my] = held.has("brake")
-    ? brakeMove(pl.vx, pl.vy, lab.p.player_accel, lab.p.timestep)
-    : keysToMove(view, held.has("up"), held.has("down"), held.has("left"), held.has("right"));
+  const [mx, my] = keysToMove(view, held.has("up"), held.has("down"), held.has("left"), held.has("right"));
   let stick: number;
   // Relative aim, held within MAX_LEAD of the stick's actual angle (stick.ts).
   if (mouseSettings.mode === "relative") stick = aim.worldAngle(view, pl.stick_angle);
@@ -138,7 +126,7 @@ function readHumanInput(): void {
     const [wx, wy] = mouseWorld();
     stick = Math.atan2(wy - pl.y, wx - pl.x);
   }
-  lab.inputs[0] = { move_x: mx, move_y: my, stick_target_angle: stick, dash: held.has("dash"), lift: held.has("lift"), stick_up: raise.held };
+  lab.inputs[0] = { move_x: mx, move_y: my, stick_target_angle: stick, dash: held.has("dash"), lift: held.has("lift"), stick_up: raise.held, brake: held.has("brake") };
 }
 
 // ---------- fixed-step loop ----------
@@ -296,16 +284,14 @@ $("ghost-clear").addEventListener("click", () => {
 });
 
 // ---------- params panel ----------
-const refreshPanel = buildParamPanel($("params"), ORIGINAL, () => lab.file, (n, v) => {
-  lab.setParam(n, v);
-  if (n.startsWith("rink_")) resize();
+buildTuningPanel($("params"), {
+  original: ORIGINAL,
+  current: () => lab.file,
+  applyFile: (f) => {
+    lab.setParamFile(f);
+    resize();
+  },
 });
-$("params-reset").addEventListener("click", () => {
-  lab.setParamFile(ORIGINAL);
-  refreshPanel();
-  resize();
-});
-$("params-export").addEventListener("click", () => download("params.json", JSON.stringify(lab.file, null, 2) + "\n"));
 
 // ---------- frame ----------
 let last = performance.now();

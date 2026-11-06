@@ -79,6 +79,10 @@
     "stick_toe_y": {"value": 0, "provenance": "placeholder", "unit": "m", "note": "pinned file: the straight rod of stick_inner..stick_length (w5a chain format)"},
     "stick_shaft_radius": {"value": 0.05, "provenance": "placeholder", "unit": "m", "note": "pinned file: the straight rod of stick_inner..stick_length (w5a chain format)"},
     "stick_heel_radius": {"value": 0.05, "provenance": "placeholder", "unit": "m", "note": "pinned file: the straight rod of stick_inner..stick_length (w5a chain format)"},
-    "stick_hit_rule": {"value": 0, "provenance": "placeholder", "unit": "count", "note": "pinned file: the straight rod of stick_inner..stick_length (w5a chain format)"}
+    "stick_hit_rule": {"value": 0, "provenance": "placeholder", "unit": "count", "note": "pinned file: the straight rod of stick_inner..stick_length (w5a chain format)"},
+    "brake_speed": {"value": 1.5, "provenance": "placeholder", "unit": "m/s", "note": "PLACEHOLDER (w5b): the speed cap while the brake input (Space) is held: a slow walk. The move keys accelerate the player up to this cap in the pressed direction. Unmeasured: Ian's feel check should set it."},
+    "brake_decel": {"value": 25.0, "provenance": "placeholder", "unit": "m/s^2", "note": "PLACEHOLDER (w5b): how fast speed above brake_speed decays while the brake is held (top speed down to brake_speed in about 0.4 s). Unmeasured: the real game's braking has not been recorded."},
+    "player_turn_accel": {"value": 0.0, "provenance": "placeholder", "unit": "m/s^2", "note": "w5b: 0 keeps the old movement"},
+    "player_brake_accel": {"value": 12.0, "provenance": "placeholder", "unit": "m/s^2", "note": "w5b: = player_accel keeps the old movement"}
   }
 }

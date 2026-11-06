@@ -12,6 +12,12 @@
     <div id="banner" class="banner" hidden></div>
     <div id="lock-hint" class="lock-hint" hidden>Click the rink to capture the mouse · left/right turns the stick · Esc releases it</div>
 
+    <div id="tuned" class="tuned" hidden></div>
+    <aside id="tune" class="tune" aria-label="Tuning panel" hidden>
+      <div class="row"><h2>Tuning (F2)</h2><button id="tune-close">Close</button></div>
+      <div id="tune-params"></div>
+    </aside>
+
     <section id="menu" class="screen" aria-label="Main menu">
       <div class="card">
         <h1 class="title">slapmini</h1>
@@ -39,7 +45,7 @@
       <div class="card">
         <h1>Controls</h1>
         <ul id="controls-list" class="controls"></ul>
-        <p class="warn small">Dash (Shift), lift (E) and brake (Space) are UNVERIFIED guesses at the real game's bindings. The brake's stopping time is a placeholder (the real game's braking is unmeasured). Left mouse (raise the stick while held) is also unverified; its height range is a placeholder.</p>
+        <p class="warn small">Dash (Shift), lift (E) and slow walk (Space) are UNVERIFIED guesses at the real game's bindings. The slow walk's speeds are placeholders (the real game's braking is unmeasured). Left mouse (raise the stick while held) is also unverified; its height range is a placeholder.</p>
         <p class="muted small">You are BLUE, attacking the top net. 5:00 clock, a 5-goal lead ends the match (mercy), a tie at 0:00 goes to next-goal overtime.</p>
         <div class="field">
           <label for="mouse-mode">Mouse</label>

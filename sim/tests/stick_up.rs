@@ -90,7 +90,7 @@ pub fn stick_up_inputs(s: &State, t: u64) -> Vec<PlayerInput> {
             let stick = if d < 2.0 { pl.stick_angle + sense * 2.5 } else { pl.stick_angle };
             let x = ((t / 40) * 2 + k as u64) as u32;
             let up = (x.wrapping_mul(2_654_435_761) >> 16) % 3 == 0;
-            PlayerInput { move_x: mx, move_y: my, stick_target_angle: stick, dash: phase % 150 < 3 && !coasting, lift: t % 700 < 15, stick_up: up }
+            PlayerInput { move_x: mx, move_y: my, stick_target_angle: stick, dash: phase % 150 < 3 && !coasting, lift: t % 700 < 15, stick_up: up, brake: false }
         })
         .collect()
 }

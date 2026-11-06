@@ -818,3 +818,7 @@ Raised stick in the bot formats (ACT v3, OBS v3, ABI v3). The first session cras
 
 ## w5a (2026-11-06)
 Measured size ratios with an explicit height correction (radii up 7-9%), fitted a three-capsule stick, put it in the sim and renderer, kept the centre-on hit rule, added swept stick contact and a pinch solver with a 100k stress test, retuned SHOT_SPEED.
+## Session w5b (2026-11-06)
+Reported by Ian: panel edits not showing in play, too much slide, Space stopping dead. Found the game had no path to `set_params`, the lab's number fields ate WASD and match timers kept old
+ticks. One panel now serves both pages (F2 in the game). Four skating candidates compared; the sideways term as specified broke board slides, so the speed-keeping form was adopted. Space became a sim input.
+Details in CLAUDE.md "Tuning panel, skating and slow walk (w5b)".

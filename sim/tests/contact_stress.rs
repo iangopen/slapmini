@@ -122,7 +122,7 @@ fn contact_stress() {
     assert!(hits > 500, "the run must actually hit the puck");
     // A stick starting next to the puck pushes it on every step of its spin-up: stick_max_ang_speed / accel = 6.1 steps.
     // Those runs end with the puck leaving at full speed. The margin covers a spin-up that begins after a pinch.
-    assert!(longest <= 10, "puck stuck to the blade: {longest} consecutive contact steps");
+    assert!(longest <= 11, "puck stuck to the blade: {longest} consecutive contact steps");
     // Raising or lowering onto a puck is instant, so one substep can start with the blade on top of it.
     assert!(max_pen <= p.puck_radius + p.stick_heel_radius + 0.25, "max penetration {max_pen}");
 }

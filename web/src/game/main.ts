@@ -3,11 +3,11 @@
 
 import init, { Sim } from "../../wasm-pkg/sim_wasm.js";
 import paramsFile from "../../../params.json";
-import { actionFor, BINDINGS, MOUSE_BINDINGS } from "../bindings";
+import { actionFor, BINDINGS, fieldOwnsKey, MOUSE_BINDINGS } from "../bindings";
 import { FixedStepLoop } from "../loop";
 import { draw, drawInputBadges, drawMatchHud, drawnRadii, fitView, followView, formatClock, keysToMove, toScreen, toWorld, TEAM_NAMES, type View } from "../render";
 import { DEFAULT_SETTINGS, loadSettings, PointerCapture, saveSettings, SENS_MAX, SENS_MIN, SENS_STEP, StickAim, StickRaise } from "../stick";
-import { brakeMove } from "../brake";
+import { buildTuningPanel, retimeMatch, withStoredEdits } from "../panel";
 import { flatParams, type ParamFile, type PlayerInput, type State } from "../types";
 import { BotDriver, loadPolicy, PolicyDriver, ScriptedDriver } from "./botRuntime";
 import { BOTS_DIR, loadProfiles, type Profile } from "./profiles";
@@ -17,7 +17,9 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const qs = new URLSearchParams(location.search);
 
 await init();
-const FILE = paramsFile as ParamFile;
+const ORIGINAL = paramsFile as ParamFile;
+/** The live params: the tuning panel (F2) replaces FILE and updates P in place, so every reader sees the edit. */
+let FILE = withStoredEdits(ORIGINAL);
 const P = flatParams(FILE);
 const sim = new Sim(JSON.stringify(FILE), 2);
 let state: State = JSON.parse(sim.get_state());
@@ -64,7 +66,8 @@ $("controls-list").innerHTML = [
   ["Mouse", "relative (default): click the rink to capture the mouse; moving it right swings the stick right, left swings it left (up/down does nothing). Cursor aim: the stick points at the cursor"],
   ["Shift", "dash (needs a move key) — UNVERIFIED binding"],
   ["E", "lift: hold it while the stick hits the puck — UNVERIFIED binding (was Space)"],
-  ["Space", "brake / stop: overrides WASD while held — UNVERIFIED binding; stopping time is a placeholder"],
+  ["Space", "slow walk while held: WASD still steers — UNVERIFIED binding; speeds are placeholders"],
+  ["F2", "tuning panel: edit the physics live, also during a match"],
   ["Enter", "rematch after game over"],
   ["Esc", "release the mouse; Esc again leaves the match"],
 ].map(([k, d]) => `<li><b>${k}</b> — ${d}</li>`).join("");
@@ -165,6 +168,13 @@ function updateLockHint(): void {
 const raise = new StickRaise(canvas, capture, () => mouseSettings.mode === "relative",
   () => screen === "match" && state.match_state?.phase !== "finished", MOUSE_BINDINGS.stickUp);
 window.addEventListener("keydown", (e) => {
+  if (e.code === BINDINGS.tune) {
+    e.preventDefault();
+    if (!e.repeat) toggleTune();
+    return;
+  }
+  if (fieldOwnsKey(e)) return;
+  if (e.code === "Escape" && !tune.hidden) return void toggleTune();
   if (screen === "match") {
     if (e.code === "Escape") {
       // The first Esc only releases the captured mouse (the browser does it too); the next one leaves.
@@ -207,10 +217,7 @@ let matchesStarted = 0;
 
 function humanInput(): PlayerInput {
   const pl = state.players[0];
-  // Space = brake: overrides WASD while held (brake.ts); dash and lift pass through unchanged.
-  const [mx, my] = held.has("brake")
-    ? brakeMove(pl.vx, pl.vy, P.player_accel, P.timestep)
-    : keysToMove(view, held.has("up"), held.has("down"), held.has("left"), held.has("right"));
+  const [mx, my] = keysToMove(view, held.has("up"), held.has("down"), held.has("left"), held.has("right"));
   let stick: number;
   // Relative aim, held within MAX_LEAD of the stick's actual angle (stick.ts).
   if (mouseSettings.mode === "relative") stick = aim.worldAngle(view, pl.stick_angle);
@@ -218,7 +225,7 @@ function humanInput(): PlayerInput {
     const [wx, wy] = toWorld(view, mouse.x, mouse.y);
     stick = Math.atan2(wy - pl.y, wx - pl.x);
   }
-  return { move_x: mx, move_y: my, stick_target_angle: stick, dash: held.has("dash"), lift: held.has("lift"), stick_up: raise.held };
+  return { move_x: mx, move_y: my, stick_target_angle: stick, dash: held.has("dash"), lift: held.has("lift"), stick_up: raise.held, brake: held.has("brake") };
 }
 
 // ---------- match ----------
@@ -343,6 +350,37 @@ const botTrack = {
   },
 };
 
+// ---------- tuning panel (F2): the lab's panel, edits apply to the running match ----------
+const tune = $("tune");
+buildTuningPanel($("tune-params"), {
+  original: ORIGINAL,
+  current: () => FILE,
+  applyFile: (f) => {
+    sim.set_params(JSON.stringify(f));
+    const was = { ...P };
+    FILE = structuredClone(f);
+    Object.assign(P, flatParams(FILE));
+    const s: State = JSON.parse(sim.get_state());
+    if (retimeMatch(s.match_state, was, P)) sim.set_state(JSON.stringify(s));
+    state = JSON.parse(sim.get_state());
+    updateView();
+    updateTunedBadge();
+  },
+});
+function updateTunedBadge(): void {
+  const n = Object.keys(P).filter((k) => P[k] !== ORIGINAL.params[k].value).length;
+  $("tuned").hidden = n === 0 || !tune.hidden;
+  $("tuned").textContent = `TUNED: ${n} changed (F2)`;
+}
+function toggleTune(): void {
+  tune.hidden = !tune.hidden;
+  if (!tune.hidden) capture.release(); // the panel needs the cursor; a click on the rink captures it again
+  else (document.activeElement as HTMLElement | null)?.blur?.();
+  updateTunedBadge();
+}
+$("tune-close").addEventListener("click", toggleTune);
+updateTunedBadge();
+
 // ---------- frame ----------
 let last = performance.now();
 function frame(now: number): void {
@@ -401,6 +439,7 @@ window.game = {
   get matchesStarted() { return matchesStarted; },
   get view() { return view; },
   params: P,
+  get file() { return FILE; },
   get aim() {
     return { mode: mouseSettings.mode, sensitivity: mouseSettings.sensitivity, screenAngle: aim.screenAngle, worldAngle: aim.worldAngle(view), locked: capture.locked, hint: !$("lock-hint").hidden };
   },
@@ -431,6 +470,11 @@ window.game = {
   /** Test hook: replace the sim state (verification pictures and drills). */
   setState(s: State) {
     sim.set_state(JSON.stringify(s));
+    state = JSON.parse(sim.get_state());
+  },
+  /** Test hook: one synchronous sim step of the real match sim with these inputs (scripts/param_audit.mjs). */
+  drillStep(inputs: PlayerInput[]) {
+    sim.step(JSON.stringify(inputs));
     state = JSON.parse(sim.get_state());
   },
   /** Test hook: make the next goals end the match quickly (state edit: score). */

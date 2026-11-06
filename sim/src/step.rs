@@ -14,6 +14,11 @@ const MIN_BOUNCE_VZ: f64 = 0.5;
 const SKIN: f64 = 1e-6;
 /// Overlap passes per substep (stick, body, nets, boards) before a pinch is declared.
 const SOLVE_PASSES: usize = 6;
+/// Overlap at the start of a substep beyond which a stick turns ghost; smaller ones are ordinary contact.
+const GHOST_DEPTH: f64 = 0.02;
+/// A puck already inside a body at the start of a substep (it came down into the body's height range) slides out at
+/// this speed instead of jumping. Chosen, not measured.
+const BODY_SETTLE_SPEED: f64 = 6.0;
 /// Smallest rebound of a pinched stick (rad/s) and player (m/s). Chosen, not measured: enough to clear the puck for a
 /// few steps against the stick and skating accelerations.
 const PINCH_REBOUND_OMEGA: f64 = 8.0;
@@ -351,9 +356,14 @@ pub struct ContactStats {
     pub stick_contact: Vec<bool>,
     /// Deepest stick/body overlap seen before it was resolved, this step (m).
     pub max_penetration: f64,
+    /// The same, for the stick alone and the body alone.
+    pub max_stick_penetration: f64,
+    pub max_body_penetration: f64,
     /// Sticks stopped by a pinch this step, and bodies pushed back by one.
     pub stick_blocks: u32,
     pub body_blocks: u32,
+    /// Substeps a puck spent sliding out of a body it fell into (`BODY_SETTLE_SPEED`).
+    pub body_settling: u32,
 }
 
 /// Stick chain in the stick's local frame (+x = the stick_angle direction, +y = 90 deg CCW):
@@ -370,7 +380,18 @@ fn stick_chain(p: &Params) -> ([(f64, f64); 4], [f64; 3]) {
 fn stick_active(pl: &Player, z: f64, p: &Params) -> bool {
     // A raised stick (w4) uses its own height range: it passes over a puck on the ice.
     let (z_min, z_max) = if pl.stick_up { (p.stick_up_z_min, p.stick_up_z_max) } else { (p.stick_z_min, p.stick_z_max) };
-    z >= z_min && z <= z_max
+    !pl.stick_ghost && z >= z_min && z <= z_max
+}
+
+/// Sets or clears the ghost flag from the pose at the start of a substep. A solved contact ends a substep clear of the
+/// stick, so a real overlap here can only come from a height change or a reset; it must not be pushed out in one jump.
+fn update_stick_ghost(pl: &mut Player, puck: &Puck, p: &Params) {
+    let gap = stick_puck_gap(pl, puck, p);
+    if pl.stick_ghost {
+        pl.stick_ghost = gap < 0.0;
+    } else if stick_active(pl, puck.z, p) && gap < -GHOST_DEPTH {
+        pl.stick_ghost = true;
+    }
 }
 
 /// World -> stick-local coordinates of a point, for a stick pose (x, y, angle).
@@ -557,6 +578,32 @@ fn stick_separate(pl: &mut Player, puck: &mut Puck, p: &Params) -> f64 {
     -g
 }
 
+/// Puts a puck that would pass into the body this substep at the moment of first touch (relative to the player's
+/// end position), so `player_puck_body` bounces it from there instead of from deep inside.
+fn body_sweep(pl: &Player, pose0: (f64, f64, f64), q0: (f64, f64), puck: &mut Puck, p: &Params) {
+    if puck.z > p.player_height {
+        return;
+    }
+    let reach = p.puck_radius + p.player_radius;
+    let (fx, fy) = (q0.0 - pose0.0, q0.1 - pose0.1);
+    let (mx, my) = (puck.x - pl.x - fx, puck.y - pl.y - fy);
+    let (a, b, c) = (mx * mx + my * my, fx * mx + fy * my, fx * fx + fy * fy - reach * reach);
+    if a < EPS || c < 0.0 || b >= 0.0 {
+        return;
+    }
+    let disc = b * b - a * c;
+    if disc < 0.0 {
+        return;
+    }
+    let t = (-b - sqrt(disc)) / a;
+    if t <= 1.0 {
+        // A hair inside, so the ordinary body contact takes it.
+        let k = 1.0 - 1e-9;
+        puck.x = pl.x + (fx + mx * t) * k;
+        puck.y = pl.y + (fy + my * t) * k;
+    }
+}
+
 /// Returns the overlap it resolved.
 fn player_puck_body(pl: &mut Player, puck: &mut Puck, p: &Params) -> f64 {
     if puck.z > p.player_height {
@@ -655,14 +702,27 @@ fn push_player(pl: &mut Player, nx: f64, ny: f64, d: f64) {
 /// surfaces squeezes the puck out through these passes. If the puck has nowhere to go (a pinch against
 /// a board or net, or between stick and body) the puck stays and the player gives way: the stick
 /// turns back to the last angle that fits and stops, and a body or a translating stick is pushed off.
-fn resolve_overlaps(state: &mut State, poses: &[(f64, f64, f64)], nets: &[(f64, f64, f64, f64); 6], p: &Params, stats: &mut ContactStats) {
+fn resolve_overlaps(state: &mut State, poses: &[(f64, f64, f64)], settling: &[bool], nets: &[(f64, f64, f64, f64); 6], h: f64, p: &Params, stats: &mut ContactStats) {
     let puck = &mut state.puck;
+    for (i, pl) in state.players.iter().enumerate() {
+        if settling[i] {
+            let (dx, dy) = (puck.x - pl.x, puck.y - pl.y);
+            let d = len(dx, dy);
+            let (nx, ny) = if d > EPS { (dx / d, dy / d) } else { (1.0, 0.0) };
+            let push = body_depth(pl, puck, p).min(BODY_SETTLE_SPEED * h);
+            puck.x += nx * push;
+            puck.y += ny * push;
+            stats.body_settling += 1;
+        }
+    }
     for _ in 0..SOLVE_PASSES {
         let mut any = false;
         for (i, pl) in state.players.iter_mut().enumerate() {
-            let b = player_puck_body(pl, puck, p);
+            let b = if settling[i] { 0.0 } else { player_puck_body(pl, puck, p) };
             let s = stick_separate(pl, puck, p);
             stats.max_penetration = stats.max_penetration.max(b).max(s);
+            stats.max_stick_penetration = stats.max_stick_penetration.max(s);
+            stats.max_body_penetration = stats.max_body_penetration.max(b);
             if s > 0.0 {
                 stats.stick_contact[i] = true;
             }
@@ -704,7 +764,7 @@ fn resolve_overlaps(state: &mut State, poses: &[(f64, f64, f64)], nets: &[(f64, 
             push_player(pl, co * lnx - si * lny, si * lnx + co * lny, d);
             stats.body_blocks += 1;
         }
-        let d = body_depth(pl, puck, p);
+        let d = if settling[i] { 0.0 } else { body_depth(pl, puck, p) };
         if d > 0.0 {
             let (dx, dy) = (puck.x - pl.x, puck.y - pl.y);
             let l = len(dx, dy).max(EPS);
@@ -762,8 +822,11 @@ fn physics_step_stats(state: &mut State, inputs: &[PlayerInput], p: &Params, sta
     stats.stick_contact.clear();
     stats.stick_contact.resize(state.players.len(), false);
     stats.max_penetration = 0.0;
+    stats.max_stick_penetration = 0.0;
+    stats.max_body_penetration = 0.0;
     stats.stick_blocks = 0;
     stats.body_blocks = 0;
+    stats.body_settling = 0;
     let dt = p.timestep;
     let n = p.substeps_n();
     let h = dt / n as f64;
@@ -776,8 +839,12 @@ fn physics_step_stats(state: &mut State, inputs: &[PlayerInput], p: &Params, sta
 
     let nets = net_segments(p);
     let mut poses: Vec<(f64, f64, f64)> = Vec::with_capacity(state.players.len());
+    let mut settling: Vec<bool> = Vec::with_capacity(state.players.len());
     for _ in 0..n {
         // Players and sticks.
+        for pl in state.players.iter_mut() {
+            update_stick_ghost(pl, &state.puck, p);
+        }
         poses.clear();
         poses.extend(state.players.iter().map(|pl| (pl.x, pl.y, pl.stick_angle)));
         for pl in state.players.iter_mut() {
@@ -805,8 +872,16 @@ fn physics_step_stats(state: &mut State, inputs: &[PlayerInput], p: &Params, sta
         // against the nets so a fast puck cannot pass through a wall.
         let start = (state.puck.x, state.puck.y);
         integrate_puck(&mut state.puck, p, h);
+        // Inside a body from the start of the substep, at the height it has now: it came down into the body's height range.
+        settling.clear();
+        settling.extend(poses.iter().map(|q| {
+            state.puck.z <= p.player_height && p.puck_radius + p.player_radius - len(start.0 - q.0, start.1 - q.1) > GHOST_DEPTH
+        }));
         for (i, pl) in state.players.iter_mut().enumerate() {
             let inp = inputs.get(i).unwrap_or(&idle);
+            if !settling[i] {
+                body_sweep(pl, poses[i], start, &mut state.puck, p);
+            }
             if stick_puck(pl, poses[i], start, inp, &mut state.puck, p, h) {
                 stats.stick_contact[i] = true;
             }
@@ -814,7 +889,7 @@ fn physics_step_stats(state: &mut State, inputs: &[PlayerInput], p: &Params, sta
         if state.puck.z < p.net_height {
             sweep_puck_nets(&mut state.puck, start, &nets, p);
         }
-        resolve_overlaps(state, &poses, &nets, p, stats);
+        resolve_overlaps(state, &poses, &settling, &nets, h, p, stats);
     }
 
     let goal = update_goals(state, p);

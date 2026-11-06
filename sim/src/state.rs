@@ -40,6 +40,10 @@ pub struct Player {
     /// [stick_up_z_min, stick_up_z_max] (it passes over a puck on the ice).
     #[serde(default)]
     pub stick_up: bool,
+    /// The stick came to rest on the puck without a swing (lowered onto it, a puck dropping into its height range, a
+    /// reset): it ignores the puck until they are apart, so the puck never jumps out of it.
+    #[serde(default)]
+    pub stick_ghost: bool,
 }
 
 /// One player's input for one step.
@@ -147,6 +151,12 @@ impl State {
             b.push(0x5C);
             for pl in &self.players {
                 b.push(pl.stick_up as u8);
+            }
+        }
+        if self.players.iter().any(|pl| pl.stick_ghost) {
+            b.push(0x5D);
+            for pl in &self.players {
+                b.push(pl.stick_ghost as u8);
             }
         }
         b

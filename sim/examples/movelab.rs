@@ -64,4 +64,16 @@ fn main() {
     for ((name, a), (_, b)) in row(&old).into_iter().zip(row(&p)) {
         println!("| {name} | {a:.3} | {b:.3} |");
     }
+    // Space from top speed in the sim: W held, then no keys.
+    for (label, inp) in [("W + Space", PlayerInput { move_x: 1.0, brake: true, ..Default::default() }), ("Space, no keys", PlayerInput { brake: true, ..Default::default() })] {
+        let mut s = fresh(&p, p.player_max_speed);
+        print!("{label}: speed (m/s) at t =");
+        for k in 0..=600 {
+            if k % 60 == 0 && (k <= 240 || k % 120 == 0) {
+                print!(" {:.1}s {:.3}", k as f64 * p.timestep, s.players[0].vx.hypot(s.players[0].vy));
+            }
+            step(&mut s, &[inp], &p);
+        }
+        println!();
+    }
 }

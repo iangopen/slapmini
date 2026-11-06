@@ -1,0 +1,63 @@
+diff --git a/sim/src/params.rs b/sim/src/params.rs
+index 29efb29..fc2f826 100644
+--- a/sim/src/params.rs
++++ b/sim/src/params.rs
+@@ -50,6 +50,8 @@ define_params!(
+     brake_speed, brake_decel,
+     // w5b: separate acceleration against sideways velocity and against the velocity.
+     player_turn_accel, player_brake_accel,
++    // EXPERIMENT
++    player_move_model, player_steer_tau,
+ );
+ 
+ /// One entry of `params.json`.
+diff --git a/sim/src/step.rs b/sim/src/step.rs
+index 166cd48..ef218a8 100644
+--- a/sim/src/step.rs
++++ b/sim/src/step.rs
+@@ -218,10 +218,16 @@ fn update_player_controls(pl: &mut Player, inp: &PlayerInput, p: &Params, dt: f6
+             pl.vy += ey * k;
+         }
+     } else if ml > EPS {
+-        // Skating (w5b), split by the pressed direction. Along it: player_accel, or player_brake_accel while moving against
+-        // it. Sideways: player_turn_accel shrinks the velocity across the key. Moving with the key at all, that shrink
+-        // keeps the speed: it turns the velocity rather than slowing the player, so a player pressing a key into the
+-        // boards keeps sliding along them. Hard speed cap below.
++        if p.player_move_model == 0.0 {
++            pl.vx += mx * p.player_accel * dt;
++            pl.vy += my * p.player_accel * dt;
++        } else if p.player_move_model == 2.0 {
++            let k = 1.0 - libm::exp(-dt / p.player_steer_tau);
++            pl.vx += (mx * p.player_max_speed - pl.vx) * k;
++            pl.vy += (my * p.player_max_speed - pl.vy) * k;
++        } else {
++        // Skating (w5b), split by the pressed direction: along it player_accel, or player_brake_accel while moving
++        // against it; the sideways velocity shrinks at player_turn_accel. Hard speed cap below.
+         let (dx, dy) = (mx / ml, my / ml);
+         let along = pl.vx * dx + pl.vy * dy;
+         let (sx, sy) = (pl.vx - along * dx, pl.vy - along * dy);
+@@ -233,14 +239,18 @@ fn update_player_controls(pl: &mut Player, inp: &PlayerInput, p: &Params, dt: f6
+         }
+         let sl = len(sx, sy);
+         let keep = if sl > EPS { (sl - p.player_turn_accel * ml * dt).max(0.0) / sl } else { 0.0 };
+-        let (plain_x, plain_y) = (dx * along_new + sx, dy * along_new + sy);
++        let (px, py) = (dx * along_new + sx, dy * along_new + sy);
+         pl.vx = dx * along_new + sx * keep;
+         pl.vy = dy * along_new + sy * keep;
+-        let turned = len(pl.vx, pl.vy);
+-        if along >= 0.0 && turned > EPS {
+-            let k = len(plain_x, plain_y) / turned;
+-            pl.vx *= k;
+-            pl.vy *= k;
++        if p.player_move_model == 3.0 && along >= 0.0 {
++            // Speed kept: the sideways shrink turns the velocity; it does not slow the player (a player sliding
++            // along the boards with a key pressed into them keeps sliding).
++            let (l0, l1) = (len(px, py), len(pl.vx, pl.vy));
++            if l1 > EPS {
++                pl.vx *= l0 / l1;
++                pl.vy *= l0 / l1;
++            }
++        }
+         }
+     } else if s0 > EPS {
+         // Coasting (s10): speed-proportional decay (player_coast_rate, 1/s) plus a constant

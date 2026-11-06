@@ -68,7 +68,7 @@ npm run verify-w5b     # F2 panel in a running match, Export/Import, Space as a 
 npm run verify-skate   # hold W from rest: player speed vs time, ramp to the cap; skate-top-speed.png
 ```
 
-Controls: WASD move; the mouse sets the stick target; Shift dash and Space lift (both unverified guesses).
+Controls: WASD move; the mouse sets the stick target; Shift dash, E lift and Space slow walk (all unverified guesses). F2 in the game opens the tuning panel.
 Practice tools (approximate): F spawn (hold to raise), G target, R reset puck, Q call puck to forehand.
 Match mode (checkbox, or `?mode=match`): 1v1 rules from the sim (5:00 clock, mercy lead 5, sudden-death overtime),
 scoreboard + OVERTIME banner + game-over overlay, Enter = rematch, practice tools off. `?speed=N` runs the loop N× real time.

@@ -75,13 +75,17 @@ def lib() -> C.CDLL:
         "slap_batch_set_state": ([vp, C.c_uint32, cp], C.c_int32),
         "slap_batch_profile": ([vp, C.POINTER(C.c_uint64)], C.c_int32),
     }
+    L.slap_abi_version.restype = C.c_uint32
+    if L.slap_abi_version() != ABI_VERSION:  # first: an older library lacks newer symbols
+        raise RuntimeError(f"{lib_path()}: ABI v{L.slap_abi_version()}, this wrapper needs v{ABI_VERSION}; "
+                           "rebuild with cargo build --release -p sim-ffi")
     for name, (args, res) in sig.items():
         fn = getattr(L, name)
         fn.argtypes = args
         fn.restype = res
-    if L.slap_abi_version() != ABI_VERSION:
-        raise RuntimeError(f"{lib_path()}: ABI v{L.slap_abi_version()}, this wrapper needs v{ABI_VERSION}; "
-                           "rebuild with cargo build --release -p sim-ffi")
+    if (L.slap_act_version(), L.slap_obs_version()) != (ACT_VERSION, OBS_VERSION):
+        raise RuntimeError(f"{lib_path()}: ACT v{L.slap_act_version()} / OBS v{L.slap_obs_version()}, this wrapper needs "
+                           f"ACT v{ACT_VERSION} / OBS v{OBS_VERSION}; rebuild with cargo build --release -p sim-ffi")
     _LIB = L
     return L
 
@@ -118,7 +122,7 @@ def physics_stamp(path: Path | str = DEFAULT_PARAMS) -> str:
 class VecEnv:
     """N 1v1 environments stepped together in Rust (rayon). Finished envs auto-reset.
 
-    step(actions[N, 4], opp_actions[N, 4] | None) -> obs, rewards, dones(bool), info
+    step(actions[N, 5], opp_actions[N, 5] | None) -> obs, rewards, dones(bool), info
     Actions: move index 0..8, stick angle (rad, canonical), dash 0/1, lift 0/1, stick_up 0/1 (ACT v3, bots/src/action.rs).
     info columns: see I_* above (end reason: 0 running, 1 win, 2 loss, 3 truncated).
     After step, .final_obs[i] holds the learner's observation of the last state of an episode that

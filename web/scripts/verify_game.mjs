@@ -175,10 +175,12 @@ try {
   for (const [what, handler] of [
     ["missing", (route) => route.fulfill({ status: 404, body: "gone" })],
     ["corrupt", (route) => route.fulfill({ status: 200, contentType: "application/octet-stream", body: Buffer.from("this is not an onnx model") })],
+    ["old-format (ACT v2 / OBS v2 sidecar)", null],
   ]) {
     const p2 = await browser.newPage({ viewport: { width: 1280, height: 760 } });
     p2.on("pageerror", (e) => { console.log("PAGE ERROR", e.message); failed = true; });
-    await p2.route("**/bots/smoke.onnx", handler);
+    if (handler) await p2.route("**/bots/smoke.onnx", handler);
+    else await p2.route("**/bots/smoke.json", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ obs_dim: 40, obs_version: 2, act_dim: 4, act_version: 2, outputs: ["move", "move_probs", "stick_dir", "dash_prob", "lift_prob"] }) }));
     await p2.goto(BASE);
     await p2.waitForSelector("body[data-ready='1']");
     await p2.selectOption("#opponent", "smoke");

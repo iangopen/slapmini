@@ -40,7 +40,10 @@ fn observation_of_team1_mirrors_team0_under_rotation() {
     let mut g = Lcg(7);
     let style = [0.5f32, -0.25, 0.0, 1.0];
     for _ in 0..200 {
-        let s = random_state(&p, &mut g);
+        let mut s = random_state(&p, &mut g);
+        // Raised sticks in all four combinations across the loop (OBS v3 fields 40, 41).
+        s.players[0].stick_up = g.next() > 0.0;
+        s.players[1].stick_up = g.next() > 0.0;
         let r = rotate_swap(&s);
         for i in 0..2 {
             let (mut a, mut b) = ([0f32; OBS_DIM], [0f32; OBS_DIM]);
@@ -258,4 +261,24 @@ fn rotate_swap_swaps_match_teams() {
     let back = rotate_swap(&r);
     assert_eq!(back.match_state, s.match_state);
     assert_eq!(back.score, s.score);
+}
+
+/// OBS v3: 40 = own, 41 = opponent stick_up, seen from either team; the style slot does not move.
+#[test]
+fn observation_carries_both_raised_sticks() {
+    let p = Params::default();
+    let mut s = faceoff(&p);
+    let style = [0.5f32; 8];
+    for (up0, up1) in [(false, false), (true, false), (false, true), (true, true)] {
+        s.players[0].stick_up = up0;
+        s.players[1].stick_up = up1;
+        let (mut a, mut b) = ([0f32; OBS_DIM], [0f32; OBS_DIM]);
+        observe(&s, 0, &style, &p, &mut a);
+        observe(&s, 1, &style, &p, &mut b);
+        let f = |x: bool| if x { 1.0f32 } else { 0.0 };
+        assert_eq!((a[40], a[41]), (f(up0), f(up1)));
+        assert_eq!((b[40], b[41]), (f(up1), f(up0)));
+        assert_eq!(&a[32..40], &style);
+    }
+    assert_eq!(OBS_DIM, 42);
 }

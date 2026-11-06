@@ -39,12 +39,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from train.slapenv import (DEFAULT_PARAMS, END_LOSS, END_TRUNCATED, END_WIN, I_END, I_GA, I_GF, I_OPP_POSS, I_RAW,
+from train.slapenv import (ACT_VERSION, DEFAULT_PARAMS, END_LOSS, END_TRUNCATED, END_WIN, I_END, I_GA, I_GF, I_OPP_POSS, I_RAW,
                            I_RET, I_STEPS, N_MOVES, OPPONENTS, SCRIPTED, VecEnv, dims, params_values, physics_stamp)
 
 RAW_DIM = 6      # sampled action: move index, stick_x, stick_y, dash, lift, stick_up
 ACT_DIM = 5      # env action (bots::ACT_DIM): move index, stick angle, dash, lift, stick_up
-ACT_VERSION = 3  # bots::ACT_VERSION; checkpoints and pool snapshots carry it (v3 = + stick_up)
 _HALF_LOG_2PI = 0.5 * math.log(2 * math.pi)
 BASE_DIM = 32    # observation fields before the style slot (bots::BASE_DIM); only these are normalized
                  # (the style slot 32..40 and the OBS v3 stick_up flags 40, 41 pass through unchanged)

@@ -58,9 +58,11 @@ fn determinism_100k_steps_byte_identical() {
 }
 
 /// Params whose SHAPE (ratio to rink_length) was measured from real clips; the meter scale is still a placeholder.
-const MEASURED_SHAPE: [&str; 13] = [
+const MEASURED_SHAPE: [&str; 24] = [
     "rink_width", "rink_corner_radius", "net_width", "net_depth", "net_x", "blue_line_x", "faceoff_x", "faceoff_y", "faceoff_circle_radius",
-    "puck_radius", "player_radius", "stick_length", "stick_thickness",
+    "puck_radius", "player_radius", "stick_length", "stick_thickness", "stick_inner",
+    "stick_hand_x", "stick_hand_y", "stick_kink_x", "stick_kink_y", "stick_heel_x", "stick_heel_y", "stick_toe_x", "stick_toe_y",
+    "stick_shaft_radius", "stick_heel_radius",
 ];
 
 /// Fitted to real clips: puck (measure holdout), player/dash (s7 measure.skatefit), stick (s7b measure.stick).

@@ -314,6 +314,8 @@
     "stick_up_z_min": {"value": 0.35, "provenance": "placeholder", "unit": "m", "note": "PLACEHOLDER (w4): raised-stick height range, lower bound. A raised stick (left mouse button) contacts the puck only between stick_up_z_min and stick_up_z_max, so it passes over a puck on the ice (puck z = 0) and can still hit a puck in the air. Unmeasured: Ian's feel check should set it."},
     "stick_up_z_max": {"value": 1.5, "provenance": "placeholder", "unit": "m", "note": "PLACEHOLDER (w4): raised-stick height range, upper bound. A raised stick (left mouse button) contacts the puck only between stick_up_z_min and stick_up_z_max, so it passes over a puck on the ice (puck z = 0) and can still hit a puck in the air. Unmeasured: Ian's feel check should set it."},
     "brake_speed": {"value": 1.5, "provenance": "placeholder", "unit": "m/s", "note": "PLACEHOLDER (w5b): the speed cap while the brake input (Space) is held: a slow walk. The move keys accelerate the player up to this cap in the pressed direction. Unmeasured: Ian's feel check should set it."},
-    "brake_decel": {"value": 25.0, "provenance": "placeholder", "unit": "m/s^2", "note": "PLACEHOLDER (w5b): how fast speed above brake_speed decays while the brake is held (top speed down to brake_speed in about 0.4 s). Unmeasured: the real game's braking has not been recorded."}
+    "brake_decel": {"value": 25.0, "provenance": "placeholder", "unit": "m/s^2", "note": "PLACEHOLDER (w5b): how fast speed above brake_speed decays while the brake is held (top speed down to brake_speed in about 0.4 s). Unmeasured: the real game's braking has not been recorded."},
+    "player_turn_accel": {"value": 0.0, "provenance": "placeholder", "unit": "m/s^2", "note": "w5b: 0 keeps the old movement"},
+    "player_brake_accel": {"value": 12.0, "provenance": "placeholder", "unit": "m/s^2", "note": "w5b: = player_accel keeps the old movement"}
   }
 }

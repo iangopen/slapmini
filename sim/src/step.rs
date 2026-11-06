@@ -218,9 +218,30 @@ fn update_player_controls(pl: &mut Player, inp: &PlayerInput, p: &Params, dt: f6
             pl.vy += ey * k;
         }
     } else if ml > EPS {
-        // Skating: constant acceleration along the input, hard speed cap below.
-        pl.vx += mx * p.player_accel * dt;
-        pl.vy += my * p.player_accel * dt;
+        // Skating (w5b), split by the pressed direction. Along it: player_accel, or player_brake_accel while moving against
+        // it. Sideways: player_turn_accel shrinks the velocity across the key. Moving with the key at all, that shrink
+        // keeps the speed: it turns the velocity rather than slowing the player, so a player pressing a key into the
+        // boards keeps sliding along them. Hard speed cap below.
+        let (dx, dy) = (mx / ml, my / ml);
+        let along = pl.vx * dx + pl.vy * dy;
+        let (sx, sy) = (pl.vx - along * dx, pl.vy - along * dy);
+        let brake = p.player_brake_accel * ml * dt;
+        let mut along_new = along + if along < 0.0 { brake } else { p.player_accel * ml * dt };
+        if along < 0.0 && along_new > 0.0 {
+            // Crossed zero inside the step: the rest of the step speeds up.
+            along_new = p.player_accel * ml * dt * (1.0 + along / brake);
+        }
+        let sl = len(sx, sy);
+        let keep = if sl > EPS { (sl - p.player_turn_accel * ml * dt).max(0.0) / sl } else { 0.0 };
+        let (plain_x, plain_y) = (dx * along_new + sx, dy * along_new + sy);
+        pl.vx = dx * along_new + sx * keep;
+        pl.vy = dy * along_new + sy * keep;
+        let turned = len(pl.vx, pl.vy);
+        if along >= 0.0 && turned > EPS {
+            let k = len(plain_x, plain_y) / turned;
+            pl.vx *= k;
+            pl.vy *= k;
+        }
     } else if s0 > EPS {
         // Coasting (s10): speed-proportional decay (player_coast_rate, 1/s) plus a constant
         // deceleration (player_ice_drag, m/s^2) that brings the player to rest.

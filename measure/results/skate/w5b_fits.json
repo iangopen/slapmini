@@ -1,0 +1,311 @@
+{
+ "note": "w5b skating model comparison, held out by clip, plus model-free turn and coast numbers from the clips.",
+ "models": {
+  "current": {
+   "wkeymovement": {
+    "fit": {
+     "player_accel": 17.615756319157,
+     "player_coast_rate": 1.0859435384875162
+    },
+    "pos_m": 0.1805,
+    "speed_m_s": 1.874,
+    "per_run_pos": [
+     0.189,
+     0.229,
+     0.107,
+     0.172
+    ]
+   },
+   "diagonalkeypresses": {
+    "fit": {
+     "player_accel": 17.995893722074648,
+     "player_coast_rate": 1.103711386556935
+    },
+    "pos_m": 0.2744,
+    "speed_m_s": 2.2444,
+    "per_run_pos": [
+     2.045,
+     0.729,
+     0.26,
+     0.289,
+     0.239,
+     0.238
+    ]
+   },
+   "whilemovingturning": {
+    "fit": {
+     "player_accel": 16.454190682174183,
+     "player_coast_rate": 1.054660776044199
+    },
+    "pos_m": 0.7457,
+    "speed_m_s": 2.1114,
+    "per_run_pos": [
+     0.984,
+     0.9,
+     0.632,
+     0.483,
+     0.746
+    ]
+   },
+   "final": {
+    "player_accel": 17.369373568646584,
+    "player_coast_rate": 1.0802216237613351
+   }
+  },
+  "split": {
+   "wkeymovement": {
+    "fit": {
+     "player_accel": 17.6388171148089,
+     "player_coast_rate": 1.0836368712671465,
+     "player_turn_accel": 0.08635288342695546
+    },
+    "pos_m": 0.1894,
+    "speed_m_s": 1.8733,
+    "per_run_pos": [
+     0.199,
+     0.238,
+     0.111,
+     0.18
+    ]
+   },
+   "diagonalkeypresses": {
+    "fit": {
+     "player_accel": 17.304635890906155,
+     "player_coast_rate": 1.083229097957061,
+     "player_turn_accel": 3.2269165066213508
+    },
+    "pos_m": 1.4186,
+    "speed_m_s": 2.3219,
+    "per_run_pos": [
+     3.056,
+     1.58,
+     1.325,
+     1.222,
+     1.263,
+     1.512
+    ]
+   },
+   "whilemovingturning": {
+    "fit": {
+     "player_accel": 16.45419063963409,
+     "player_coast_rate": 1.054660762675931,
+     "player_turn_accel": 0.0
+    },
+    "pos_m": 0.7455,
+    "speed_m_s": 2.1114,
+    "per_run_pos": [
+     0.984,
+     0.9,
+     0.632,
+     0.483,
+     0.746
+    ]
+   },
+   "final": {
+    "player_accel": 17.35834747789192,
+    "player_coast_rate": 1.0814816012263417,
+    "player_turn_accel": 0.0
+   }
+  },
+  "turnkeep": {
+   "wkeymovement": {
+    "fit": {
+     "player_accel": 17.466471256297535,
+     "player_coast_rate": 1.0818686676463694,
+     "player_turn_accel": 0.25545360177100174
+    },
+    "pos_m": 0.1624,
+    "speed_m_s": 1.8725,
+    "per_run_pos": [
+     0.171,
+     0.207,
+     0.091,
+     0.153
+    ]
+   },
+   "diagonalkeypresses": {
+    "fit": {
+     "player_accel": 17.347219457786114,
+     "player_coast_rate": 1.08608744874261,
+     "player_turn_accel": 3.1818835453001286
+    },
+    "pos_m": 0.2572,
+    "speed_m_s": 2.2372,
+    "per_run_pos": [
+     2.578,
+     0.969,
+     0.11,
+     0.123,
+     0.264,
+     0.251
+    ]
+   },
+   "whilemovingturning": {
+    "fit": {
+     "player_accel": 16.45419087375716,
+     "player_coast_rate": 1.0546607860060095,
+     "player_turn_accel": 0.0
+    },
+    "pos_m": 0.7455,
+    "speed_m_s": 2.1114,
+    "per_run_pos": [
+     0.984,
+     0.9,
+     0.632,
+     0.483,
+     0.746
+    ]
+   },
+   "final": {
+    "player_accel": 17.284030610370312,
+    "player_coast_rate": 1.0794652258945618,
+    "player_turn_accel": 0.2850089171473333
+   }
+  },
+  "steer": {
+   "wkeymovement": {
+    "fit": {
+     "player_steer_tau": 0.33668824183398344,
+     "player_coast_rate": 1.064762387473304
+    },
+    "pos_m": 0.2569,
+    "speed_m_s": 1.8728,
+    "per_run_pos": [
+     0.266,
+     0.296,
+     0.181,
+     0.248
+    ]
+   },
+   "diagonalkeypresses": {
+    "fit": {
+     "player_steer_tau": 0.3194533491156769,
+     "player_coast_rate": 1.1179061323276056
+    },
+    "pos_m": 0.4272,
+    "speed_m_s": 2.2698,
+    "per_run_pos": [
+     3.744,
+     1.606,
+     0.257,
+     0.301,
+     0.547,
+     0.307
+    ]
+   },
+   "whilemovingturning": {
+    "fit": {
+     "player_steer_tau": 0.3729715747458162,
+     "player_coast_rate": 1.0180627692207715
+    },
+    "pos_m": 1.5912,
+    "speed_m_s": 2.2431,
+    "per_run_pos": [
+     1.685,
+     1.497,
+     1.168,
+     1.945,
+     1.591
+    ]
+   },
+   "final": {
+    "player_steer_tau": 0.33921477092330404,
+    "player_coast_rate": 1.0702180939123052
+   }
+  }
+ },
+ "leave_one_turning_run_out": {
+  "current": {
+   "median_pos_m": 0.64,
+   "median_speed_m_s": 2.119,
+   "rows": [
+    {
+     "run": "whilemovingturning_00",
+     "fit": {
+      "player_accel": 18.367845129966746
+     },
+     "pos_m": 0.697,
+     "speed_m_s": 2.119
+    },
+    {
+     "run": "whilemovingturning_01",
+     "fit": {
+      "player_accel": 18.630998945236207
+     },
+     "pos_m": 0.697,
+     "speed_m_s": 3.018
+    },
+    {
+     "run": "whilemovingturning_02",
+     "fit": {
+      "player_accel": 19.082603015005574
+     },
+     "pos_m": 0.64,
+     "speed_m_s": 2.149
+    },
+    {
+     "run": "whilemovingturning_03",
+     "fit": {
+      "player_accel": 18.892016489803794
+     },
+     "pos_m": 0.465,
+     "speed_m_s": 1.843
+    },
+    {
+     "run": "whilemovingturning_04",
+     "fit": {
+      "player_accel": 18.855317096412197
+     },
+     "pos_m": 0.617,
+     "speed_m_s": 2.012
+    }
+   ]
+  },
+  "turnkeep": {
+   "median_pos_m": 0.378,
+   "median_speed_m_s": 2.124,
+   "rows": [
+    {
+     "run": "whilemovingturning_00",
+     "fit": {
+      "player_turn_accel": 3.0258114963769867
+     },
+     "pos_m": 0.378,
+     "speed_m_s": 2.124
+    },
+    {
+     "run": "whilemovingturning_01",
+     "fit": {
+      "player_turn_accel": 2.8919692218303688
+     },
+     "pos_m": 0.308,
+     "speed_m_s": 2.874
+    },
+    {
+     "run": "whilemovingturning_02",
+     "fit": {
+      "player_turn_accel": 3.048447024822236
+     },
+     "pos_m": 0.231,
+     "speed_m_s": 2.135
+    },
+    {
+     "run": "whilemovingturning_03",
+     "fit": {
+      "player_turn_accel": 3.719188946485517
+     },
+     "pos_m": 0.594,
+     "speed_m_s": 1.853
+    },
+    {
+     "run": "whilemovingturning_04",
+     "fit": {
+      "player_turn_accel": 3.5040752440691003
+     },
+     "pos_m": 0.652,
+     "speed_m_s": 1.971
+    }
+   ]
+  }
+ }
+}

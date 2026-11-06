@@ -48,6 +48,8 @@ define_params!(
     stick_up_z_min, stick_up_z_max,
     // w5b: slow walk while the brake input is held (Space).
     brake_speed, brake_decel,
+    // w5b: separate acceleration against sideways velocity and against the velocity.
+    player_turn_accel, player_brake_accel,
 );
 
 /// One entry of `params.json`.

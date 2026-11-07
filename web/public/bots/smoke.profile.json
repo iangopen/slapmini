@@ -1,6 +1,6 @@
 {
   "name": "Smoke-test bot",
-  "description": "SMOKE TEST, NOT A TRAINED OPPONENT: a tiny PPO policy trained for 10 minutes on CPU (22M decisions; first-goal for 6 min, then full matches, only ever against the chaser) in the ACT v3 / OBS v3 format with the raised stick. It only shows that trained ONNX policies run in the browser.",
+  "description": "SMOKE TEST, NOT A TRAINED OPPONENT: a tiny PPO policy trained for 10 minutes on CPU (16.6M decisions; first-goal for 6 min, then full matches, only ever against the chaser) in the ACT v4 / OBS v3 format with the raised stick and brake. It only shows that trained ONNX policies run in the browser.",
   "policy": "smoke.onnx",
   "scripted": null,
   "style": [0, 0, 0, 0],

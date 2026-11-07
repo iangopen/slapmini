@@ -1,0 +1,10 @@
+device cpu (rollouts on cpu), 128 envs, mode first_goal (curriculum: first_goal for 6.0 min, then match), obs 42, styles off, physics e750f45cff93780c, opponents {'chaser': 1.0}
+upd     1 |  0.05 min |     16384 dec | eps    118 | first | win 0.00 loss 1.00 draw 0.00 | goal diff/ep -1.00 | ep   3.7s | ret -1.198 | ent 6.81 | up p 0.51 raised 0.51 | 14357 dec/s
+upd   200 |  3.32 min |   3276800 dec | eps  18229 | first | win 0.02 loss 0.94 draw 0.04 | goal diff/ep -0.92 | ep   6.8s | ret -1.104 | ent 5.67 | up p 0.38 raised 0.38 | 86031 dec/s
+upd   400 |  4.91 min |   6553600 dec | eps  31786 | first | win 0.05 loss 0.86 draw 0.09 | goal diff/ep -0.81 | ep  11.4s | ret -0.976 | ent 5.49 | up p 0.44 raised 0.44 | 87568 dec/s
+curriculum: switched to match mode at 6.0 min (update 537)
+upd   600 |  6.49 min |   9830400 dec | eps  37902 | match | win 0.00 loss 1.00 draw 0.00 | goal diff/ep -5.00 | ep  86.7s | ret -6.906 | ent 5.55 | up p 0.46 raised 0.47 | 88754 dec/s
+upd   800 |  8.21 min |  13107200 dec | eps  39003 | match | win 0.00 loss 1.00 draw 0.00 | goal diff/ep -5.00 | ep 102.5s | ret -6.868 | ent 5.55 | up p 0.34 raised 0.34 | 69322 dec/s
+upd  1000 |  9.92 min |  16384000 dec | eps  39772 | match | win 0.00 loss 1.00 draw 0.00 | goal diff/ep -4.92 | ep 148.0s | ret -6.591 | ent 5.03 | up p 0.27 raised 0.28 | 79565 dec/s
+saved runs\m4_smoke2\latest.pt
+wrote runs\m4_smoke2\learning_curve.png

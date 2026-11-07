@@ -194,9 +194,9 @@ cargo build --release -p calib
 - `train/` – `slapenv.py` (ctypes + numpy vector env), `ppo.py` (single-file PPO with self-play), `export_onnx.py`.
 
 Formats, reward terms and the style hooks are documented in CLAUDE.md ("Bots and training"; the current layouts are
-**ACT v3** = 5 floats: move index, stick angle, dash, lift, stick_up, and **OBS v3** = 42 floats: 32 base fields, the style
-slot at 32..40, own / opponent stick_up at 40 / 41; C ABI v3). Checkpoints and ONNX sidecars from the older layouts
-(ACT v2 / OBS v2, before session t2) are refused: retrain, then re-export.
+**ACT v4** = 6 floats: move index, stick angle, dash, lift, stick_up, brake, and **OBS v3** = 42 floats: 32 base fields, the style
+slot, own and opponent stick_up. Checkpoints and ONNX sidecars carry both versions; older ones (ACT v3 and before) are refused:
+retrain, then re-export. metrics.csv logs `stick_up_prob`, `stick_up_frac`, `brake_prob`, `brake_frac`.
 
 ### Rust side (same in PowerShell and bash)
 
@@ -270,6 +270,9 @@ PowerShell (replace `.venv\Scripts\python` with `.venv/bin/python` and `\` with 
 `ckpts/upd_N.pt` for the ladder), `--threads` / `--torch-threads` (auto by default), `--device` (update device,
 `auto`/`cpu`/`cuda`), `--rollout-device` (acting device, default `cpu`), `--reward weights.json`, `--profile`
 (time breakdown table at the end, also written to `runs/NAME/profile.md`).
+
+### Adopting tuned values
+Export from the panel (F2 in the game, or the lab), then `npm run adopt-params -- path/to/params.json` in `web/` (`--dry-run` to preview). Changed rows get provenance `tuned-by-feel`; unknown names or out-of-range values write nothing. The physics stamp changes, so resuming a run needs `--allow-physics-change`.
 
 ### Long run on Ian's machine (RTX 3070 Ti, 12-core CPU)
 

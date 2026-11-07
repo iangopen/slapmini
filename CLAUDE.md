@@ -3,6 +3,76 @@
 A compressed, top-down 2.5D browser version of Slapshot: Rebound (WASD to move, the mouse angle rotates the stick around the player),
 built to train RL bots. The physics must eventually match the real game. Ian is recording practice-mode clips for calibration.
 
+## Current state (m4, 2026-11-06; Windows, RTX 3070 Ti, 12 cores)
+This section wins over anything older below. Session narratives and old verified lists are in docs/history.md.
+
+### Hashes and stamp (final code, native = wasm)
+| check | hash |
+|---|---|
+| free play | `562f7223be45fe73` |
+| match | `6abaa84c491b49a1` |
+| s10 shots | `0e7d2a60a9fcc55d` |
+| raised stick | `f3acae2492133ab0` |
+| physics stamp | `e750f45cff93780c` |
+| style zero = default, Rust | first_goal `1dd3d7ddac18af58`, match `f877960d1338cb10` |
+| style zero = default, Python | first_goal `2e5ada33d675b1ad`, match `95f38f2c07175173` |
+| threads 1 = 4 | first_goal `e65794f73e11b878`, match `8516b7fd23e9fb7c` |
+
+Formats: **ACT v4** (6 floats: move index, stick angle, dash, lift, stick_up, brake), **OBS v3** (42 floats), **ABI v4**. Team rotation leaves
+stick_up and brake alone. Scripted bots never brake or raise the stick. Older checkpoints and sidecars are refused.
+Passing: cargo 78, measure 31, train 16, `npm run build`, 12 verify scripts (each picks a free port, `web/scripts/free_port.mjs`; `VERIFY_PORT` overrides).
+Obs crosscheck 684 observations, 28,728 fields, 0 mismatches; 684 actions (174 braking), 0 mismatches.
+
+### Sizes (`python -m measure.size_ratios --clips DIR`)
+Radius / inner board length in one camera, so scale-free; height corrected with the two-zoom camera model.
+| ratio | as seen, normal zoom | height corrected | sim |
+|---|---|---|---|
+| body / rink | 0.00889 | 0.00817 ± 0.00023 | 0.00817 (player_radius 0.5329 m) |
+| puck / rink | 0.00431 (zoomed 0.00417, no measurable height) | 0.00435 ± 0.00022 | 0.00417 (puck_radius 0.2721 m) |
+| body / puck | 2.064 | 1.88 ± 0.11 | 1.958 |
+The real game draws the body at its height, 9% above ground size at normal zoom; the sim draws ground size. rink_length is unchanged (radius/rink ratios cannot test the scale).
+Calib, old radii → new, path objective, 25 real segments: all 0.5583 → 0.5620 m (+0.7%), 9 bounces 0.2734 → 0.2767 (+1.2%), 6 ground bounces 0.2627 → 0.2578 (−1.8%). Under the 10% limit: board_restitution and ice_linear_drag not refit.
+
+### Stick and hit rule
+Three capsules in the stick frame (+x = stick_angle), `python -m measure.stick_outline`, held-out IoU 0.472 / 0.834 / **0.890** for 1 / 2 / 3 capsules: hand (−0.0721, 0.5051),
+kink (0.4324, 0.1252), heel (0.7725, 0.0053), toe (1.1035, −0.0186); half-widths 0.0496 / 0.0754 / 0.0567 m. `step.rs` and `render.ts` read the same params; figure `measure/results/stick_chain.png` is from params only.
+Hit rule: centre-on (`stick_hit_rule` 0): direction RMS 5.1° against 16.9° for the surface normal, exit ratio 1.07–1.11. The early touch (19–27°) is not explained by the shape.
+
+### Contact rules (`sim/src/step.rs`, test `sim/tests/contact_stress.rs`)
+- Stick and body are swept per substep. `resolve_overlaps` pushes along contact normals; boards and nets win a pinch: the stick turns back and rebounds, the player is pushed off.
+- **stick_ghost** (Player field, serde default false, hashed only when set): a stick that is on the puck at the start of a substep by more than 0.02 m without a swing (lowered onto it, a puck dropping into its height range, a reset) ignores the puck until they are apart. Trace that led here: step 1752, stick up → down, gap −0.307 m, puck jumped 0.37 m.
+- A puck that falls into a body's height range while inside it slides out at 6 m/s.
+- Stress run, 100,000 steps: 564 contacts, max penetration 0.1595 m (limit 0.2), end-of-step overlaps 0, puck outside the rink 0, ghost 50 cases / 211 player-steps, body settling 23 player-steps, 265 pinch stops, 448 push-offs.
+- Longest contact run 6 steps in open ice (limit 7: stick spin-up is 26.17 / 513.9 s = 6.1 steps, pushing on each) and 19 against a board, net or pinch (limit 20: the stick leans on a pinned puck and the rebounds break it up slowly).
+
+### Skating and brake (w5b; comparison in docs/history.md)
+Along the key player_accel 16.9508, against it player_brake_accel, across it player_turn_accel 3.2792 (turns the velocity, keeps the speed), coast 1.0751 1/s, cap 11.6935 m/s. Space = slow walk (`PlayerInput.brake`, brake_speed, brake_decel). Panel: F2 in the game, same panel in the lab; edits are stored in localStorage and reach training only through params.json.
+
+### Tuning to the repo
+`npm run adopt-params -- exported.json [--dry-run]` (in web/): writes changed values, sets provenance `tuned-by-feel` with a dated note, prints a diff; unknown names, negatives (chain coordinates excepted) and values over 10× the current one write nothing. The pin test accepts the tag only with that note.
+
+### Bots
+`hit_radius` = stick_inner + 0.13 = 0.90 m, SHOT_SPEED 26.5, SHOT_OVERTURN 0.020; shotlab 48/48, median |err| 0.002 rad. A stall breaker (1 s still beside a still puck → 0.75 s punt) ends the deadlock where two chasers pressed together beside the puck for a whole match.
+| A–B goals/match, 100 × 60 s | main | merge before bot fixes | final |
+|---|---|---|---|
+| chaser–chaser | 0.53–0.39 | 0.56–0.41 | 1.16–1.03 |
+| chaser–defender | 0.54–0.01 | 0.36–0.00 | 0.71–0.01 |
+| chaser–cautious | 16.98 | 17.00 | 16.00 |
+The chaser–defender drop was the bot aiming at the blade toe (1.09 m) with the wrong SHOT_SPEED, not body size (old radii 0.34). The w5b chaser–cautious drop was the turn term on that branch (16.85 without it, 16.03 with); 16.00 now goes with the slower shots at the new radius (inferred, not tested).
+
+### Smoke runs
+- Smoke bot (`web/public/bots/smoke.onnx`, 326 KB, SMOKE TEST; 10 min CPU, 16.6M decisions, chaser only): eval vs chaser 64 matches win 0.03, loss 0.97, goals 1.50–5.27. In the browser mean stick_up 0.339, brake 0.195. It is weaker than the t2 smoke bot, which is expected of one short run and not investigated.
+- 3 min match smoke (`train/results/m4_match3_*`): goal diff stays −5.00 and return −6.99, so results barely move; match length 17.9 → 32.2 s, goals for 0 → 0.13, entropy 6.79 → 4.65, stick_up 0.48 → 0.20, brake 0.51 → 0.16.
+- Long-run command, GPU, 2 min then resume to 3 min: 11.8M → 16.7M decisions, ~105k decisions/s, metrics.csv with stick_up and brake columns, learning_curve.png, latest.pt; loss 0.30 → 0.26, stick_up 0.54 → 0.60, brake 0.36 → 0.28.
+
+### Placeholders (invented or chosen, not measured)
+stick_mass (2 kg); max_puck_speed_air, max_puck_speed_ice_normal, max_puck_speed_ice_dash; stick_up_z_min, stick_up_z_max; stick_z_min, stick_z_max; brake_speed, brake_decel, player_brake_accel; dash_duration, dash_cooldown; the pinch rebounds PINCH_REBOUND_OMEGA 8 rad/s and PINCH_REBOUND_SPEED 0.6 m/s, BODY_SETTLE_SPEED 6 m/s and GHOST_DEPTH 0.02 m (constants in step.rs); camera zoom and the follow camera; the stick lead limit; plus the rest of "What the clips could not give".
+
+### Open
+- The first long run has not started: README "Long run on Ian's machine".
+- Whether a lowered stick really ignores the puck in the game is unmeasured; the ghost rule is a choice.
+- Display-only body magnification; toe height; stick vs board and stick vs stick do not collide; the defender and cautious bots never score.
+
 ## Architecture
 - Cargo workspace with `sim`, `calib`, `sim-wasm`, `bots` and `sim-ffi` (see "Bots and training"), plus `train/` (Python PPO), plus `web/` (the feel lab: Vite + TypeScript, no framework) and `measure/` (Python: real clips → trajectory CSVs). Commands are in README.md.
 - **sim** (pure, deterministic): `step(&mut State, &[PlayerInput], &Params)`. No I/O, no clock, no RNG. Trig goes through `libm`, so native and wasm give identical bits.
@@ -134,7 +204,7 @@ Provenance tags: `measured` (model-free measurement), `measured-shape` (geometry
 | player_radius | 0.5329 m | measured-shape | w5a: height-corrected body / rink 0.00817 (`measure/size_ratios.py`) |
 | board_restitution / board_friction | 0.342796 / 0 | fitted | s5/s6 wall bounces, held out by clip |
 | ice_linear_drag / ice_friction_decel | 0.47254 1/s / 0 m/s^2 | fitted | glides; decel refit in real m/s^2 (below) |
-| player_accel | 16.9508 m/s^2 | fitted | w5b refit with the turn term (was 17.3594); see "Tuning panel, skating and slow walk (w5b)" |
+| player_accel | 16.9508 m/s^2 | fitted | w5b refit with the turn term (was 17.3594); see docs/history.md |
 | player_turn_accel | 3.2792 m/s^2 | fitted | w5b, turning clip (leave-one-run-out 2.9–3.7) |
 | player_brake_accel | 16.9508 m/s^2 | **placeholder** | w5b, = player_accel: no clip presses against the velocity |
 | brake_speed / brake_decel | 1.5 m/s / 25 m/s^2 | **placeholder** | w5b slow walk (Space) |
@@ -267,7 +337,7 @@ m/s), the stick height range (stick_z_min 0 / stick_z_max 0.25 m), dash_duration
   matches beyond 2 players), a goal exactly at 0:00 (counted: goals on the last step score first), the opponent player still idle.
 
 ## Bots and training (bots/, sim-ffi/, train/)
-1v1, no goalie. Formats are versioned: **ACT v3, OBS_VERSION 3, ABI_VERSION 3** (session t2, see "Action and observation v3"); checkpoints record the physics stamp (sha256 of
+1v1, no goalie. Formats are versioned: **ACT v4, OBS_VERSION 3, ABI_VERSION 4** (see "Current state"); checkpoints record the physics stamp (sha256 of
 the params.json values), the obs version and the act version, and refuse to load across any change (old checkpoints from
 before the s10 + t1 integration are refused by the physics stamp: intended, do not resume them).
 
@@ -282,12 +352,12 @@ before the s10 + t1 integration are refused by the physics stamp: intended, do n
   **28 (own − opponent goals)/5; 29 overtime flag; 30 regulation time left/300 s** (0 in free play); 31 dash ready (0/1);
   32–39 style slot (STYLE_DIM 8); **40 own stick_up, 41 opponent stick_up (0/1, OBS v3)**. Change any field or constant →
   bump OBS_VERSION.
-- **Action**: the 9-way WASD format plus stick_up (ACT v3), see "Action and observation v3 (session t2)" below.
+- **Action**: the 9-way WASD format plus stick_up and brake (ACT v4), see "Current state".
 - **Scripted bots** (`scripted.rs`, trait `Bot`, `Scripted` by `Kind` id 0 chaser, 1 defender, 2 cautious, 3 idle). Each bot
   plans an analog `Wish` (move, stick); `Scripted::act` turns the move into 9-way key presses with a sigma-delta dither (t1).
   - shared `Striker`: picks a hitting spot beside the (predicted) puck, holds the stick cocked and swings through the puck
     only when the swing sends it at the target. Shot model for the s10 centre-on contact: the puck leaves perpendicular to
-    player → puck, plus `SHOT_OVERTURN` **0.018 rad**, from-rest speed `SHOT_SPEED` **27.6 m/s** (shotlab on the merged code:
+    player → puck, plus `SHOT_OVERTURN` **0.020 rad**, from-rest speed `SHOT_SPEED` **26.5 m/s** (shotlab on the merged code:
     48/48 hits, median |err| 0.001 rad, median speed 27.7 m/s; history 0.041/19.7 → 0.054/18.9 → 0.110/27.2 → 0.018/27.6).
     The bots are 120 Hz controllers: driven through the env at 30 decisions/s they can stall with the puck (sim-ffi test drives
     them at action_repeat 1).
@@ -324,39 +394,6 @@ before the s10 + t1 integration are refused by the physics stamp: intended, do n
 - `slapenv.py` (VecEnv; returns views of its buffers), `ppo.py` (PPO, self-play pool, eval, plot), `league.py` (ladder),
   `export_onnx.py`. Details, defaults and numbers: "Training on the real game" below; run guide: README.
 - Tests: `python -m unittest discover -s train/tests -t .` (16).
-
-## Verified (s10 + t1 integration, 2026-11-04, Windows, GNU toolchain, RTX 3070 Ti / 12 cores)
-- Merges into main: `b007b16` origin/s10, `3dfe02e` origin/t1 (normal merge commits). Conflicts: **CLAUDE.md** (both appended
-  a section; both kept, then restructured into these current-state sections; superseded parts moved to docs/history.md);
-  **bots/src/scripted.rs** merged without a textual conflict and keeps both intents: t1's analog `Wish` + key dither and
-  s10's centre-on striker model and constants (checked by reading the merged file).
-- Shot constants re-measured on the merged sim (`examples/shotlab`): 48/48 hits, median signed aim error 0.001 rad (range
-  −0.018..0.003), median speed 27.7 m/s against SHOT_OVERTURN 0.018 / SHOT_SPEED 27.6: **kept**.
-- Fixed after the merge: sim-ffi `goal_ends_episode_with_reward` drove the scripted chaser at 30 decisions/s; one episode held
-  the puck 12.6 s without a swing and hit the 30 s limit. It now drives the bot at its 120 Hz design rate (action_repeat 1).
-- `cargo test --workspace` **59 passed**; train **16** and measure **31** Python tests OK; `npm run build`, `verify`,
-  `verify-match`, `verify-skate`, `verify-s10` all OK.
-- **Crosscheck after 100k steps, native = wasm: free play `ed2b9c3b2c52da91`, match `ef5c44a7fc4de600`, s10 shot run
-  `b19f6906467b50c1`** (575 shots, score [2, 10]; same as s10: t1 changed nothing in sim/).
-- Env (sim-ffi tests, 16 envs, seed 42, threads 1 vs 4): first_goal `267aba83ad2eb3bc` = `267aba83ad2eb3bc`, match
-  `a5b3f62c490033a7` = `a5b3f62c490033a7`. Style zero = default: Rust first_goal `843149a4b070f86d` both, match
-  `73366b9e91258d9f` both; Python first_goal `17ee57e5d15ca7ec` both, match `f5ffc1f33c3e39f1` both. Scripted match endings in
-  the env: mercy 5-0 after 16.8 s, clock end 1-0 / 3-0 / 4-0 at 300.0 s, overtime goal 1-0 after 22.3 s (20 s test clock).
-- ONNX with the 9-way heads: test parity 3.3e-6 (3.8e-6 with obs norm), move index identical; export of the merged match smoke
-  policy 7.2e-7.
-- Profiled training (64 envs × 128 steps, update on the GPU, `train/results/merged_profile.md`), µs per decision:
-  env Rust 3.64, ctypes 0.41, obs→device 0.14, forward + sampling 8.61, actions→host 0.42, opponent policy 0.17,
-  bookkeeping 1.30, GAE 0.54, update H2D 0.17, PPO update 11.13, other 0.20; **total 26.72 = 37.4k decisions/s (synced)**
-  (t1 branch: 24.53 = 40.8k; the s10 models do not change the Rust split: sim 49%, opponent bot 41%, reward 6%, observe 4%).
-- Smoke runs (CPU, 128 envs, 9 min each vs the chaser; curves inspected, `train/results/merged_smoke_*_curve.png`):
-  first_goal win 0 → 0.39–0.42, goal diff −1.0 → +0.10; match goal diff per match −5.0 → −1.75, wins 0 → 0.14, return
-  −7.0 → −2.1 (with faceoff jitter; no exploit). Ladder (`train/results/merged_league_smoke.json`, 8 matches per pairing,
-  noisy): chaser 1000, match latest 808, first_goal latest 791, defender 782, upd_300 767, idle 762, upd_900 762.
-- Tournament (`tournament 100 60`), before → after the merge, A–B goals/match (A wins/draws/B wins): chaser–chaser 0.52–0.29
-  (27/62/11) → 0.53–0.35 (27/61/12); **chaser–defender 0.33–0.00 (27/73/0) → 0.50–0.02 (42/56/2)**; chaser–cautious 17.00 →
-  16.98, chaser–idle 17.00 → 17.00 (100/0/0); all defender/cautious/idle pairings 0–0. The centre-on contact makes the
-  chaser's shots more accurate against a goalkeeping defender; nothing else moved beyond noise.
-- Old checkpoints are refused by the physics stamp (intended; nobody should resume one).
 
 ## Environment notes
 - Several sessions have run in parallel on this machine: use a separate `git worktree` per session (e.g.
@@ -443,25 +480,6 @@ Tools: `python -m measure.s10_skate --old-calib <calib.exe built from the pre-s1
   hit_07's low ratio hints at saturation near 31–34 m/s but is a single hit. The 88 mph goal (39 m/s) is above the 35 m/s
   max_puck_speed_ice_normal, so either dash shots go faster (max_puck_speed_ice_dash 45, placeholder) or the normal cap is
   higher. **Caps unchanged** (no evidence to set them).
-- Bots: SHOT_OVERTURN 0.110 → **0.018 rad**, SHOT_SPEED 27.2 → **27.6 m/s** (`examples/shotlab`: 48/48 hits, median |err|
-  0.001 rad). The striker's early-contact correction (asin(reach / r)) was removed because the push is now perpendicular to
-  player → puck (bots/src/scripted.rs; kept in the s10 + t1 merge together with t1's key dither).
-
-### Tests and checks (2026-11-04, Windows, GNU toolchain)
-- New `calib/tests/s10_models.rs` (5 tests): proportional coast + hard cap; Shift alone does nothing, the dash ramps to
-  dash_speed and at top speed only lifts to dash_speed; real skate/dash runs median pos RMSE < 0.6 m; the stop takes at least
-  3 steps less than the spin-up; the 7 hits leave within 1 deg of perpendicular at 1.05–1.2× head speed. Each fails with the
-  pre-s10 behaviour (by construction: each asserts a property the old model violated; not run against the old code).
-- New `sim/tests/s10_stress.rs`: **100,000-step determinism** with skating, coasting, dashing, stick spins and shots (586
-  shots in the run): hash **b19f6906467b50c1**, native = wasm (`node scripts/wasm_crosscheck.mjs`, "s10" line). Free-play
-  crosscheck **ed2b9c3b2c52da91** and match **ef5c44a7fc4de600**, native = wasm. Stick-shot tunneling: 72 targets (nets,
-  boards, corners), 36,216 swings at full and half speed, 0 tunnels, and every swing shot the puck. Old tunneling tests: 20,760
-  net + 20,304 board shots, 0 failures.
-- `cargo test --workspace` 50 tests pass (bots 9, calib 4 + 2 + 5, sim 12 + match 8 + tunneling 2 + s10 2, sim-ffi 6);
-  measure 31 and train 9 Python tests; `npm run build`, `verify`, `verify-match`, `verify-skate` OK.
-- `npm run verify-s10` (new, `web/scripts/verify_s10.mjs`, real keys and mouse in the lab): cap after 0.667 s, coast ratio
-  0.5211 per 0.6 s twice (exp(−1.0815·0.6) = 0.5226), Shift alone inert, dash from rest peaks at 15.48 m/s at 0.108 s, at top
-  speed +3.79 m/s and back at the cap in 0.35 s, flick 514 rad/s^2 up and 2316 down; `web/verify-out/s10-curves.png`, `s10-lab.png`.
 
 ### Remaining gaps
 - **dash_duration 0.25 s, dash_cooldown 1 s**: placeholders, not identifiable from the clips (no two dashes within a second).
@@ -476,40 +494,8 @@ Tools: `python -m measure.s10_skate --old-calib <calib.exe built from the pre-s1
 - measure/merge_models.py and measure/skatefit.py still describe the old models (their `params` writers would put the old
   compromise notes back); use measure/s10_skate.py for refits.
 
-### Feel checks for Ian in the lab
-1. Hold a move key from rest: top speed in ~0.67 s. Let go: a long smooth glide (speed halves in ~0.64 s), not a constant-rate stop.
-2. Tap Shift with no key: nothing. Shift + key from rest: a burst within ~0.1 s; at top speed: a small extra push.
-3. Does the dash peak feel too strong or too short? (sim 15.5 m/s briefly vs ~13 in the clips.) Try dash_duration / dash_cooldown values.
-4. Flick the mouse to the other side: the stick should whip round and stop dead, with no slow braking.
-5. Shots: the puck should leave at right angles to the line player → puck, not ~15 deg outward.
-6. Diagonals (W+D etc.): same top speed as a single key.
-7. Match mode in the lab (`?mode=match`): does the 3 s countdown / 3 s goal pause and the spawn at rink_length/4 match the real
-   game? (placeholders; the training env skips the frozen phases and jitters every faceoff).
-8. Not yet in the lab: playing against a trained bot (no ONNX loader in the browser yet).
-
 ## Training on the real game (session t1, 2026-11-04; Ian's Windows machine: RTX 3070 Ti, 12 cores)
 Measured on the t1 branch (before the s10 physics); the merged numbers are in "Verified (s10 + t1 integration)".
-
-### Action format (ACT v2 as of t1; superseded by ACT v3, see "Action and observation v3")
-| idx | field |
-|---|---|
-| 0 | move index 0..8 (rounded, clamped): 0 stop, 1 +x, 2 +x+y, 3 +y, 4 −x+y, 5 −x, 6 −x−y, 7 −y, 8 +x−y (counterclockwise) |
-| 1 | stick target angle (rad, canonical, wrapped) = the mouse angle |
-| 2 | dash (> 0.5) |
-| 3 | lift (> 0.5) |
-- A diagonal is sent as (±1, ±1); the sim normalizes move vectors longer than 1, so **diagonals accelerate and top out
-  exactly like a straight key** (test `diagonal_move_reaches_the_straight_top_speed`: 4.4760 m/s after 0.25 s and
-  11.6935 m/s = the cap after 1 s, both ways).
-- The continuous-move format was dropped, not kept behind a flag (the flat buffer size is an ABI constant; not cheap).
-- Scripted bots plan with an analog move (`Scripted::wish`) and press keys through a **sigma-delta dither** (each step
-  the key combination nearest to the accumulated wish; the remainder carries over, clamped to ±1): over a few steps the keys
-  average to the wish, like a player tapping keys. Without it (plain nearest-key snapping) the chaser could not hold its
-  hitting spot and stopped scoring. No physics constant was touched.
-- Policy heads (train/ppo.py): move Categorical(9), stick 2D Gaussian direction (angle = atan2), dash and lift Bernoulli.
-
-### Observation (OBS_VERSION 2 as of t1; superseded by OBS v3)
-Same as v1 except: **28 = (own goals − opponent goals) / 5** (mercy at ±5 → ±1), **29 = 1 in overtime**, **30 = regulation
-time left / 300 s** (1.0 at the start of a 5:00 match, 0 in overtime, 0 in free play). 32–39 style slot.
 
 ### Match mode (sim-ffi env Config `mode`)
 - `"first_goal"` (default; the curriculum): jittered free-play faceoff, ends at the first goal or after 30 s (truncated).
@@ -583,23 +569,6 @@ Checkpoints vs scripted bots (env opponent) and vs each other (external opponent
 `--style-opponent` (wins, goals for/against, shots per match, possession share = learner / (learner + opponent)
 possession seconds). JSON output.
 
-### Smoke runs (CPU only, `--device cpu --envs 128`, 9 min each vs the chaser; curves inspected)
-- first_goal (`train/results/t1_smoke_firstgoal_curve.png`): win 0 → 0.21–0.23, goal diff −1.00 → −0.30, return −1.20 →
-  −0.15, 19.7M decisions. Eval vs chaser (64 eps): first-goal 23% win / 42% loss; full matches 16% win.
-- match (`t1_smoke_match_curve.png`, with faceoff jitter): goal diff per match −5.0 → −2.95, loss 1.00 → 0.84, return −7.0 → −4.2
-  (slower, sparse; the curriculum is the intended route).
-- Ladder (`train/results/t1_league_smoke.json`, 8 matches per pairing): chaser 1000, first_goal latest 719, defender 698,
-  upd_1000 694, idle 690, match latest 688, upd_600 683, upd_200 668 (first-goal checkpoints rise in order). Style rows
-  show only noise: these policies were trained without `--styles`.
-
-### Open (t1)
-- No long run yet (the README "Long run" guide is for Ian's machine). The style-conditioned policy is untested beyond the
-  smoke test; possession share reads only 1–2% for these early policies (the chaser is closer to the puck almost always).
-- Pool opponents run one snapshot at a time (batching them would lift self-play throughput); self-play opponents get no style.
-- Faceoff jitter after goals is a training choice; the real game resets exactly (a fixed-faceoff trick may work in the real game).
-- When the s10 physics lands: rebuild, re-run `cargo test` (bot tests), and expect old checkpoints to be refused (physics stamp).
-- Browser loader for the ONNX policies (port `bots::observe` to JS, or expose it in sim-wasm) is still not built.
-
 ## Game (session w1, 2026-11-04, branch w1)
 A playable browser game around the sim: menu → match vs a bot → game over, plus the lab, as plain static files for GitHub Pages.
 Nothing in sim/, bots/, sim-ffi/, train/ or the params files changed; sim-wasm gained the bots crate (crosscheck hashes unchanged:
@@ -638,7 +607,7 @@ free play `ed2b9c3b2c52da91`, match `ef5c44a7fc4de600`, s10 `b19f6906467b50c1`).
 - onnxruntime-web **1.31.1** (pinned, `onnxruntime-web/wasm` entry, single-threaded: no cross-origin isolation needed). Vite
   emits its runtime (`ort-wasm-simd-threaded-*.wasm`, 14.8 MB, 3.8 MB gzipped) into `dist/assets/` with a relative URL: no CDN.
 - One decision per 4 sim steps (30 Hz), action held in between, deterministic heads (argmax move, mean stick direction,
-  dash/lift/stick_up prob > 0.5); the sidecar `.json` is checked (obs v3 / 42 / act v3 with `stick_up_prob`). `run()` is async: a decision's action applies
+  dash/lift/stick_up/brake prob > 0.5); the sidecar `.json` is checked (obs v3 / 42 / act v4 with `brake_prob`). `run()` is async: a decision's action applies
   from the next sim step after it resolves (≈ one frame); if one is still pending at the next decision it is skipped and counted.
 - **Measured (Playwright, headless Chromium on Ian's machine, smoke policy)**: inference per decision mean 0.82 ms, p50 0.70,
   p95 0.90 ms (one 40 ms first-call warm-up); 326 decisions in ~10.9 s at real time, 0 skipped. Frame interval p50/p95 16.7 ms;
@@ -649,7 +618,7 @@ free play `ed2b9c3b2c52da91`, match `ef5c44a7fc4de600`, s10 `b19f6906467b50c1`).
 
 ### Opponents shipped
 chaser, defender, cautious (scripted, no model file) and **Smoke-test bot** (`smoke.onnx`, 317 KB, + `smoke.json` sidecar,
-ACT v3 / OBS v3, physics stamp `8e01b0174c545b10`): a SMOKE TEST, labelled so in the menu. See "Action and observation v3".
+ACT v4 / OBS v3, physics stamp `e750f45cff93780c`): a SMOKE TEST, labelled so in the menu. See "Current state".
 
 ### Adding a policy
 `python -m train.export_onnx --ckpt runs/NAME/latest.pt --out web/public/bots/NAME.onnx` (writes NAME.json), write
@@ -665,25 +634,6 @@ check the physics stamp; it is in the sidecar for reference).
   Source: GitHub Actions. Nothing was switched on in this session. README "Publishing on GitHub Pages" has the steps.
 - Relative paths: `npm run verify-game` serves `web/dist` under `/slapmini/` with a server that 404s anything outside it:
   0 requests escaped; the game, the ONNX model, the ort wasm and `lab.html` all load from the subfolder.
-
-### Verified (w1, Windows, headless Chromium)
-- `cargo test --workspace` 59 passed; train 16 and measure 31 Python tests OK; `npm run build`, `verify`, `verify-match`,
-  `verify-skate`, `verify-s10` OK (the lab scripts now open `lab.html`).
-- `npm run verify-game` (VERIFY GAME OK): menu keyboard navigation; vs chaser with the human driven by W/D/A/S key presses
-  (human moved 19.7 m), bot travelled 118 m and shot 5 times, **mercy 0-5 at 04:44**, game over, Enter rematch, Esc menu;
-  vs the smoke ONNX bot (policy loaded, 39 m travelled and a goal in the first seconds, 3 shots by 6×); **clock end 1-0 at 00:00**
-  vs the defender (score set to 1-0 by the test hook, 40×); fallback for a missing and a corrupt model; Practice opens the lab.
-  Screenshots (inspected): `web/verify-out/game-menu.png`, `game-midmatch-onnx.png`, `game-over-mercy.png`, `game-over-clock.png`,
-  `game-fallback.png`, `game-controls.png`.
-
-### Open (w1)
-- Skill mapping uncalibrated (ladder at several skills). Scripted bots get output delay, not perception delay.
-- Only the smoke-test policy ships; a real policy from the long training run is the next opponent to add.
-- No sound, no pause menu, no touch controls, no team choice (human is always BLUE), 1v1 only; the scoreboard and game view
-  are the lab's (the real HUD layout is approximated).
-- Repo is not yet public and Pages is not on (see Deployment); the footage cleanup is Ian's decision.
-- The onnxruntime wasm is 14.8 MB (3.8 MB gzipped by Pages): first load of a policy bot costs that download; scripted bots
-  don't need it (verify-game checks that it is not downloaded before a policy bot is chosen).
 
 ## View, mouse and Space (session w2, 2026-11-05, branch w2)
 Web only (web/src, web/*.html, web/scripts, scripts/lift_demo.mjs). sim/, params and bots untouched: crosscheck hashes
@@ -716,40 +666,6 @@ unchanged (free play `ed2b9c3b2c52da91`, match `ef5c44a7fc4de600`, s10 `b19f6906
   returns to the menu. Game over releases it. In the lab, while captured, F/G use the last cursor position.
 - The game resets the aim to forward at every match start (not at goal resets: unknown what the real game does).
 - Recording/replay log `stick_target_angle`, not mouse events: a relative-mouse recording replays byte-identically.
-
-### Space (lift): root cause (w2; since w3 lift is on E and Space is the brake, see "Stick lead and brake (w3)")
-- Diagnosis (`web/scripts/diag_space.mjs`, real UI, prints the PlayerInput the sim receives each step):
-  - GAME: Space always reached the sim (`lift: true` every step while held), whether the match was started with the mouse
-    or with Enter; it did not restart the match, scroll, or press a button. Lift is the sim's placeholder that only acts AT
-    STICK CONTACT (vz set at the hit), so holding Space without a hit has no visible effect, and the game showed no feedback.
-  - LAB (the real bug): the key handler ignored every key whose target was an `<input>`. After clicking any panel checkbox or
-    slider, Space was swallowed (`lift=false`) AND toggled the focused checkbox (e.g. Match mode turned off).
-- Fix: the lab only skips keys in text-entry fields (`typing()`), game keys get preventDefault on keydown and keyup in both
-  pages, focused controls are blurred when a match starts / the rink is clicked, and the game shows a "LIFT" badge while held.
-  After: lift reaches the sim in every case and the focused checkbox no longer changes.
-- Sim check (`node scripts/lift_demo.mjs`, the wasm build): puck at rest 1 m out, stick swung through it: with lift held the
-  puck rises to z = 1.822 m (exit 30.0 m/s); without, z stays 0.000 (exit 30.1 m/s).
-
-### Verified (w2, Windows, headless Chromium)
-- `cargo test --workspace` 59 passed; train 16 (after `cargo build --release -p sim-ffi` in the new worktree) and measure 31
-  Python tests OK; `npm run build`; `verify`, `verify-match`, `verify-skate`, `verify-s10`, `verify-game`, new `verify-w2` OK.
-- `npm run verify-w2`: BLUE's goal at the bottom (client y 651 vs 109); W/A/S/D push the player up/left/down/right on screen
-  (on-screen velocity change ≈ (0,−60), (−63,0), (0,60), (60,0) px/s; world (+5.5,0), (0,+5.8), (−5.5,0), (0,−5.5) m/s);
-  REAL pointer lock in headless Chromium: right 100 → −28.65° on screen, left 100 → +28.65°, vertical 0°, sensitivity
-  0.01 → 57.30°, sim target = world angle (−28.65° = toward −y); Esc releases (match goes on), Esc again → menu; lab F at
-  client (480, 260) → spawn (10.995, 4.581) → back to (480.00, 260.00), old view too; lab relative-mouse record → replay
-  sha256 758269fc… identical. Screenshots inspected: `web/verify-out/w2-menu.png`, `w2-midmatch.png`, `w2-lab-vertical.png`,
-  `w2-lab-horizontal.png`.
-- Verify-script changes (only where they depended on the old view or the cursor aim): `verify.mjs` and `verify_s10.mjs`
-  open the lab with `?mouse=cursor`; `verify_match.mjs` presses the +x key of the current view (W when vertical) instead of
-  D; `verify.mjs` takes `VERIFY_PORT` (port 5173 was held by another dev server on this machine).
-
-### Open (w2, for Ian's feel check)
-- Stick angle limits: none (the real game's are unknown; the angle is never clamped).
-- True sensitivity: 0.005 rad per mouse unit is a guess; mouse units depend on the OS pointer speed and DPI.
-- Whether the real game turns the stick relative to the screen (as here) or relative to the player's facing; and whether it
-  re-centres the aim at faceoffs.
-- Lift and dash bindings are still unverified guesses; lift is still the sim's contact-only placeholder.
 
 ## Stick lead and brake (session w3, 2026-11-05, branch w3)
 Web only (web/src, web/index.html, web/scripts). sim/, params and bots untouched: crosscheck hashes unchanged (free play
@@ -799,12 +715,6 @@ Web only (web/src, web/index.html, web/scripts). sim/, params and bots untouched
   (`npm run verify-space`) holds E for the lift checks and now also checks that Space with a focused checkbox neither lifts
   nor toggles it. New: `verify-w3`, `verify-stick`.
 
-### Open (w3, for Ian)
-- Whether the real game limits the stick's lead (or lets the aim run ahead), and the right MAX_LEAD if it does.
-- The true sensitivity (0.005 rad per mouse unit is a guess).
-- The real brake: whether there is one, its key and its stopping time (record W then S at top speed).
-- The real lift and dash keys (E and Shift are guesses).
-
 ## Scale, raised stick, follow camera (session w4, 2026-11-05, branch w4)
 Physics changed (player_radius + the raised stick), so the crosscheck hashes and the physics stamp changed (listed below).
 ACT/OBS were unchanged by w4; session t2 added the raised stick to them.
@@ -834,12 +744,6 @@ ACT/OBS were unchanged by w4; session t2 added the raised stick to them.
 - Tests `sim/tests/stick_up.rs`: rolling puck deflected with the stick down / untouched up; a puck at z 0.8 m hit only by
   the raised stick; encoding + serde default; 100k-step determinism with random raises (hash `99709a2c0e5f2646`, 66,440 of
   200,000 player-steps raised, native = wasm).
-- Hashes after 100k steps, native = wasm (old → new): free play `ed2b9c3b2c52da91` → **`1c20a120d579b8ae`**, match
-  `ef5c44a7fc4de600` → **`1562dade657130b9`**, s10 shots `b19f6906467b50c1` → **`2ddbc98e6f2e54c3`**. All three changed
-  only because of player_radius: `node scripts/radius_attribution.mjs` runs the new code with the old radius and reproduces
-  all three old hashes.
-- Physics stamp `ad14b1064ab382dc` (main, = the smoke bot's) → **`8e01b0174c545b10`**. The smoke policy was not re-exported:
-  the browser does not check the stamp, ACT/OBS are unchanged, and a 0.3% radius change does not need it.
 - Bots: shotlab unchanged (48/48, median |err| 0.001 rad, 27.6–27.7 m/s), SHOT constants kept. Tournament 100×60 s,
   before → after: chaser–chaser 0.53–0.35 (27/61/12) → 0.53–0.39 (24/61/15); chaser–defender 0.50–0.02 (42/56/2) →
   0.54–0.01 (43/56/1); chaser–cautious 17.00 → 16.98, chaser–idle 17.00; all other pairings 0–0. **Scripted bots never raise
@@ -859,115 +763,7 @@ ACT/OBS were unchanged by w4; session t2 added the raised stick to them.
   release lowers; Esc while held lowers; whole-rink camera available; in the lab a puck rolled across the raised stick
   passes untouched (down: deflected); record → replay with raised sticks byte-identical (end hash equal).
 
-### Verified (w4, Windows)
-- `cargo test --workspace --release` 63 tests pass; measure 31 and train Python tests OK; `npm run build`; verify, verify-match,
-  verify-skate, verify-s10, verify-game, verify-w2, verify-w3, verify-space, verify-stick, verify-w4 all OK. No existing
-  verify script needed changes (none depended on the radius or the camera).
-
-### Open (w4)
-- The raised stick is in the bot formats since session t2 (ACT v3 / OBS v3); no scripted bot raises it.
-- Raise/lower timing (instant here), the raised height range (0.35–1.5 m placeholder), and whether a raised stick can hit
-  a puck in the air in the real game are unmeasured. Whether the real button is hold or toggle is unverified.
-- The follow camera's zoom and clamping are a reasoned choice, not measured from the real camera.
-
-## Geometry and stick contact (session w5a, 2026-11-06, branch w5a)
-Physics changed (radii, stick shape, contact), so all hashes and the physics stamp changed. ACT/OBS formats did not.
-
-### Size ratios (`python -m measure.size_ratios --clips DIR` -> `measure/results/size_ratios.json`)
-Radius / inner board length, both in px of one camera, so independent of the absolute scale. Normal zoom = hittingpuck (rink 949 px,
-18 resting episodes); zoomed = rotatinganddizzy (rink 4004 px, from the centre circle x 6.365, ice scale ratio q 4.219).
-| ratio | as seen, normal | as seen, zoomed | height corrected | old sim | new sim |
-|---|---|---|---|---|---|
-| body / rink | 0.00889 | 0.01242 | **0.00817 ± 0.00023** | 0.00762 | 0.00817 |
-| puck / rink | 0.00431 | **0.00417** | 0.00435 ± 0.00022 | 0.00383 | 0.00417 |
-| body / puck | 2.064 | 2.977 | 1.88 ± 0.11 (1.96 with the zoomed puck) | 1.989 | 1.958 |
-- Height correction: a thing at height h is magnified 1/(1 − h/H); two zooms of the same scene solve h and the ground size
-  (dolly model, Monte Carlo errors). Body top x = h/H_zoom = 0.342 ± 0.020. Puck x = −0.04 ± 0.07, i.e. no measurable height, so the
-  puck uses the sharp zoomed reading (16.7 px, blurred-disc fit), not the 4 px normal-zoom one.
-- **Reading**: body/puck agrees with the sim within error; both radii were low against the rink (body +7.2%, 2.3 sd; puck +8.9%).
-  So player_radius 0.4969 → **0.5329 m**, puck_radius 0.249853 → **0.2721 m**. rink_length and the absolute scale are unchanged:
-  a radius/rink ratio cannot test the scale, because radii and rink are both scaled by it. The old values came from soft
-  3.5 px half-max reads and from the ratio to that puck. Implied scale factor for Ian: none.
-- Why the body still looks bigger in the real game: it is DRAWN at its height, 0.00889 of the rink at normal zoom, 9% above its
-  ground size, more at closer zooms. The sim draws ground size. A display-only magnification is open.
-- Drawn radii: real game normal zoom (1920 wide) body 8.44, puck 4.09 px. Sim game 1280×760: follow camera 15.08 / 7.70 px (was
-  14.06 / 7.07), whole rink 5.82 / 2.97 px (was 5.42 / 2.73). Sim sizes at 28.29 and 10.91 px/m.
-
-### Stick shape (`python -m measure.stick_outline --clips DIR` -> `stick_shape.json` key `chain`; figure `python -m measure.stick_figure`)
-500 slow frames of rotatinganddizzy de-rotated into the stick frame (+x = tracked stick_angle). Held out by 5 frame blocks:
-| chain | held-out IoU | edge RMS px |
-|---|---|---|
-| 1 capsule | 0.472 | 18.59 |
-| 2 capsules | 0.834 | 1.17 |
-| **3 capsules (chosen)** | **0.890** (fold sd 0.020) | **0.93** |
-- Points (m, stick frame): hand (−0.0721, 0.5051), kink (0.4324, 0.1252), heel (0.7725, 0.0053), toe (1.1035, −0.0186). Half-widths: shaft
-  0.0496, heel section 0.0754, blade 0.0567 (`stick_thickness`). Shaft 0.632 m, heel section 0.361 m, blade 0.332 m, blade 32.8 deg off
-  the shaft line. The hand sits on the body rim, not at the centre: the shaft is a chord across the body. The blade's slight
-  curve is covered by the heel/blade bend; no separate curve term.
-- Ground mapping is per point: x falls from 0.342 at the hand to 0.101 at the heel and toe (the s7b tip value; that value is itself
-  soft). The toe is the most uncertain point.
-- `measure/results/stick_chain.png` is drawn from params.json only. `render.ts` `stickChain` reads the same params as `step.rs`.
-  The drawn blade is slate, not the game's white, which vanishes on the lab ice.
-- Pinned params files carry a straight rod in the chain format.
-
-### Hit rule (`stick_hit_rule`, kept 0 = centre-on; hitlab, 7 hits, measured omega; `measure/results/w5a_hits_*.csv`)
-| model | direction RMS vs measured | exit ratio range (measured 0.77–1.64) | contact lead |
-|---|---|---|---|
-| old rod, centre-on | 5.1 deg | 1.10–1.14 | 18–21 deg |
-| **new chain, centre-on (adopted)** | **5.1 deg** | 1.07–1.11 | 19–27 deg |
-| new chain, surface normal | 16.9 deg | 1.03–1.09 | 19–27 deg |
-- The true shape did NOT explain the early touch: the lead is mostly puck size (asin(reach / r)). Why real exits look centre-on
-  although the blade edge touches first is still unexplained. The 5.1 deg is simply the measured scatter (the rule gives 0 offset).
-
-### Contact guarantees (`sim/src/step.rs`, tests `sim/tests/contact_stress.rs`)
-- Swept stick: per substep the puck centre's path in the stick frame is swept against the three capsules (`stick_puck`).
-- `resolve_overlaps`: passes of body, stick, nets, boards along contact normals. If a pinch remains, boards/nets win: the stick
-  turns back to the last clear angle and springs back (≥ 8 rad/s), and a player is pushed off (≥ 0.6 m/s). Both rebounds are chosen, not measured.
-- A capped puck slows the stick to its normal speed so the blade does not re-catch it. `step_with_stats` reports contacts.
-- Stress run, 100,000 steps: see "Verified (w5a)". The longest runs are honest pushes: a stick spinning up from touching the puck
-  contacts it on each of its ~6 spin-up steps, then the puck leaves at full speed. The test bound is 10 steps, not fewer.
-- Max penetration 0.3755 m happens only when a raised stick is lowered instantly onto a puck (or a puck drops into the height
-  range): it is resolved in the same substep, and that is a jump of the puck, not a sweep failure.
-
-### Bots
-SHOT_SPEED 27.6 → **29.6 m/s**, SHOT_OVERTURN 0.018 kept. Shotlab 48/48 before and after, median |err| 0.001 rad (p90 0.002 → 0.003).
-Tournament 100×60 s before → after: chaser–chaser 0.53–0.39 → 0.49–0.41; chaser–defender 0.54–0.01 → **0.35–0.01** (the bigger body and
-puck block more; not retuned); chaser–cautious 16.98 → 17.01; chaser–idle 17.00 → 17.01; the rest 0–0.
-
-### Verified (w5a, Windows)
-- `cargo test --workspace --release` 69 passed; measure 31 and train 16 Python tests OK; `npm run build` and all 10 verify scripts OK
-  (`VERIFY_PORT=5273` here: other sessions held 5173 and 5189).
-- Contact stress, 100,000 steps: 658 contacts, 1,014 contact steps, 0 end-of-step overlaps, puck outside the rink 0, longest run 9 steps
-  (run lengths 1..9: 493, 88, 31, 13, 12, 11, 7, 2, 1), 286 sticks stopped by a pinch, 530 player push-offs.
-- Hashes after 100k steps, native = wasm (old → new): free play `1c20a120d579b8ae` → **`5a23bb0bc3f1459c`**, match `1562dade657130b9` →
-  **`57e74110caf19cc3`**, s10 shots `2ddbc98e6f2e54c3` → **`ae647c5567e009f7`**, raised stick `99709a2c0e5f2646` → **`b2dca12d4e66d29f`**.
-- Physics stamp `8e01b0174c545b10` → **`59c9fb4e8e4cc65b`**.
-
-### Changed expectations
-`sim-ffi/tests/ffi_tests.rs` match_mode_endings: defender sample 4 → 16 matches, overtime sample 16 → 64 (the fixed seeds no longer
-reached those endings). `verify_w4.mjs` radius ratio. `verify_w3.mjs` port via VERIFY_PORT. `hitlab` starts 1.2 rad short (was 0.3; the chain would start
-overlapped). `sim_tests` provenance list.
-
-### Open (w5a)
-- Calibrated values were NOT refit with the new radii (board/puck fits, shot speed data); stick_mass 2 kg is still a placeholder and the
-  inertia still uses a uniform rod of stick_length.
-- Display-only body magnification; collision radius vs drawn radius in the real game is unmeasured. Toe height. Stick vs board and
-  stick vs stick still do not collide. Pinch rebounds are invented. The defender is relatively stronger now.
-- The smoke bot and any policy were trained on the old physics stamp.
-
-## Action and observation v3 (session t2, 2026-11-05, branch t2)
-Formats only: `git diff origin/main -- sim calib params.json` is empty. ACT v3, OBS v3, ABI v3.
-
-### ACT v3 (bots/src/action.rs, ACT_DIM 5, canonical frame)
-| idx | field |
-|---|---|
-| 0 | move index 0..8 (table in "Action format") |
-| 1 | stick target angle (rad, canonical, wrapped) |
-| 2 | dash (> 0.5) |
-| 3 | lift (> 0.5) |
-| 4 | **stick_up (> 0.5), new; the team rotation leaves it unchanged** |
-
-Policy: one more Bernoulli head, in log-prob and entropy like dash and lift (fresh entropy 6.11). ONNX: new output `stick_up_prob`.
+## Observation v3 and format guards (ACT v4 is in "Current state")
 
 ### OBS v3 (bots/src/obs.rs, OBS_DIM 42)
 | idx | field |
@@ -981,118 +777,8 @@ The running normalizer covers 0..31 only, so the style slot and both flags pass 
 
 ### Guards
 - `load_ckpt` refuses other versions. Real checkpoints: `../slapmini-int/runs/merged_match/latest.pt: observation layout v2/40
-  does not match the library's v3/42; cannot load`. With only the act version old: `action format ACT v2, this trainer uses ACT v3`.
+  does not match the library's v3/42; cannot load`. With only the act version old: `action format ACT v3, this trainer uses ACT v4`.
 - `slapenv.lib()` checks the ABI first (an old DLL lacks `slap_act_version`), then ACT/OBS versions.
-- `botRuntime.ts` rejects a sidecar that is not obs v3 / 42 / act v3 with `stick_up_prob`, and falls back to the scripted bot.
+- `botRuntime.ts` rejects a sidecar that is not obs v3 / 42 / act v4 with `brake_prob`, and falls back to the scripted bot.
 - `window.game.forceBotStickUp(on)` is a test hook; `window.game.bot` reports `upProbMean`, `upDecisions`, `stickUp`.
 
-### Verified (t2, Windows, CPU training)
-- `cargo test --workspace --release` 65 passed; train 16, measure 31 Python tests OK; `npm run build` and all 10 verify scripts OK.
-- Unchanged, native = wasm: free play `1c20a120d579b8ae`, match `1562dade657130b9`, s10 `2ddbc98e6f2e54c3`, stick_up
-  `99709a2c0e5f2646`; physics stamp `8e01b0174c545b10`.
-- Obs equality: 684 observations (456 in match mode; stick up none 278, own 137, opponent 137, both 132), 28,728 fields, 0 mismatches.
-- Env hashes, main (w4) → t2; each pair is equal within a build (default = style zero, threads 1 = 4):
-  Rust style zero first_goal `dc708fe6a65489fe` → `cb51246743fa603c`, match `296872e2fc8dac9a` → `17957d0ef396c0e7`;
-  Python style zero first_goal `4f89564afd66a3a5` → `fea9a0aaedb09abc`, match `8699123d354feb39` → `3ac8233222b808a1`;
-  threads first_goal `267aba83ad2eb3bc` → `a496861986a021b1`, match `a5b3f62c490033a7` → `7ce05fbe915791be`.
-- ONNX parity, 2000 random obs: max 2.9e-6 (3.3e-6 with obs norm), stick_up_prob 4.2e-7 (3.6e-7), move index identical.
-- 3 min match smoke (128 envs, CPU, vs chaser, `train/results/t2_match3_*`): goal diff −5.00 → −4.53, return −7.0 → −6.3,
-  loss 1.00 → 0.97, win 0.01; stick_up prob 0.40–0.55, raised share about the same.
-- Smoke bot (`train/results/t2_smoke_*`, retrained on the final code; first_goal 6 min, then match; 22.1M decisions): training end
-  win 0.56, goal diff +1.10, stick_up prob 0.46–0.54. `train.ppo eval` vs chaser, 64 matches: win 0.625, loss 0.19, draw 0.19,
-  goals 3.27–1.81. An earlier same-length run on shared CPU (16M decisions) ended at win 0.14, so this is not a stable
-  result; it has only played the chaser and has not been rated on the ladder.
-- Browser, smoke bot: mean stick_up_prob 0.631, stick up in 519 of 808 decisions (64%, threshold 0.5, one sped-up match
-  stretch). Fallback OK for a missing model, a corrupt model and an old-format sidecar.
-  `web/verify-out/game-bot-stick-up.png` inspected: the forced raised bot stick shows the raised drawing.
-
-### Open (t2)
-- **No scripted bot raises its stick**, so self-play is the first time a policy meets a raised stick.
-- Stick-up usage: sampled share near 0.5 (the untrained coin flip), so the head has probably learned little. It is not degenerate,
-  but the deterministic bot holds the stick up 64% of the time. If the long run climbs toward 1, a likely reason is that a
-  raised stick avoids accidental own contacts. No reward term was added.
-- The first long run (README "Long run on Ian's machine") has not started.
-
-## Tuning panel, skating and slow walk (session w5b, 2026-11-06, branch w5b)
-Physics changed (skating model, brake input), so hashes and the physics stamp changed. Stick and puck contact, sizes and the bot
-action and observation formats are untouched.
-
-### Why panel edits did not reach the gameplay (`npm run verify-params`, `web/scripts/param_audit.mjs`)
-Every parameter is changed through its DOM field, then a short scenario that depends on it runs. Before: lab 60/62, game 4/62.
-After, with player_turn_accel and player_brake_accel added: lab 64/64, game 63/64 (the last, speed_display_scale, only feeds the lab readout; the game page has none).
-| where | params affected | cause | fix |
-|---|---|---|---|
-| game | all but the 4 display-only ones | no panel on the page, `set_params` never called; `P` was a private copy of params.json, so lab edits never arrived | `web/src/panel.ts` shared by both pages; the game's panel calls `set_params` and updates `P` in place |
-| lab → game | all | edits lived only in the lab page | edits stored in localStorage (`slapmini.params.edits.v1`, overlay on params.json), loaded by both pages until Reset; the game shows a TUNED badge |
-| lab | all, for the player | after an edit the focus stayed in the number field and it swallowed WASD (speed 0.00 m/s after 0.35 s of W) | `fieldOwnsKey` in bindings.ts: number fields keep only E and Enter; after: 6.37 m/s |
-| lab, game | match_length_s, countdown_s (and timestep, goal_pause_s in their phase) | the match stores its timers in ticks when the phase starts | `retimeMatch` in panel.ts moves the running timers |
-- player_spawn_x, mercy_lead and everything else already apply as they are read (spawn at the next faceoff). `timestep` ≤ 0 is refused (it would hang the loop).
-- Training reads params.json when the env is created: panel edits are experiments and reach it only through Export into params.json.
-
-### Game tuning panel (F2)
-Same panel as the lab, hidden by default, on any screen; opening it releases the mouse (a click on the rink captures it again), Esc or F2
-closes it. Edits apply live to the running match and keep their provenance tag; changed rows are highlighted. Reset, Export JSON, Import
-JSON (values only; unknown names or bad values refuse the whole file). The "Skating feel" group is on top, with notes.
-
-### Skating model comparison (`python -m measure.w5b_skate compare` → `measure/results/skate/w5b_fits.json`; needs `docs/experiments/skate_candidates.patch`)
-Held-out median pos / speed RMSE per clip (fit on the other two clips, player_max_speed fixed, best of several starts):
-| candidate | wkeymovement | diagonalkeypresses | whilemovingturning | fitted |
-|---|---|---|---|---|
-| current (accel along key, coast, cap) | 0.180 m / 1.874 m/s | 0.274 / 2.244 | 0.746 / 2.111 | accel 17.37, coast 1.080 |
-| split as specified (sideways velocity shrinks at turn accel) | 0.189 / 1.873 | 1.419 / 2.322 | 0.746 / 2.111 | turn 0–3.2 |
-| **chosen: split, shrink keeps the speed** | **0.162 / 1.873** | **0.257 / 2.237** | 0.746 / 2.111 | see below |
-| steer (velocity → target, time constant) | 0.257 / 1.873 | 0.427 / 2.270 | 1.591 / 2.243 | tau 0.34 s, coast 1.070 |
-- The turning clip's clip-held-out row cannot show a turn term: it is the only clip with real turns, so that fold fits turn 0 and all three
-  turn-free results tie. Leave one turning run out instead (turn value from the other four): current 0.640 m / 2.119 m/s, chosen **0.378 m /
-  2.124 m/s**, fits 2.9–3.7. Speed RMSE is finite-difference noise of the tracked player in every row, as in s10.
-- The split as specified fails on boards: pressing a key diagonally into the boards, the slide along them counts as sideways and
-  dies (at turn 12 the median diagonal error is 32 m). Keeping the speed turns the velocity instead, and the slide survives.
-- Final values: turn 3.2792 (turning clip), then accel 16.9508, coast 1.0751 (all clips); pos 0.100 / 0.263 / 0.405 m in sample (was 0.145 / 0.243 / 0.665).
-- **Ian's report against the data** (`python -m measure.w5b_skate direct`, clip and sim through the same smoothing): turning is stronger in the
-  real game: a 45° key turn at top speed reaches within 10° of the key in **0.833 s** (median of 5 turns held ≥ 1.5 s; old sim 1.067 s, new 0.900 s).
-  Straight-line acceleration is not: rest to 95% of the cap takes 0.733 s in the clips, 0.667 s in the sim (n 15). Stopping and reversing have no data.
-
-### Coast rate: 1.08 against 0.85
-The direct 0.85 was too low, the fit was right. It is the ln(speed) slope of unsmoothed speed: tracker noise adds a floor to |v| at low speed and flattens
-the slope (the raw estimator gives 0.50 on the same coasts with a shorter difference). With local quadratic velocity: median 0.997 1/s (0.89–1.41, n 11), and
-decel/speed is flat from 1 to 13 m/s (0.96–1.06); regression dv/dt = −1.067 v + 0.069. So the coast is proportional with no constant
-term, and the refit 1.0751 stands.
-
-### Movement times (`cargo run --release -p sim --example movelab`)
-| time (s) | old | new | clips |
-|---|---|---|---|
-| rest to 95% of top speed | 0.642 | 0.658 | 0.733 (with smoothing; sim 0.667) |
-| rest to top speed | 0.675 | 0.692 | |
-| stop: top speed, opposite key | 0.675 | 0.692 | none |
-| reverse: top speed to top speed the other way | 1.350 | 1.383 | none |
-| turn 90° at top speed, within 10° of the key | 1.650 | 1.283 | none |
-| turn 90°, within 1° | 3.217 | 1.667 | none |
-| turn 45°, within 10° | 1.058 | 0.900 | 0.833 |
-| coast: top speed to half | 0.642 | 0.650 | |
-| coast: top speed to 1 m/s | 2.267 | 2.283 | |
-
-### Slow walk (Space)
-`PlayerInput.brake` (serde default false; not in the hash, no state). While held the cap is min(player_max_speed, brake_speed); speed above it falls at
-brake_decel, counted from the speed before the keys act, so a held key steers but cannot hold the speed up. Keys accelerate up to the cap. A dash ramp ignores the brake,
-then the slow walk takes over. With no key, below brake_speed the normal coast applies (0.09 m/s after 3 s). Recordings log the flag. Badge SLOW.
-**Follow-up before the first long training run: add a brake field to the bot action format (ACT); bots cannot brake now.**
-Adding the input alone left all four hashes unchanged (commit ffa384c), native = wasm.
-
-### Verified (w5b, Windows)
-- `cargo test --workspace --release` 73 passed; measure 31 and train Python tests OK; `npm run build`; verify, verify-match, verify-skate, verify-s10, verify-game, verify-w2,
-  verify-space, verify-w3, verify-stick, verify-w4, verify-params, verify-w5b all OK. Script changes: verify_w3.mjs (Space now settles at brake_speed; brake events by the flag).
-- Hashes after 100k steps, native = wasm (old → new): free play `1c20a120d579b8ae` → **`ae6c7583bdfa71a1`**, match `1562dade657130b9` → **`58bed9e36379bfe8`**,
-  s10 `2ddbc98e6f2e54c3` → **`ceb7a5505abcf52c`**, stick_up `99709a2c0e5f2646` → **`f0c2622881cf7214`**. Physics stamp `8e01b0174c545b10` → **`521ac120c10ddad2`**.
-  These replace the hashes in the earlier "Verified" sections. The smoke policy was not retrained or re-exported.
-- Bots: **SHOT_OVERTURN 0.018 → 0.020, SHOT_SPEED 27.6 → 27.8** (shotlab 48/48, median |err| 0.003 → 0.001 rad). Tournament 100×60 s, before → after: chaser–defender
-  0.54–0.01 → 0.51–0.02, chaser–chaser 0.53–0.39 → 0.47–0.34, chaser–cautious 16.98 → 16.03, chaser–idle 17.00 → 16.05. With turn 0 the same code gives 16.85, so most of the drop comes from the turn term;
-  the cause in the bots' steering was not investigated.
-- Params: appended brake_speed, brake_decel, player_turn_accel, player_brake_accel (also in the pinned files, there with turn 0 and brake = their accel).
-
-### Open (w5b)
-- **Bot brake action** (above). The panel is not recordable: a recording does not store its params.
-- How well the data pins the feel: player_turn_accel rests on one clip (5 runs, 45° turns only); 90° times are extrapolated. The diagonal clip's short (1,0) key tails turn less than the
-  model (diagonalkeypresses_00: 2.0 → about 2.6 m), unexplained. player_brake_accel, brake_speed, brake_decel are unmeasured; an s6 estimate of ~28 m/s^2 (unknown inputs) hints at a harder real
-  brake than 16.95. Recording wish: W then S at top speed, and 90° turns.
-- Whether the real game has a slow walk on Space at all; with no key the player drifts to rest on the coast (a faster stop would be one line).
-- measure/s10_skate.py still fits the s10 parameter set; use measure/w5b_skate.py.

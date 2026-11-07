@@ -1,0 +1,7 @@
+device cpu (rollouts on cpu), 128 envs, mode match, obs 42, styles off, physics e750f45cff93780c, opponents {'chaser': 1.0}
+upd     1 |  0.01 min |     16384 dec | eps      0 | match | win nan loss nan draw nan | goal diff/ep +nan | ep   nans | ret +nan | ent 6.81 | up p 0.51 raised 0.51 | 69539 dec/s
+upd   100 |  0.90 min |   1638400 dec | eps   2032 | match | win 0.00 loss 1.00 draw 0.00 | goal diff/ep -5.00 | ep  31.6s | ret -6.989 | ent 5.50 | up p 0.68 raised 0.67 | 79852 dec/s
+upd   200 |  1.70 min |   3276800 dec | eps   3745 | match | win 0.00 loss 1.00 draw 0.00 | goal diff/ep -5.00 | ep  32.7s | ret -6.989 | ent 4.99 | up p 0.31 raised 0.30 | 84016 dec/s
+upd   300 |  2.50 min |   4915200 dec | eps   5407 | match | win 0.00 loss 1.00 draw 0.00 | goal diff/ep -5.00 | ep  33.6s | ret -6.986 | ent 4.81 | up p 0.22 raised 0.24 | 87710 dec/s
+saved runs\m4_match3b\latest.pt
+wrote runs\m4_match3b\learning_curve.png
